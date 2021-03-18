@@ -1,0 +1,15 @@
+__pycache__
+.coverage*
+.eggs/**
+.mypy_cache
+.pytest_cache
+build/**
+dist/**
+docs/build/**
+htmlcov/**
+*.egg-info/**
+
+**/tests/data
+tiffslide/_version.py
+
+environment.yml
