@@ -20,6 +20,12 @@ the issue tracker!
 
 Development [happens on github](https://github.com/bayer-science-for-a-better-life/tiffslide) :octocat:
 
+## :warning: :dragon: Here be dragons :dragon: :warning:
+
+This is an early release version, so expect things to break. In its current incarnation we are targeting
+support for Aperio SVS but contributions to expand to a larger variety of fileformats that tifffile
+supports are very welcome :heart: If there's any questions open an issue and we'll do our best to help!
+
 ## Documentation
 
 tiffslide's behavior aims to be identical to openslide-python where it makes sense.
