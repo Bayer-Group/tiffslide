@@ -22,8 +22,9 @@ Development [happens on github](https://github.com/bayer-science-for-a-better-li
 
 ## Documentation
 
-tiffslide's behavior aims to be identical to openslide-python. In case we add more features, we will add
-additional documentation here.
+tiffslide's behavior aims to be identical to openslide-python where it makes sense.
+If you rely heavily on the internals of openslide, this is not the package you are looking for.
+In case we add more features, we will add documentation here.
 
 ```python
 import tiffslide as openslide
