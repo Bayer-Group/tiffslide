@@ -37,8 +37,7 @@ def __getattr__(name):
     elif name in {"OpenSlide", "ImageSlide"}:
         warn(f'compatibility: aliasing tiffslide.TiffSlide to {name!r}')
         return TiffSlide
-
-    #
+    # warn if internals are imported that we dont support
     if name in {"AbstractSlide", "__library_version__"}:
         warn(f'{name!r} is not provided by tiffslide')
     raise AttributeError(name)
