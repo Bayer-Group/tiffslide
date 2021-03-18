@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ filename }}</title>
+  <style type="text/css">
+      body {
+        display: flex;
+        height: 100vh;
+        margin: 0;
+      }
+      #openseadragon-viewer {
+        flex: 1;
+        background: black;
+      }
+  </style>
+</head>
+<body>
+
+  <div id="openseadragon-viewer"></div>
+
+  <script type="text/javascript" src="{{ url_for('static', filename='openseadragon-2.4.2/openseadragon.js') }}"></script>
+  <script type="text/javascript">
+    /* NOTE, this is a stripped down version of:
+     https://github.com/openslide/openslide-python/blob/ee6f01b77897a76af81575e31cd8de43a25a69e0/examples/deepzoom/templates/slide-fullpage.html
+     */
+    document.addEventListener("DOMContentLoaded", function(event) {
+        var viewer = new OpenSeadragon({
+            id: "openseadragon-viewer",
+            tileSources: "{{ slide_url }}",
+            prefixUrl: "{{ url_for('static', filename='openseadragon-2.4.2/images/') }}",
+            showNavigator: true,
+            animationTime: 0.5,
+            blendTime: 0.1,
+            constrainDuringPan: true,
+            maxZoomPixelRatio: 2,
+            minZoomLevel: 1,
+            visibilityRatio: 1,
+            zoomPerScroll: 2,
+            timeout: 120000,
+        });
+        viewer.addHandler("open", function() {
+            viewer.source.minLevel = 8;
+        });
+    });
+  </script>
+</body>
+</html>
+
