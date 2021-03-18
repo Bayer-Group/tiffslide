@@ -14,7 +14,7 @@ drop-in replacement for [openslide-python](https://github.com/openslide/openslid
 openslide dependency to the excellently maintained tifffile module.
 
 We strive to make your lives as easy as possible: If using `tiffslide` is
-unintuitive to use, slow, or if it's drop-in behavior differs from what you expect,
+unintuitive, slow, or if it's drop-in behavior differs from what you expect,
 it's a bug in `tiffslide`. Feel free to report any issues or feature requests in
 the issue tracker!
 
@@ -24,7 +24,8 @@ Development [happens on github](https://github.com/bayer-science-for-a-better-li
 
 This is an early release version, so expect things to break. In its current incarnation we are targeting
 support for Aperio SVS but contributions to expand to a larger variety of fileformats that tifffile
-supports are very welcome :heart: If there's any questions open an issue and we'll do our best to help!
+supports are very welcome :heart: <br>
+If there are any questions open an issue, and we'll do our best to help!
 
 ## Documentation
 
@@ -33,7 +34,13 @@ If you rely heavily on the internals of openslide, this is not the package you a
 In case we add more features, we will add documentation here.
 
 ```python
+# directly
+from tiffslide import TiffSlide
+slide = TiffSlide('path/to/my/file.svs')
+
+# or via its drop-in behavior
 import tiffslide as openslide
+slide = openslide.OpenSlide('path/to/my/file.svs')
 ```
 
 ## Development Installation
