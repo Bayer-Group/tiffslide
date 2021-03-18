@@ -5,7 +5,7 @@
 #   conda devenv
 # equivalent to:
 #   TIFFSLIDE_DEVEL="" conda devenv
-# Create the environment, install pado in development mode:
+# Create the environment, install tiffslide in development mode:
 #   TIFFSLIDE_DEVEL=TRUE conda devenv
 #
 
