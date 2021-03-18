@@ -68,8 +68,8 @@ class TiffSlide:
     """
 
     def __init__(self, filename: PathLike):
-        self._filename = os.fspath(filename)
-        self._tifffile = TiffFile(self._filename)  # may raise TiffFileError
+        self.ts_filename = os.fspath(filename)
+        self.ts_tifffile = TiffFile(self.ts_filename)  # may raise TiffFileError
         self._zarr_grp = None
         self._metadata = None
 
@@ -83,10 +83,10 @@ class TiffSlide:
         if self._zarr_grp:
             self._zarr_grp.close()
             self._zarr_grp = None
-        self._tifffile.close()
+        self.ts_tifffile.close()
 
     def __repr__(self):
-        return f"{type(self).__name__}({self._filename!r})"
+        return f"{type(self).__name__}({self.ts_filename!r})"
 
     @classmethod
     def detect_format(cls, filename):
@@ -106,18 +106,18 @@ class TiffSlide:
 
     @property
     def dimensions(self):
-        assert self._tifffile.series[0].ndim == 3, "loosen restrictions in future versions"
-        return self._tifffile.series[0].shape[1::-1]
+        assert self.ts_tifffile.series[0].ndim == 3, "loosen restrictions in future versions"
+        return self.ts_tifffile.series[0].shape[1::-1]
 
     @property
     def level_count(self):
-        return len(self._tifffile.series[0].levels)
+        return len(self.ts_tifffile.series[0].levels)
 
     @property
     def level_dimensions(self):
         return tuple(
             lvl.shape[1::-1]
-            for lvl in self._tifffile.series[0].levels
+            for lvl in self.ts_tifffile.series[0].levels
         )
 
     @property
@@ -132,7 +132,7 @@ class TiffSlide:
     def properties(self):
         """image properties"""
         if self._metadata is None:
-            aperio_desc = self._tifffile.pages[0].description
+            aperio_desc = self.ts_tifffile.pages[0].description
             aperio_meta = svs_description_metadata(aperio_desc)
             aperio_meta.pop("")
             aperio_meta.pop("Aperio Image Library")
@@ -154,7 +154,7 @@ class TiffSlide:
             for lvl, (ds, (width, height)) in enumerate(zip(
                     self.level_downsamples, self.level_dimensions,
             )):
-                page = self._tifffile.series[0].levels[lvl].pages[0]
+                page = self.ts_tifffile.series[0].levels[lvl].pages[0]
                 md[f"tiffslide.level[{lvl}].downsample"] = ds
                 md[f"tiffslide.level[{lvl}].height"] = height
                 md[f"tiffslide.level[{lvl}].width"] = width
@@ -167,7 +167,7 @@ class TiffSlide:
 
     @cached_property
     def associated_images(self):
-        return _LazyAssociatedImagesDict(self._tifffile)
+        return _LazyAssociatedImagesDict(self.ts_tifffile)
 
     def get_best_level_for_downsample(self, downsample):
         if downsample <= 1.0:
@@ -177,18 +177,21 @@ class TiffSlide:
                 return lvl - 1
         return self.level_count - 1
 
-    def read_region(self, location, level, size):
+    @property
+    def ts_zarr_grp(self):
         if self._zarr_grp is None:
-            store = self._tifffile.series[0].aszarr()
+            store = self.ts_tifffile.series[0].aszarr()
             self._zarr_grp = zarr.open(store, mode='r')
+        return self._zarr_grp
 
+    def read_region(self, location, level, size):
         base_x, base_y = location
         base_w, base_h = self.dimensions
         level_w, level_h = self.level_dimensions[level]
         level_rw, level_rh = size
         level_rx = (base_x * level_w) // base_w
         level_ry = (base_y * level_h) // base_h
-        arr = self._zarr_grp[level][level_ry:level_ry+level_rh, level_rx:level_rx+level_rw]
+        arr = self.ts_zarr_grp[level][level_ry:level_ry + level_rh, level_rx:level_rx + level_rw]
         return Image.fromarray(arr)
 
     def get_thumbnail(self, size):
