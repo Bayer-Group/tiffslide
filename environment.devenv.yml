@@ -1,0 +1,33 @@
+#
+# Conda devenv environment for tiffslide
+#
+# Create the environment, do not install tiffslide in development mode:
+#   conda devenv
+# equivalent to:
+#   TIFFSLIDE_DEVEL="" conda devenv
+# Create the environment, install pado in development mode:
+#   TIFFSLIDE_DEVEL=TRUE conda devenv
+#
+
+{% set TIFFSLIDE_DEVEL = os.environ.get('TIFFSLIDE_DEVEL', False) %}
+
+name: tiffslide
+
+channels:
+  - sdvillal
+  - conda-forge
+
+dependencies:
+  - python>=3.7
+  - pip
+
+  - pillow
+  - tifffile
+  - zarr
+
+  # development dependencies
+  - mypy        # [ TIFFSLIDE_DEVEL ]
+  - pytest>=6   # [ TIFFSLIDE_DEVEL ]
+  - pytest-cov  # [ TIFFSLIDE_DEVEL ]
+  - pip:        # [ TIFFSLIDE_DEVEL ]
+    - "-e ."    # [ TIFFSLIDE_DEVEL ]
