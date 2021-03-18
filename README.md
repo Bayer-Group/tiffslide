@@ -1,10 +1,5 @@
 # tiffslide: a drop-in replacement for openslide-python
 
-[![PyPI Version](https://img.shields.io/pypi/v/tiffslide)](https://pypi.org/project/tiffslide/)
-[![Read the Docs](https://img.shields.io/readthedocs/tiffslide)](https://tiffslide.readthedocs.io)
-[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/bayer-science-for-a-better-life/tiffslide/tiffslide%20ci?label=tests)](https://github.com/bayer-science-for-a-better-life/tiffslide/actions)
-[![Codecov](https://img.shields.io/codecov/c/github/bayer-science-for-a-better-life/tiffslide)](https://codecov.io/gh/bayer-science-for-a-better-life/tiffslide)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/tiffslide)](https://github.com/bayer-science-for-a-better-life/tiffslide)
 [![GitHub issues](https://img.shields.io/github/issues/bayer-science-for-a-better-life/tiffslide)](https://github.com/bayer-science-for-a-better-life/tiffslide/issues)
 
 Welcome to `tiffslide` :wave:, a [tifffile](https://github.com/cgohlke/tifffile/)
