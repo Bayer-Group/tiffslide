@@ -7,6 +7,7 @@ browser without having to re-tile the existing layers in the slide.
 
 """
 import math
+import os.path as op
 from io import BytesIO
 from os import PathLike
 from warnings import warn
@@ -16,6 +17,7 @@ from xml.etree.ElementTree import SubElement
 
 from PIL import Image
 from PIL import ImageFile
+from tifffile import TiffFile
 from tifffile import TiffPage
 from tifffile import TIFF
 
@@ -55,26 +57,57 @@ class MinimalComputeAperioDZGenerator(_DeepZoomGenerator):
     """
 
     def __init__(self, svs_filename: PathLike):
-        self._slide = TiffSlide(svs_filename)
+        self._filename = op.abspath(op.expanduser(svs_filename))
 
-        # Get information from baseline layers
-        self._baseline = baseline = self._slide.ts_tifffile.series[0]
-        assert baseline.keyframe.tilewidth == baseline.keyframe.tilelength
-        self._tile_size = baseline.keyframe.tilewidth
-        self._im_levels = tuple(lvl.shape[1::-1] for lvl in baseline.levels)
+        with TiffFile(self._filename) as tiff:
+            baseline = tiff.series[0]
+            assert baseline.is_pyramidal  # aperio svs
 
-        # generate the levels for deep zoom
-        dz_levels = dz_lvl, = [self._im_levels[0]]
-        while dz_lvl[0] > 1 or dz_lvl[1] > 1:
-            dz_lvl = tuple(max(1, int(math.ceil(z / 2))) for z in dz_lvl)
-            dz_levels.append(dz_lvl)
-        self._dz_levels = tuple(reversed(dz_levels))
+            # store tile size and image level sizes
+            assert baseline.keyframe.tilewidth == baseline.keyframe.tilelength
+            self._tile_size = baseline.keyframe.tilewidth
+            self._im_levels = tuple(lvl.shape[1::-1] for lvl in baseline.levels)
 
-        self._mapped_levels = {}
-        for im_idx, im_lvl in enumerate(self._im_levels):
-            for dz_idx, dz_lvl in enumerate(self._dz_levels):
-                if abs(im_lvl[0] - dz_lvl[0]) <= 1 and abs(im_lvl[1] - dz_lvl[1]) <= 1:
-                    self._mapped_levels[dz_idx] = im_idx
+            # generate the levels for deep zoom
+            dz_levels = dz_lvl, = [self._im_levels[0]]
+            while dz_lvl[0] > 1 or dz_lvl[1] > 1:
+                dz_lvl = tuple(max(1, int(math.ceil(z / 2))) for z in dz_lvl)
+                dz_levels.append(dz_lvl)
+            self._dz_levels = tuple(reversed(dz_levels))
+
+            self._mapped_levels = {}
+            for im_idx, im_lvl in enumerate(self._im_levels):
+                for dz_idx, dz_lvl in enumerate(self._dz_levels):
+                    if abs(im_lvl[0] - dz_lvl[0]) <= 1 and abs(im_lvl[1] - dz_lvl[1]) <= 1:
+                        self._mapped_levels[dz_idx] = im_idx
+
+            self._page_info = {}
+            for lvl_idx, page_series in enumerate(baseline.levels):
+                # extract the current page from page_series
+                page: TiffPage
+                page, = page_series.pages
+
+                # more assumptions to ensure programmer sanity
+                assert page.compression == TIFF.COMPRESSION.JPEG
+                assert page.is_tiled
+                assert page.planarconfig == TIFF.PLANARCONFIG.CONTIG
+
+                # calculate indices
+                st_length, st_width = page.tilelength, page.tilewidth
+                im_length, im_width = page.shaped[2:4]
+                idx_width = (im_width + st_width - 1) // st_width
+                idx_length = (im_length + st_length - 1) // st_length
+
+                jpeg_tables_tag, = (tag for tag in page.tags.values() if tag.name == "JPEGTables")
+
+                self._page_info[lvl_idx] = {
+                    'jpeg_header': jpeg_tables_tag.value[:],
+                    'idx_wh': (idx_width, idx_length),
+                    'tile_wh': (st_width, st_length),
+                    'image_wh': (im_width, im_length),
+                    'offsets': page.dataoffsets,
+                    'bytecounts': page.databytecounts,
+                }
 
     @property
     def level_size(self):
@@ -101,33 +134,15 @@ class MinimalComputeAperioDZGenerator(_DeepZoomGenerator):
             tree.write(buffer, encoding="UTF-8")
             return buffer.getvalue().decode("UTF-8")
 
-    def _get_svs_tile(self, svs_level: int, x: int, y: int) -> bytes:
+    def read_svs_tile(self, svs_level: int, x: int, y: int) -> bytes:
         """return a single tile from an svs as a jpeg into a buffer"""
-        # note: this code relies on the image being an AperioSVS file.
-        #   contributions to add support for other formats are welcome :)
-        series = self._slide.ts_tifffile.series[0]
-        assert series.is_pyramidal
-
-        # try to get correct level, raise IndexError if not
-        try:
-            page_series = series.levels[svs_level]
-        except IndexError:
-            raise IndexError(f"requires 0 <= level < {len(series.levels)} got {svs_level}")
-
-        # extract the current page from page_series
-        page: TiffPage
-        page, = page_series.pages
-
-        # more assumptions to ensure programmer sanity
-        assert page.compression == TIFF.COMPRESSION.JPEG
-        assert page.is_tiled
-        assert page.planarconfig == TIFF.PLANARCONFIG.CONTIG
-
-        # calculate indices
-        st_length, st_width = page.tilelength, page.tilewidth
-        im_length, im_width = page.shaped[2:4]
-        idx_width = (im_width + st_width - 1) // st_width
-        idx_length = (im_length + st_length - 1) // st_length
+        info = self._page_info[svs_level]
+        jpeg_tables_tag = info['jpeg_header']
+        (idx_width, idx_length) = info['idx_wh']
+        (st_width, st_length) = info['tile_wh']
+        (im_width, im_length) = info['image_wh']
+        dataoffsets = info['offsets']
+        databytecounts = info['bytecounts']
 
         if not ((0 <= x < idx_width) and (0 <= y < idx_length)):
             raise IndexError(
@@ -137,15 +152,12 @@ class MinimalComputeAperioDZGenerator(_DeepZoomGenerator):
         # index for reading tile
         tile_index = y * idx_width + x
 
-        (data, _), = page.parent.filehandle.read_segments(
-            [page.dataoffsets[tile_index]],
-            [page.databytecounts[tile_index]],
-        )
-
-        jpeg_tables_tag, = (tag for tag in page.tags.values() if tag.name == "JPEGTables")
+        with open(self._filename, 'rb') as f:
+            f.seek(dataoffsets[tile_index])
+            data = f.read(databytecounts[tile_index])
 
         with BytesIO() as buffer:
-            buffer.write(jpeg_tables_tag.value[:-2])
+            buffer.write(jpeg_tables_tag[:-2])
             # to directly provide the stored tiles from disk, we need to fix that svs tiles
             # use a jpeg colorspace that doesn't show up correctly in the browser if the default
             # jpeg headers are used
@@ -174,7 +186,7 @@ class MinimalComputeAperioDZGenerator(_DeepZoomGenerator):
             # -> there's a direct mapping to a svs tiled level
             # note: if we optimize the frontend, this will be the only path that's hit!
             svs_lvl = self._mapped_levels[level]
-            return self._get_svs_tile(svs_level=svs_lvl, x=x, y=y)
+            return self.read_svs_tile(svs_level=svs_lvl, x=x, y=y)
 
         elif 8 <= level <= max(self._mapped_levels):
             # SLOW PATH:
@@ -246,7 +258,6 @@ def _test_tifffile_timing():
 
     with timer("create dz"):
         dz = MinimalComputeAperioDZGenerator(svs_fn)
-    print('tiffslide downsamples:', dz._slide.level_downsamples)
     print('mapped levels:', dz._mapped_levels)
 
     for test_lvl, lvl_size in sorted(dz.level_size.items(), key=itemgetter(0), reverse=True):

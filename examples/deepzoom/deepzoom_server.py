@@ -15,7 +15,7 @@ _dzgen = None
 
 @app.route("/")
 def index():
-    fn = _dzgen._slide.ts_filename  # just so we don't need to worry about caching
+    fn = _dzgen._filename  # just so we don't need to worry about caching
     su = url_for('dzi', image_fn=hashlib.sha1(fn.encode()).hexdigest())
     return render_template("index.html", filename=fn, slide_url=su)
 
