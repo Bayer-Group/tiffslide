@@ -10,11 +10,13 @@ import math
 import os.path as op
 from io import BytesIO
 from os import PathLike
+from typing import Union
 from warnings import warn
 from xml.etree.ElementTree import Element
 from xml.etree.ElementTree import ElementTree
 from xml.etree.ElementTree import SubElement
 
+import fsspec
 from PIL import Image
 from PIL import ImageFile
 from tifffile import TiffFile
@@ -56,10 +58,12 @@ class MinimalComputeAperioDZGenerator(_DeepZoomGenerator):
 
     """
 
-    def __init__(self, svs_filename: PathLike):
-        self._filename = op.abspath(op.expanduser(svs_filename))
+    def __init__(self, urlpath, **kwargs):
+        self._urlpath = urlpath
+        self._kwargs = kwargs
+        self._openfile = fsspec.open(urlpath, **kwargs)
 
-        with TiffFile(self._filename) as tiff:
+        with self._openfile as f, TiffFile(f) as tiff:
             baseline = tiff.series[0]
             assert baseline.is_pyramidal  # aperio svs
 
@@ -152,7 +156,7 @@ class MinimalComputeAperioDZGenerator(_DeepZoomGenerator):
         # index for reading tile
         tile_index = y * idx_width + x
 
-        with open(self._filename, 'rb') as f:
+        with self._openfile as f:
             f.seek(dataoffsets[tile_index])
             data = f.read(databytecounts[tile_index])
 
