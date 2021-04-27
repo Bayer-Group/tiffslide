@@ -8,7 +8,6 @@ import os
 from warnings import warn
 from collections.abc import Mapping
 from functools import cached_property
-from os import PathLike
 from typing import Dict
 from typing import Iterator
 
@@ -66,7 +65,7 @@ class TiffSlide:
     tifffile backed whole slide image container emulating openslide.OpenSlide
     """
 
-    def __init__(self, filename: PathLike):
+    def __init__(self, filename):
         self.ts_filename = os.fspath(filename)
         self.ts_tifffile = TiffFile(self.ts_filename)  # may raise TiffFileError
         self._zarr_grp = None
