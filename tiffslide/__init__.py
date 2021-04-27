@@ -201,10 +201,9 @@ class TiffSlide:
         level = self.get_best_level_for_downsample(downsample)
         tile = self.read_region((0, 0), level, self.level_dimensions[level])
         # Apply on solid background
-        bg_color = '#' + self.properties.get(PROPERTY_NAME_BACKGROUND_COLOR,
-                                             'ffffff')
+        bg_color = f"#{self.properties[PROPERTY_NAME_BACKGROUND_COLOR] or 'ffffff'}"
         thumb = Image.new('RGB', tile.size, bg_color)
-        thumb.paste(tile, None, tile)
+        thumb.paste(tile, None, None)
         thumb.thumbnail(size, Image.ANTIALIAS)
         return thumb
 
