@@ -79,7 +79,10 @@ class TiffSlide:
 
     def close(self):
         if self._zarr_grp:
-            self._zarr_grp.close()
+            try:
+                self._zarr_grp.close()
+            except AttributeError:
+                pass  # Arrays dont need to be closed
             self._zarr_grp = None
         self.ts_tifffile.close()
 
@@ -189,7 +192,10 @@ class TiffSlide:
         level_rw, level_rh = size
         level_rx = (base_x * level_w) // base_w
         level_ry = (base_y * level_h) // base_h
-        arr = self.ts_zarr_grp[level][level_ry:level_ry + level_rh, level_rx:level_rx + level_rw]
+        if isinstance(self.ts_zarr_grp, zarr.Array):
+            arr = self.ts_zarr_grp[level_ry:level_ry + level_rh, level_rx:level_rx + level_rw]
+        else:
+            arr = self.ts_zarr_grp[level][level_ry:level_ry + level_rh, level_rx:level_rx + level_rw]
         return Image.fromarray(arr)
 
     def get_thumbnail(self, size):
