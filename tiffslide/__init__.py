@@ -96,13 +96,9 @@ class TiffSlide:
             # add more when needed
         )
         with TiffFile(filename) as t:
-            for attr in dir(t):
-                if not attr.startswith("is_"):
-                    continue
-                if getattr(t, attr):
-                    vendor = _vendor_compat_map.get(attr[3:])
-                    if vendor is not None:
-                        return vendor
+            for prop, vendor in _vendor_compat_map.items():
+                if getattr(t, f"is_{prop}"):
+                    return vendor
         return None
 
     @property
