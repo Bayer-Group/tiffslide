@@ -130,9 +130,16 @@ class TiffSlide:
         """image properties"""
         if self._metadata is None:
             aperio_desc = self.ts_tifffile.pages[0].description
-            aperio_meta = svs_description_metadata(aperio_desc)
-            aperio_meta.pop("")
-            aperio_meta.pop("Aperio Image Library")
+            try:
+                aperio_meta = svs_description_metadata(aperio_desc)
+            except ValueError as err:
+                if "invalid Aperio image description" in str(err):
+                    warn(f"{err} - {self!r}")
+                    aperio_meta = {}
+                else:
+                    raise
+            aperio_meta.pop("", None)
+            aperio_meta.pop("Aperio Image Library", None)
 
             md = {
                 PROPERTY_NAME_COMMENT: aperio_desc,
