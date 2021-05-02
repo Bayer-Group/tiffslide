@@ -35,7 +35,7 @@ def test_image_context_manager(svs_small):
 
 
 def test_image_repr(svs_small):
-    assert os.fspath(svs_small) in repr(TiffSlide(svs_small))
+    assert os.path.basename(os.fspath(svs_small)) in repr(TiffSlide(svs_small))
 
 
 def test_image_dimensions(svs_small):
