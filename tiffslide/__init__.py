@@ -5,6 +5,7 @@ a somewhat drop-in replacement for openslide-python using tifffile and zarr
 """
 import math
 import os
+import re
 from warnings import warn
 from collections.abc import Mapping
 from functools import cached_property
@@ -130,6 +131,11 @@ class TiffSlide:
         """image properties"""
         if self._metadata is None:
             aperio_desc = self.ts_tifffile.pages[0].description
+
+            # temporary fix until: https://github.com/cgohlke/tifffile/pull/88 lands
+            # removes an additional Aperio header in the image description
+            aperio_desc = re.sub(r';Aperio [^;|]*(?=[|])', '', aperio_desc, count=1)
+
             try:
                 aperio_meta = svs_description_metadata(aperio_desc)
             except ValueError as err:
