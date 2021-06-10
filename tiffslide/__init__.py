@@ -66,7 +66,7 @@ class TiffSlide:
     """
 
     def __init__(self, filename):
-        self.ts_filename = os.fspath(filename)
+        self.ts_filename = filename
         self.ts_tifffile = TiffFile(self.ts_filename)  # may raise TiffFileError
         self._zarr_grp = None
         self._metadata = None
