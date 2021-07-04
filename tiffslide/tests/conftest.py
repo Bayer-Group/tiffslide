@@ -17,7 +17,7 @@ def md5(fn):
     return m.hexdigest()
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def svs_small():
     """download the smallest aperio test image svs"""
     small_image = "CMU-1-Small-Region.svs"
@@ -30,7 +30,7 @@ def svs_small():
     if not img_fn.is_file():
         # download svs from openslide test images
         url = IMAGES_BASE_URL + small_image
-        with urllib.request.urlopen(url) as response, open(img_fn, 'wb') as out_file:
+        with urllib.request.urlopen(url) as response, open(img_fn, "wb") as out_file:
             shutil.copyfileobj(response, out_file)
 
     if md5(img_fn) != small_image_md5:  # pragma: no cover
@@ -40,7 +40,7 @@ def svs_small():
         yield img_fn.absolute()
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def svs_small_props():
     yield {
         'aperio.AppMag': 20,
@@ -111,4 +111,4 @@ def svs_small_props():
         'tiffslide.objective-power': 20,
         'tiffslide.quickhash-1': None,
         'tiffslide.vendor': 'aperio',
-    }
+    }  # fmt: skip
