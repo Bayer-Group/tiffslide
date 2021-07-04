@@ -43,52 +43,72 @@ def svs_small():
 @pytest.fixture(scope='session')
 def svs_small_props():
     yield {
-        'tiff.ImageDescription': (
-            'Aperio Image Library v11.2.1 \r\n'
-            '46000x32914 [42673,5576 2220x2967] (240x240) '
-            'JPEG/RGB Q=30;Aperio Image Library v10.0.51\r\n'
-            '46920x33014 [0,100 46000x32914] (256x256) JPEG/RGB '
-            'Q=30|AppMag = 20|StripeWidth = 2040|ScanScope ID = '
-            'CPAPERIOCS|Filename = CMU-1|Date = 12/29/09|Time = '
-            '09:59:15|User = '
-            'b414003d-95c6-48b0-9369-8010ed517ba7|Parmset = USM '
-            'Filter|MPP = 0.4990|Left = 25.691574|Top = '
-            '23.449873|LineCameraSkew = '
-            '-0.000424|LineAreaXOffset = '
-            '0.019265|LineAreaYOffset = -0.000313|Focus Offset = '
-            '0.000000|ImageID = 1004486|OriginalWidth = '
-            '46920|Originalheight = 33014|Filtered = '
-            '5|OriginalWidth = 46000|OriginalHeight = 32914'
-        ),
+        'aperio.AppMag': 20,
+        'aperio.Date': '12/29/09',
+        'aperio.Filename': 'CMU-1',
+        'aperio.Filtered': 5,
+        'aperio.Focus Offset': 0.0,
+        'aperio.Header': 'Aperio Image Library v11.2.1 \r\n'
+                         '46000x32914 [42673,5576 2220x2967] (240x240) JPEG/RGB Q=30'
+                         ';Aperio Image Library v10.0.51\r\n'
+                         '46920x33014 [0,100 46000x32914] (256x256) JPEG/RGB Q=30',
+        'aperio.ImageID': 1004486,
+        'aperio.Left': 25.691574,
+        'aperio.LineAreaXOffset': 0.019265,
+        'aperio.LineAreaYOffset': -0.000313,
+        'aperio.LineCameraSkew': -0.000424,
+        'aperio.MPP': 0.499,
+        'aperio.OriginalHeight': 32914,
+        'aperio.OriginalWidth': 46000,
+        'aperio.Originalheight': 33014,
+        'aperio.Parmset': 'USM Filter',
+        'aperio.ScanScope ID': 'CPAPERIOCS',
+        'aperio.StripeWidth': 2040,
+        'aperio.Time': '09:59:15',
+        'aperio.Top': 23.449873,
+        'aperio.User': 'b414003d-95c6-48b0-9369-8010ed517ba7',
+        'tiff.ImageDescription': 'Aperio Image Library v11.2.1 \r\n'
+                                 '46000x32914 [42673,5576 2220x2967] (240x240) '
+                                 'JPEG/RGB Q=30;Aperio Image Library v10.0.51\r\n'
+                                 '46920x33014 [0,100 46000x32914] (256x256) JPEG/RGB '
+                                 'Q=30|AppMag = 20|StripeWidth = '
+                                 '2040|ScanScope ID = CPAPERIOCS|Filename = '
+                                 'CMU-1|Date = 12/29/09|Time = 09:59:15|User = '
+                                 'b414003d-95c6-48b0-9369-8010ed517ba7|Parmset = USM '
+                                 'Filter|MPP = 0.4990|Left = 25.691574|Top = '
+                                 '23.449873|LineCameraSkew = '
+                                 '-0.000424|LineAreaXOffset = '
+                                 '0.019265|LineAreaYOffset = -0.000313|Focus Offset = '
+                                 '0.000000|ImageID = 1004486|OriginalWidth = '
+                                 '46920|Originalheight = 33014|Filtered = '
+                                 '5|OriginalWidth = 46000|OriginalHeight = 32914',
         'tiffslide.background-color': None,
         'tiffslide.bounds-height': None,
         'tiffslide.bounds-width': None,
         'tiffslide.bounds-x': None,
         'tiffslide.bounds-y': None,
-        'tiffslide.comment': (
-            'Aperio Image Library v11.2.1 \r\n'
-            '46000x32914 [42673,5576 2220x2967] (240x240) JPEG/RGB '
-            'Q=30;Aperio Image Library v10.0.51\r\n'
-            '46920x33014 [0,100 46000x32914] (256x256) JPEG/RGB '
-            'Q=30|AppMag = 20|StripeWidth = 2040|ScanScope ID = '
-            'CPAPERIOCS|Filename = CMU-1|Date = 12/29/09|Time = '
-            '09:59:15|User = '
-            'b414003d-95c6-48b0-9369-8010ed517ba7|Parmset = USM '
-            'Filter|MPP = 0.4990|Left = 25.691574|Top = '
-            '23.449873|LineCameraSkew = -0.000424|LineAreaXOffset = '
-            '0.019265|LineAreaYOffset = -0.000313|Focus Offset = '
-            '0.000000|ImageID = 1004486|OriginalWidth = '
-            '46920|Originalheight = 33014|Filtered = 5|OriginalWidth '
-            '= 46000|OriginalHeight = 32914'
-        ),
+        'tiffslide.comment': 'Aperio Image Library v11.2.1 \r\n'
+                             '46000x32914 [42673,5576 2220x2967] (240x240) JPEG/RGB '
+                             'Q=30;Aperio Image Library v10.0.51\r\n'
+                             '46920x33014 [0,100 46000x32914] (256x256) JPEG/RGB '
+                             'Q=30|AppMag = 20|StripeWidth = 2040|ScanScope ID = '
+                             'CPAPERIOCS|Filename = CMU-1|Date = 12/29/09|Time = '
+                             '09:59:15|User = '
+                             'b414003d-95c6-48b0-9369-8010ed517ba7|Parmset = USM '
+                             'Filter|MPP = 0.4990|Left = 25.691574|Top = '
+                             '23.449873|LineCameraSkew = -0.000424|LineAreaXOffset = '
+                             '0.019265|LineAreaYOffset = -0.000313|Focus Offset = '
+                             '0.000000|ImageID = 1004486|OriginalWidth = '
+                             '46920|Originalheight = 33014|Filtered = 5|OriginalWidth '
+                             '= 46000|OriginalHeight = 32914',
         'tiffslide.level[0].downsample': 1.0,
         'tiffslide.level[0].height': 2967,
         'tiffslide.level[0].tile-height': 240,
         'tiffslide.level[0].tile-width': 240,
         'tiffslide.level[0].width': 2220,
-        'tiffslide.mpp-x': None,
-        'tiffslide.mpp-y': None,
-        'tiffslide.objective-power': None,
+        'tiffslide.mpp-x': 0.499,
+        'tiffslide.mpp-y': 0.499,
+        'tiffslide.objective-power': 20,
         'tiffslide.quickhash-1': None,
         'tiffslide.vendor': 'aperio',
     }
