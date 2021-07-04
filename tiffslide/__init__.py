@@ -110,6 +110,7 @@ class TiffSlide:
 
     @classmethod
     def detect_format(cls, filename):
+        """return the detected format as a str or None if unknown/unimplemented"""
         _vendor_compat_map = dict(
             svs='aperio',
             # add more when needed
@@ -122,15 +123,20 @@ class TiffSlide:
 
     @property
     def dimensions(self):
-        assert self.ts_tifffile.series[0].ndim == 3, "loosen restrictions in future versions"
-        return self.ts_tifffile.series[0].shape[1::-1]
+        """return the width and height of level 0"""
+        series0 = self.ts_tifffile.series[0]
+        assert series0.ndim == 3, "loosen restrictions in future versions"
+        _, h, w = series0.shape
+        return w, h
 
     @property
     def level_count(self):
+        """return the number of levels"""
         return len(self.ts_tifffile.series[0].levels)
 
     @property
     def level_dimensions(self):
+        """return the dimensions of levels as a list"""
         return tuple(
             lvl.shape[1::-1]
             for lvl in self.ts_tifffile.series[0].levels
@@ -138,6 +144,7 @@ class TiffSlide:
 
     @property
     def level_downsamples(self):
+        """return the downsampling factors of levels as a list"""
         w0, h0 = self.dimensions
         return tuple(
             math.sqrt((w0*h0) / (w*h))
@@ -206,9 +213,11 @@ class TiffSlide:
 
     @cached_property
     def associated_images(self):
+        """return associated images as a mapping of names to PIL images"""
         return _LazyAssociatedImagesDict(self.ts_tifffile)
 
     def get_best_level_for_downsample(self, downsample):
+        """return the best level for a given downsampling factor"""
         if downsample <= 1.0:
             return 0
         for lvl, ds in enumerate(self.level_downsamples):
@@ -218,12 +227,28 @@ class TiffSlide:
 
     @property
     def ts_zarr_grp(self):
+        """return the tiff image as a zarr array or group
+
+        NOTE: this is extra functionality and not part of the drop-in behaviour
+        """
         if self._zarr_grp is None:
             store = self.ts_tifffile.series[0].aszarr()
             self._zarr_grp = zarr.open(store, mode='r')
         return self._zarr_grp
 
     def read_region(self, location, level, size):
+    def read_region(self, location: Tuple[int, int], level: int, size: Tuple[int, int]) -> Image.Image:
+        """return the requested region as a PIL.Image
+
+        Parameters
+        ----------
+        location :
+            pixel location (x, y) in level 0 of the image
+        level :
+            target level used to read the image
+        size :
+            size (width, height) of the requested region
+        """
         base_x, base_y = location
         base_w, base_h = self.dimensions
         level_w, level_h = self.level_dimensions[level]
@@ -237,6 +262,7 @@ class TiffSlide:
         return Image.fromarray(arr)
 
     def get_thumbnail(self, size):
+        """return the thumbnail of the slide as a PIL.Image with a maximum size"""
         slide_w, slide_h = self.dimensions
         thumb_w, thumb_h = size
         downsample = max(slide_w / thumb_w, slide_h / thumb_h)
