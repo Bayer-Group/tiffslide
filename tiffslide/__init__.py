@@ -9,6 +9,7 @@ import math
 import os
 import re
 import sys
+from types import TracebackType
 from typing import Any
 from typing import Dict
 from typing import IO
@@ -16,6 +17,7 @@ from typing import Iterator
 from typing import Mapping
 from typing import Optional
 from typing import Tuple
+from typing import Type
 from typing import Union
 from warnings import warn
 
@@ -24,6 +26,7 @@ from PIL import Image
 from tifffile import TiffFile
 from tifffile import TiffFileError as TiffFileError
 from tifffile import TiffPageSeries
+# noinspection PyProtectedMember
 from tifffile.tifffile import svs_description_metadata
 
 if sys.version_info[:2] >= (3, 8):
@@ -43,7 +46,7 @@ except ImportError:
 __all__ = ["TiffSlide", "TiffFileError"]
 
 
-def __getattr__(name):
+def __getattr__(name):  # type: ignore
     """support some drop-in behavior"""
     # alias the most important bits
     if name in {"OpenSlideUnsupportedFormatError", "OpenSlideError"}:
@@ -74,7 +77,11 @@ PROPERTY_NAME_BOUNDS_HEIGHT = u'tiffslide.bounds-height'
 _TIFFFILE_VERSION = tuple(int(x) if x.isdigit() else x for x in version("tifffile").split("."))
 
 
-def open_slide(filename):
+# todo: check if this covers all relevant usecases
+PathOrFileLike = Union[str, bytes, os.PathLike, IO[str], IO[bytes]]
+
+
+def open_slide(filename: PathOrFileLike) -> TiffSlide:
     """drop-in helper function"""
     return TiffSlide(filename)
 
@@ -84,19 +91,22 @@ class TiffSlide:
     tifffile backed whole slide image container emulating openslide.OpenSlide
     """
 
-    def __init__(self, filename):
+    def __init__(self, filename: PathOrFileLike):
+        self.ts_tifffile: TiffFile = TiffFile(filename)  # may raise TiffFileError
         self.ts_filename = filename
-        self.ts_tifffile = TiffFile(self.ts_filename)  # may raise TiffFileError
-        self._zarr_grp = None
-        self._metadata = None
+        self._zarr_grp: Optional[Union[zarr.core.Array, zarr.hierarchy.Group]] = None
+        self._metadata: Optional[Dict[str, Any]] = None
 
-    def __enter__(self):
+    def __enter__(self) -> TiffSlide:
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self,
+                 exc_type: Optional[Type[BaseException]],
+                 exc_val: Optional[BaseException],
+                 exc_tb: Optional[TracebackType]) -> None:
         self.close()
 
-    def close(self):
+    def close(self) -> None:
         if self._zarr_grp:
             try:
                 self._zarr_grp.close()
@@ -105,11 +115,11 @@ class TiffSlide:
             self._zarr_grp = None
         self.ts_tifffile.close()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{type(self).__name__}({self.ts_filename!r})"
 
     @classmethod
-    def detect_format(cls, filename):
+    def detect_format(cls, filename: PathOrFileLike) -> Optional[str]:
         """return the detected format as a str or None if unknown/unimplemented"""
         _vendor_compat_map = dict(
             svs='aperio',
@@ -122,7 +132,7 @@ class TiffSlide:
         return None
 
     @property
-    def dimensions(self):
+    def dimensions(self) -> Tuple[int, int]:
         """return the width and height of level 0"""
         series0 = self.ts_tifffile.series[0]
         assert series0.ndim == 3, "loosen restrictions in future versions"
@@ -130,12 +140,12 @@ class TiffSlide:
         return w, h
 
     @property
-    def level_count(self):
+    def level_count(self) -> int:
         """return the number of levels"""
         return len(self.ts_tifffile.series[0].levels)
 
     @property
-    def level_dimensions(self):
+    def level_dimensions(self) -> Tuple[Tuple[int, int], ...]:
         """return the dimensions of levels as a list"""
         return tuple(
             lvl.shape[1::-1]
@@ -143,7 +153,7 @@ class TiffSlide:
         )
 
     @property
-    def level_downsamples(self):
+    def level_downsamples(self) -> Tuple[float, ...]:
         """return the downsampling factors of levels as a list"""
         w0, h0 = self.dimensions
         return tuple(
@@ -212,11 +222,11 @@ class TiffSlide:
         return self._metadata
 
     @cached_property
-    def associated_images(self):
+    def associated_images(self) -> Mapping[str, Image.Image]:
         """return associated images as a mapping of names to PIL images"""
         return _LazyAssociatedImagesDict(self.ts_tifffile)
 
-    def get_best_level_for_downsample(self, downsample):
+    def get_best_level_for_downsample(self, downsample: float) -> int:
         """return the best level for a given downsampling factor"""
         if downsample <= 1.0:
             return 0
@@ -226,7 +236,7 @@ class TiffSlide:
         return self.level_count - 1
 
     @property
-    def ts_zarr_grp(self):
+    def ts_zarr_grp(self) -> Union[zarr.core.Array, zarr.hierarchy.Group]:
         """return the tiff image as a zarr array or group
 
         NOTE: this is extra functionality and not part of the drop-in behaviour
@@ -236,7 +246,6 @@ class TiffSlide:
             self._zarr_grp = zarr.open(store, mode='r')
         return self._zarr_grp
 
-    def read_region(self, location, level, size):
     def read_region(self, location: Tuple[int, int], level: int, size: Tuple[int, int]) -> Image.Image:
         """return the requested region as a PIL.Image
 
@@ -255,13 +264,13 @@ class TiffSlide:
         level_rw, level_rh = size
         level_rx = (base_x * level_w) // base_w
         level_ry = (base_y * level_h) // base_h
-        if isinstance(self.ts_zarr_grp, zarr.Array):
+        if isinstance(self.ts_zarr_grp, zarr.core.Array):
             arr = self.ts_zarr_grp[level_ry:level_ry + level_rh, level_rx:level_rx + level_rw]
         else:
-            arr = self.ts_zarr_grp[level][level_ry:level_ry + level_rh, level_rx:level_rx + level_rw]
+            arr = self.ts_zarr_grp[level, level_ry:level_ry + level_rh, level_rx:level_rx + level_rw]
         return Image.fromarray(arr)
 
-    def get_thumbnail(self, size):
+    def get_thumbnail(self, size: Tuple[int, int]) -> Image.Image:
         """return the thumbnail of the slide as a PIL.Image with a maximum size"""
         slide_w, slide_h = self.dimensions
         thumb_w, thumb_h = size
@@ -278,15 +287,15 @@ class TiffSlide:
 
 # === internal utility classes ========================================
 
-class _LazyAssociatedImagesDict(Mapping):
+class _LazyAssociatedImagesDict(Mapping[str, Image.Image]):
     """lazily load associated images"""
 
-    def __init__(self, tifffile):
+    def __init__(self, tifffile: TiffFile):
         series = tifffile.series[1:]
         self._k: Dict[str, TiffPageSeries] = {s.name.lower(): s for s in series}
-        self._m = {}
+        self._m: Dict[str, Image.Image] = {}
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         args = ", ".join(
             f"{name!r}: <lazy-loaded PIL.Image.Image size={s.shape[1]}x{s.shape[0]} ...>"
             for name, s in self._k.items()
