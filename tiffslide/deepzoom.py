@@ -7,10 +7,12 @@ browser without having to re-tile the existing layers in the slide.
 
 """
 import math
-import os.path as op
 from io import BytesIO
-from os import PathLike
-from typing import Union
+from typing import Any
+from typing import Dict
+from typing import Iterator
+from typing import Sequence
+from typing import Tuple
 from warnings import warn
 from xml.etree.ElementTree import Element
 from xml.etree.ElementTree import ElementTree
@@ -23,32 +25,19 @@ from tifffile import TiffFile
 from tifffile import TiffPage
 from tifffile import TIFF
 
-from tiffslide import TiffSlide
-
 # improve robustness when encountering corrupted tiles
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
-def __getattr__(name):
+def __getattr__(name):  # type: ignore
     if name == "DeepZoomGenerator":
-        warn("tiffslide.deepzoom does not provide a drop-in replacement for openslide's deepzoom generator")
+        warn(
+            "tiffslide.deepzoom does not provide a drop-in replacement for openslide's deepzoom generator"
+        )
     raise AttributeError(name)
 
 
-class _DeepZoomGenerator:
-
-    def get_dzi(self):
-        raise NotImplementedError('implement in subclass')
-
-    def get_tile(self, level, x, y):
-        raise NotImplementedError('implement in subclass')
-
-    @property
-    def level_size(self):
-        raise NotImplementedError('implement in subclass')
-
-
-class MinimalComputeAperioDZGenerator(_DeepZoomGenerator):
+class MinimalComputeAperioDZGenerator:
     """Minimal-compute tiffslide Deep Zoom tile generator
 
     Note:
@@ -58,7 +47,7 @@ class MinimalComputeAperioDZGenerator(_DeepZoomGenerator):
 
     """
 
-    def __init__(self, urlpath, **kwargs):
+    def __init__(self, urlpath: str, **kwargs: Any) -> None:
         self._urlpath = urlpath
         self._kwargs = kwargs
         self._openfile = fsspec.open(urlpath, **kwargs)
@@ -73,7 +62,7 @@ class MinimalComputeAperioDZGenerator(_DeepZoomGenerator):
             self._im_levels = tuple(lvl.shape[1::-1] for lvl in baseline.levels)
 
             # generate the levels for deep zoom
-            dz_levels = dz_lvl, = [self._im_levels[0]]
+            dz_levels = (dz_lvl,) = [self._im_levels[0]]
             while dz_lvl[0] > 1 or dz_lvl[1] > 1:
                 dz_lvl = tuple(max(1, int(math.ceil(z / 2))) for z in dz_lvl)
                 dz_levels.append(dz_lvl)
@@ -82,14 +71,17 @@ class MinimalComputeAperioDZGenerator(_DeepZoomGenerator):
             self._mapped_levels = {}
             for im_idx, im_lvl in enumerate(self._im_levels):
                 for dz_idx, dz_lvl in enumerate(self._dz_levels):
-                    if abs(im_lvl[0] - dz_lvl[0]) <= 1 and abs(im_lvl[1] - dz_lvl[1]) <= 1:
+                    if (
+                        abs(im_lvl[0] - dz_lvl[0]) <= 1
+                        and abs(im_lvl[1] - dz_lvl[1]) <= 1
+                    ):
                         self._mapped_levels[dz_idx] = im_idx
 
             self._page_info = {}
             for lvl_idx, page_series in enumerate(baseline.levels):
                 # extract the current page from page_series
                 page: TiffPage
-                page, = page_series.pages
+                (page,) = page_series.pages
 
                 # more assumptions to ensure programmer sanity
                 assert page.compression == TIFF.COMPRESSION.JPEG
@@ -102,33 +94,39 @@ class MinimalComputeAperioDZGenerator(_DeepZoomGenerator):
                 idx_width = (im_width + st_width - 1) // st_width
                 idx_length = (im_length + st_length - 1) // st_length
 
-                jpeg_tables_tag, = (tag for tag in page.tags.values() if tag.name == "JPEGTables")
+                (jpeg_tables_tag,) = (
+                    tag for tag in page.tags.values() if tag.name == "JPEGTables"
+                )
 
                 self._page_info[lvl_idx] = {
-                    'jpeg_header': jpeg_tables_tag.value[:],
-                    'idx_wh': (idx_width, idx_length),
-                    'tile_wh': (st_width, st_length),
-                    'image_wh': (im_width, im_length),
-                    'offsets': page.dataoffsets,
-                    'bytecounts': page.databytecounts,
+                    "jpeg_header": jpeg_tables_tag.value[:],
+                    "idx_wh": (idx_width, idx_length),
+                    "tile_wh": (st_width, st_length),
+                    "image_wh": (im_width, im_length),
+                    "offsets": page.dataoffsets,
+                    "bytecounts": page.databytecounts,
                 }
 
     @property
-    def level_size(self):
+    def level_size(self) -> Dict[int, Tuple[int, int]]:
         """return a dict mapping deep zoom level to tile index size"""
         return {
-            idx: tuple(int(math.ceil(z / self._tile_size)) for z in lvl)
+            idx: (
+                int(math.ceil(lvl[0] / self._tile_size)),
+                int(math.ceil(lvl[1] / self._tile_size)),
+            )
             for idx, lvl in enumerate(self._dz_levels)
         }
 
-    def get_dzi(self):
+    def get_dzi(self) -> str:
         """return the dzi XML metadata"""
+        # noinspection HttpUrlsUsage
         image = Element(
             "Image",
             TileSize=str(self._tile_size),
-            Overlap="0",     # tiles in AperioSVS files have 0 overlap
-            Format="jpeg",   # tiles are stored in jpeg format
-            xmlns="http://schemas.microsoft.com/deepzoom/2008"
+            Overlap="0",  # tiles in AperioSVS files have 0 overlap
+            Format="jpeg",  # tiles are stored in jpeg format
+            xmlns="http://schemas.microsoft.com/deepzoom/2008",
         )
         width, height = self._im_levels[0]
         SubElement(image, "Size", Width=str(width), Height=str(height))
@@ -138,15 +136,15 @@ class MinimalComputeAperioDZGenerator(_DeepZoomGenerator):
             tree.write(buffer, encoding="UTF-8")
             return buffer.getvalue().decode("UTF-8")
 
-    def read_svs_tile(self, svs_level: int, x: int, y: int) -> bytes:
+    def _read_svs_tile(self, svs_level: int, x: int, y: int) -> bytes:
         """return a single tile from an svs as a jpeg into a buffer"""
         info = self._page_info[svs_level]
-        jpeg_tables_tag = info['jpeg_header']
-        (idx_width, idx_length) = info['idx_wh']
-        (st_width, st_length) = info['tile_wh']
-        (im_width, im_length) = info['image_wh']
-        dataoffsets = info['offsets']
-        databytecounts = info['bytecounts']
+        jpeg_tables_tag = info["jpeg_header"]
+        (idx_width, idx_length) = info["idx_wh"]
+        (st_width, st_length) = info["tile_wh"]
+        (im_width, im_length) = info["image_wh"]
+        dataoffsets = info["offsets"]
+        databytecounts = info["bytecounts"]
 
         if not ((0 <= x < idx_width) and (0 <= y < idx_length)):
             raise IndexError(
@@ -166,13 +164,17 @@ class MinimalComputeAperioDZGenerator(_DeepZoomGenerator):
             # use a jpeg colorspace that doesn't show up correctly in the browser if the default
             # jpeg headers are used
             # See https://stackoverflow.com/questions/8747904/extract-jpeg-from-tiff-file/9658206#9658206
-            buffer.write(b"\xFF\xEE\x00\x0E\x41\x64\x6F\x62\x65\x00\x64\x80\x00\x00\x00\x00")  # colorspace fix
+            buffer.write(
+                b"\xFF\xEE\x00\x0E\x41\x64\x6F\x62\x65\x00\x64\x80\x00\x00\x00\x00"
+            )  # colorspace fix
             buffer.write(data[2:])
             tile_data = buffer.getvalue()
 
         # the outer edges need to be cropped to be interpreted correctly by default openseadragon
         out_width = ((im_width - 1) % st_width) + 1 if x == idx_width - 1 else st_width
-        out_length = ((im_length - 1) % st_length) + 1 if y == idx_length - 1 else st_length
+        out_length = (
+            ((im_length - 1) % st_length) + 1 if y == idx_length - 1 else st_length
+        )
         if out_width < st_width or out_length < st_length:  # cut output if needed
             with BytesIO(tile_data) as buffer:
                 im = Image.open(buffer).crop((0, 0, out_width, out_length))
@@ -190,13 +192,13 @@ class MinimalComputeAperioDZGenerator(_DeepZoomGenerator):
             # -> there's a direct mapping to a svs tiled level
             # note: if we optimize the frontend, this will be the only path that's hit!
             svs_lvl = self._mapped_levels[level]
-            return self.read_svs_tile(svs_level=svs_lvl, x=x, y=y)
+            return self._read_svs_tile(svs_level=svs_lvl, x=x, y=y)
 
         elif 8 <= level <= max(self._mapped_levels):
             # SLOW PATH:
             # -> the frontend requests a dzi layer that's not available in the svs
             # we need to compute new tiles from lower levels
-            dst = Image.new('RGB', (2 * self._tile_size, 2 * self._tile_size))
+            dst = Image.new("RGB", (2 * self._tile_size, 2 * self._tile_size))
 
             out_width = out_height = 0
             for ix, iy in [(0, 0), (0, 1), (1, 0), (1, 1)]:
@@ -219,7 +221,9 @@ class MinimalComputeAperioDZGenerator(_DeepZoomGenerator):
                     dst.paste(im, (ix * self._tile_size, iy * self._tile_size))
 
             if out_width == 0 or out_height == 0:
-                raise IndexError(f"tile index ({x}, {y}) at INTERMEDIATE level={level} out of bounds")
+                raise IndexError(
+                    f"tile index ({x}, {y}) at INTERMEDIATE level={level} out of bounds"
+                )
 
             elif (out_width, out_height) != dst.size:
                 dst = dst.crop((0, 0, out_width, out_height))
@@ -237,7 +241,7 @@ class MinimalComputeAperioDZGenerator(_DeepZoomGenerator):
             raise IndexError(f"requested level {level} invalid")
 
 
-def _test_tifffile_timing():
+def _test_tifffile_timing() -> None:
     # build some load stats for a slide
     import random
     import sys
@@ -254,7 +258,7 @@ def _test_tifffile_timing():
     num_samples = 100
 
     @contextmanager
-    def timer(label: str, samples: int = 1):
+    def timer(label: str, samples: int = 1) -> Iterator[None]:
         t0 = time.time()
         yield
         avg = (time.time() - t0) / samples
@@ -262,14 +266,17 @@ def _test_tifffile_timing():
 
     with timer("create dz"):
         dz = MinimalComputeAperioDZGenerator(svs_fn)
-    print('mapped levels:', dz._mapped_levels)
+    # noinspection PyProtectedMember
+    print("mapped levels:", dz._mapped_levels)
 
-    for test_lvl, lvl_size in sorted(dz.level_size.items(), key=itemgetter(0), reverse=True):
+    for test_lvl, lvl_size in sorted(
+        dz.level_size.items(), key=itemgetter(0), reverse=True
+    ):
         if test_lvl < 8:
             print("skipping small levels")
             break
 
-        test_idx = range(lvl_size[0] * lvl_size[1])
+        test_idx: Sequence[int] = range(lvl_size[0] * lvl_size[1])
         if len(test_idx) > num_samples:
             test_idx = random.sample(test_idx, num_samples)
 
