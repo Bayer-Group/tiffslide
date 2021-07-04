@@ -1,8 +1,3 @@
-"""tiffslide
-
-a somewhat drop-in replacement for openslide-python using tifffile and zarr
-
-"""
 from __future__ import annotations
 
 import math
@@ -24,7 +19,6 @@ if sys.version_info[:2] >= (3, 8):
     from importlib.metadata import version
 else:
     from importlib_metadata import version
-    # noinspection PyUnresolvedReferences
     from backports.cached_property import cached_property
 
 import zarr
@@ -32,7 +26,6 @@ from PIL import Image
 from tifffile import TiffFile
 from tifffile import TiffFileError as TiffFileError
 from tifffile import TiffPageSeries
-# noinspection PyProtectedMember
 from tifffile.tifffile import svs_description_metadata
 
 from tiffslide._types import PathOrFileLike
@@ -54,25 +47,23 @@ __all__ = [
 ]
 
 # all relevant tifffile version numbers work with this.
-_TIFFFILE_VERSION = tuple(int(x) if x.isdigit() else x for x in version("tifffile").split("."))
+_TIFFFILE_VERSION = tuple(
+    int(x) if x.isdigit() else x for x in version("tifffile").split(".")
+)
 
+# === Constants to support drop-in ===
+PROPERTY_NAME_COMMENT = "tiffslide.comment"
+PROPERTY_NAME_VENDOR = "tiffslide.vendor"
+PROPERTY_NAME_QUICKHASH1 = "tiffslide.quickhash-1"
+PROPERTY_NAME_BACKGROUND_COLOR = "tiffslide.background-color"
+PROPERTY_NAME_OBJECTIVE_POWER = "tiffslide.objective-power"
+PROPERTY_NAME_MPP_X = "tiffslide.mpp-x"
+PROPERTY_NAME_MPP_Y = "tiffslide.mpp-y"
+PROPERTY_NAME_BOUNDS_X = "tiffslide.bounds-x"
+PROPERTY_NAME_BOUNDS_Y = "tiffslide.bounds-y"
+PROPERTY_NAME_BOUNDS_WIDTH = "tiffslide.bounds-width"
+PROPERTY_NAME_BOUNDS_HEIGHT = "tiffslide.bounds-height"
 
-# === constants =======================================================
-
-PROPERTY_NAME_COMMENT = u'tiffslide.comment'
-PROPERTY_NAME_VENDOR = u'tiffslide.vendor'
-PROPERTY_NAME_QUICKHASH1 = u'tiffslide.quickhash-1'
-PROPERTY_NAME_BACKGROUND_COLOR = u'tiffslide.background-color'
-PROPERTY_NAME_OBJECTIVE_POWER = u'tiffslide.objective-power'
-PROPERTY_NAME_MPP_X = u'tiffslide.mpp-x'
-PROPERTY_NAME_MPP_Y = u'tiffslide.mpp-y'
-PROPERTY_NAME_BOUNDS_X = u'tiffslide.bounds-x'
-PROPERTY_NAME_BOUNDS_Y = u'tiffslide.bounds-y'
-PROPERTY_NAME_BOUNDS_WIDTH = u'tiffslide.bounds-width'
-PROPERTY_NAME_BOUNDS_HEIGHT = u'tiffslide.bounds-height'
-
-
-# === classes =========================================================
 
 class TiffSlide:
     """
@@ -88,10 +79,12 @@ class TiffSlide:
     def __enter__(self) -> TiffSlide:
         return self
 
-    def __exit__(self,
-                 exc_type: Optional[Type[BaseException]],
-                 exc_val: Optional[BaseException],
-                 exc_tb: Optional[TracebackType]) -> None:
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         self.close()
 
     def close(self) -> None:
@@ -110,7 +103,7 @@ class TiffSlide:
     def detect_format(cls, filename: PathOrFileLike) -> Optional[str]:
         """return the detected format as a str or None if unknown/unimplemented"""
         _vendor_compat_map = dict(
-            svs='aperio',
+            svs="aperio",
             # add more when needed
         )
         with TiffFile(filename) as t:
@@ -135,19 +128,13 @@ class TiffSlide:
     @property
     def level_dimensions(self) -> Tuple[Tuple[int, int], ...]:
         """return the dimensions of levels as a list"""
-        return tuple(
-            lvl.shape[1::-1]
-            for lvl in self.ts_tifffile.series[0].levels
-        )
+        return tuple(lvl.shape[1::-1] for lvl in self.ts_tifffile.series[0].levels)
 
     @property
     def level_downsamples(self) -> Tuple[float, ...]:
         """return the downsampling factors of levels as a list"""
         w0, h0 = self.dimensions
-        return tuple(
-            math.sqrt((w0*h0) / (w*h))
-            for w, h in self.level_dimensions
-        )
+        return tuple(math.sqrt((w0 * h0) / (w * h)) for w, h in self.level_dimensions)
 
     @cached_property
     def properties(self) -> Dict[str, Any]:
@@ -162,9 +149,8 @@ class TiffSlide:
 
             else:
                 # this emulates the new description parsing for older versions
-                _aperio_desc = re.sub(r';Aperio [^;|]*(?=[|])', '', aperio_desc, count=1)
+                _aperio_desc = re.sub(r";Aperio [^;|]*(?=[|])", "", aperio_desc, 1)
                 _aperio_recovered_header = aperio_desc.split("|", 1)[0]
-                assert _aperio_recovered_header.startswith("Aperio"), "please report this bug upstream"
 
             try:
                 aperio_meta = svs_description_metadata(_aperio_desc)
@@ -195,9 +181,9 @@ class TiffSlide:
                 PROPERTY_NAME_BOUNDS_HEIGHT: None,
             }
             md.update({f"aperio.{k}": v for k, v in sorted(aperio_meta.items())})
-            for lvl, (ds, (width, height)) in enumerate(zip(
-                    self.level_downsamples, self.level_dimensions,
-            )):
+
+            _ds_dimensions = zip(self.level_downsamples, self.level_dimensions)
+            for lvl, (ds, (width, height)) in enumerate(_ds_dimensions):
                 page = self.ts_tifffile.series[0].levels[lvl].pages[0]
                 md[f"tiffslide.level[{lvl}].downsample"] = ds
                 md[f"tiffslide.level[{lvl}].height"] = height
@@ -231,10 +217,12 @@ class TiffSlide:
         """
         if self._zarr_grp is None:
             store = self.ts_tifffile.series[0].aszarr()
-            self._zarr_grp = zarr.open(store, mode='r')
+            self._zarr_grp = zarr.open(store, mode="r")
         return self._zarr_grp
 
-    def read_region(self, location: Tuple[int, int], level: int, size: Tuple[int, int]) -> Image.Image:
+    def read_region(
+        self, location: Tuple[int, int], level: int, size: Tuple[int, int]
+    ) -> Image.Image:
         """return the requested region as a PIL.Image
 
         Parameters
@@ -249,13 +237,15 @@ class TiffSlide:
         base_x, base_y = location
         base_w, base_h = self.dimensions
         level_w, level_h = self.level_dimensions[level]
-        level_rw, level_rh = size
-        level_rx = (base_x * level_w) // base_w
-        level_ry = (base_y * level_h) // base_h
+        rx0 = (base_x * level_w) // base_w
+        ry0 = (base_y * level_h) // base_h
+        _rw, _rh = size
+        rx1 = rx0 + _rw
+        ry1 = ry0 + _rh
         if isinstance(self.ts_zarr_grp, zarr.core.Array):
-            arr = self.ts_zarr_grp[level_ry:level_ry + level_rh, level_rx:level_rx + level_rw]
+            arr = self.ts_zarr_grp[ry0:ry1, rx0:rx1]
         else:
-            arr = self.ts_zarr_grp[level, level_ry:level_ry + level_rh, level_rx:level_rx + level_rw]
+            arr = self.ts_zarr_grp[level, ry0:ry1, rx0:rx1]
         return Image.fromarray(arr)
 
     def get_thumbnail(self, size: Tuple[int, int]) -> Image.Image:
@@ -267,13 +257,11 @@ class TiffSlide:
         tile = self.read_region((0, 0), level, self.level_dimensions[level])
         # Apply on solid background
         bg_color = f"#{self.properties[PROPERTY_NAME_BACKGROUND_COLOR] or 'ffffff'}"
-        thumb = Image.new('RGB', tile.size, bg_color)
+        thumb = Image.new("RGB", tile.size, bg_color)
         thumb.paste(tile, None, None)
         thumb.thumbnail(size, Image.ANTIALIAS)
         return thumb
 
-
-# === internal utility classes ========================================
 
 class _LazyAssociatedImagesDict(Mapping[str, Image.Image]):
     """lazily load associated images"""
