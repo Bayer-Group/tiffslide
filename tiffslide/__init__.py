@@ -136,7 +136,7 @@ class TiffSlide:
         """return the width and height of level 0"""
         series0 = self.ts_tifffile.series[0]
         assert series0.ndim == 3, "loosen restrictions in future versions"
-        _, h, w = series0.shape
+        h, w, _ = series0.shape
         return w, h
 
     @property
