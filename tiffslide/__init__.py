@@ -3,14 +3,21 @@
 a somewhat drop-in replacement for openslide-python using tifffile and zarr
 
 """
+from __future__ import annotations
+
 import math
 import os
 import re
-from warnings import warn
-from collections.abc import Mapping
-from functools import cached_property
+import sys
+from typing import Any
 from typing import Dict
+from typing import IO
 from typing import Iterator
+from typing import Mapping
+from typing import Optional
+from typing import Tuple
+from typing import Union
+from warnings import warn
 
 import zarr
 from PIL import Image
@@ -18,6 +25,14 @@ from tifffile import TiffFile
 from tifffile import TiffFileError as TiffFileError
 from tifffile import TiffPageSeries
 from tifffile.tifffile import svs_description_metadata
+
+if sys.version_info[:2] >= (3, 8):
+    from functools import cached_property
+    from importlib.metadata import version
+else:
+    from importlib_metadata import version
+    # noinspection PyUnresolvedReferences
+    from backports.cached_property import cached_property
 
 try:
     from tiffslide._version import version as __version__
@@ -54,6 +69,9 @@ PROPERTY_NAME_BOUNDS_X = u'tiffslide.bounds-x'
 PROPERTY_NAME_BOUNDS_Y = u'tiffslide.bounds-y'
 PROPERTY_NAME_BOUNDS_WIDTH = u'tiffslide.bounds-width'
 PROPERTY_NAME_BOUNDS_HEIGHT = u'tiffslide.bounds-height'
+
+# all relevant tifffile version numbers work with this.
+_TIFFFILE_VERSION = tuple(int(x) if x.isdigit() else x for x in version("tifffile").split("."))
 
 
 def open_slide(filename):
@@ -127,25 +145,36 @@ class TiffSlide:
         )
 
     @cached_property
-    def properties(self):
-        """image properties"""
+    def properties(self) -> Dict[str, Any]:
+        """image properties / metadata as a dict"""
         if self._metadata is None:
             aperio_desc = self.ts_tifffile.pages[0].description
 
-            # temporary fix until: https://github.com/cgohlke/tifffile/pull/88 lands
-            # removes an additional Aperio header in the image description
-            aperio_desc = re.sub(r';Aperio [^;|]*(?=[|])', '', aperio_desc, count=1)
+            if _TIFFFILE_VERSION >= (2021, 6, 14):
+                # tifffile 2021.6.14 fixed the svs parsing.
+                _aperio_desc = aperio_desc
+                _aperio_recovered_header = None  # no need to recover
+
+            else:
+                # this emulates the new description parsing for older versions
+                _aperio_desc = re.sub(r';Aperio [^;|]*(?=[|])', '', aperio_desc, count=1)
+                _aperio_recovered_header = aperio_desc.split("|", 1)[0]
+                assert _aperio_recovered_header.startswith("Aperio"), "please report this bug upstream"
 
             try:
-                aperio_meta = svs_description_metadata(aperio_desc)
+                aperio_meta = svs_description_metadata(_aperio_desc)
             except ValueError as err:
                 if "invalid Aperio image description" in str(err):
                     warn(f"{err} - {self!r}")
                     aperio_meta = {}
                 else:
                     raise
-            aperio_meta.pop("", None)
-            aperio_meta.pop("Aperio Image Library", None)
+            else:
+                # Normalize the aperio metadata
+                aperio_meta.pop("", None)
+                aperio_meta.pop("Aperio Image Library", None)
+                if aperio_meta and "Header" not in aperio_meta:
+                    aperio_meta["Header"] = _aperio_recovered_header
 
             md = {
                 PROPERTY_NAME_COMMENT: aperio_desc,
