@@ -1,5 +1,6 @@
 import os
 
+import fsspec
 import pytest
 import importlib
 
@@ -91,6 +92,12 @@ def test_image_associated_images(slide):
     for key in assoc:
         img = assoc[key]
         assert img.size
+
+
+def test_tiffslide_from_fsspec(svs_small_urlpath):
+    with fsspec.open(svs_small_urlpath) as f:
+        slide = TiffSlide(f)
+        _ = slide.get_thumbnail((200, 200))
 
 
 # === test aliases and fallbacks ========================================

@@ -3,6 +3,7 @@ import pathlib
 import shutil
 import urllib.request
 
+import fsspec
 import pytest
 
 # openslide aperio test images
@@ -38,6 +39,19 @@ def svs_small():
         pytest.fail("incorrect md5")
     else:
         yield img_fn.absolute()
+
+
+@pytest.fixture
+def svs_small_urlpath(svs_small):
+    urlpath = f"memory://{svs_small.name}"
+    fs: fsspec.AbstractFileSystem = fsspec.get_filesystem_class("memory")()
+    of = fsspec.open(urlpath, mode="wb")
+    with of as f:
+        f.write(svs_small.read_bytes())
+    try:
+        yield urlpath
+    finally:
+        fs.rm(svs_small.name)
 
 
 @pytest.fixture(scope="session")
