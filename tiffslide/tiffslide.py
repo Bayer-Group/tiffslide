@@ -18,8 +18,8 @@ if sys.version_info[:2] >= (3, 8):
     from functools import cached_property
     from importlib.metadata import version
 else:
-    from importlib_metadata import version
     from backports.cached_property import cached_property
+    from importlib_metadata import version
 
 import zarr
 from PIL import Image
