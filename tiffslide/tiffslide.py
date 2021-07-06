@@ -9,6 +9,7 @@ from typing import Dict
 from typing import Iterator
 from typing import Mapping
 from typing import Optional
+from typing import TYPE_CHECKING
 from typing import Tuple
 from typing import Type
 from typing import Union
@@ -21,7 +22,6 @@ else:
     from backports.cached_property import cached_property
     from importlib_metadata import version
 
-import numpy as np
 import zarr
 from PIL import Image
 from tifffile import TiffFile
@@ -30,6 +30,10 @@ from tifffile import TiffPageSeries
 from tifffile.tifffile import svs_description_metadata
 
 from tiffslide._types import PathOrFileLike
+
+if TYPE_CHECKING:
+    from numpy.typing import ArrayLike
+
 
 __all__ = [
     "PROPERTY_NAME_COMMENT",
@@ -222,7 +226,7 @@ class TiffSlide:
 
     def _read_region_as_array(
         self, location: Tuple[int, int], level: int, size: Tuple[int, int]
-    ) -> np.ndarray:
+    ) -> ArrayLike:
         """return the requested region as a numpy array
 
         Parameters
@@ -242,7 +246,7 @@ class TiffSlide:
         _rw, _rh = size
         rx1 = rx0 + _rw
         ry1 = ry0 + _rh
-        arr: np.ndarray
+        arr: ArrayLike
         if isinstance(self.ts_zarr_grp, zarr.core.Array):
             arr = self.ts_zarr_grp[ry0:ry1, rx0:rx1]
         else:
