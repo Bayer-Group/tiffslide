@@ -72,7 +72,6 @@ class TiffSlide:
 
     def __init__(self, filename: PathOrFileLike):
         self.ts_tifffile: TiffFile = TiffFile(filename)  # may raise TiffFileError
-        self.ts_filename = filename
         self._zarr_grp: Optional[Union[zarr.core.Array, zarr.hierarchy.Group]] = None
         self._metadata: Optional[Dict[str, Any]] = None
 
@@ -97,7 +96,7 @@ class TiffSlide:
         self.ts_tifffile.close()
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.ts_filename!r})"
+        return f"{type(self).__name__}({self.ts_tifffile.filename!r})"
 
     @classmethod
     def detect_format(cls, filename: PathOrFileLike) -> Optional[str]:
