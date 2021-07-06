@@ -242,6 +242,7 @@ class TiffSlide:
         _rw, _rh = size
         rx1 = rx0 + _rw
         ry1 = ry0 + _rh
+        arr: np.ndarray
         if isinstance(self.ts_zarr_grp, zarr.core.Array):
             arr = self.ts_zarr_grp[ry0:ry1, rx0:rx1]
         else:
