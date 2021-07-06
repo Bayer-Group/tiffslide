@@ -52,3 +52,87 @@ jobs:
         conda info
         conda list
         pytest
+
+  # RUN MYPY STATIC TYPE ANALYSIS ON TIFFSLIDE SOURCE
+  typing:
+    name: mypy type analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Set up Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.8
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install --upgrade setuptools
+          pip install -e .[dev]
+      - name: Run mypy
+        run: |
+          mypy tiffslide
+
+  # DEPLOY TIFFSLIDE TO TEST.PYPI ON SUCCESS
+  testdeploy:
+    needs: [tests, typing]
+    name: deploy to test.pypi
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v1
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.8
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+      - name: Install pep517
+        run: |
+          python -m pip install --user build
+      # we'll have to remove local_scheme for pushes to test.pypi pep440
+      - name: Get version without local_scheme
+        id: non_local_version
+        run: |
+          python setup.py --version | awk -F+ '{print "::set-output name=version::"$1}'
+      - name: Build a binary wheel and a source tarball
+        env:
+          SETUPTOOLS_SCM_PRETEND_VERSION: ${{ steps.non_local_version.outputs.version }}
+        run: |
+          python -m build .
+      # push all versions on master to test.pypi.org
+      - name: Publish package to TestPyPI
+        continue-on-error: true
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.test_pypi_password }}
+          repository_url: https://test.pypi.org/legacy/
+
+  # DEPLOY TIFFSLIDE TO PYPI ON SUCCESS
+  deploy:
+    needs: [tests, typing]
+    name: deploy to pypi
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+    steps:
+      - uses: actions/checkout@v1
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.8
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+      - name: Install pep517
+        run: |
+          python -m pip install --user build
+      - name: Build a binary wheel and a source tarball
+        run: |
+          python -m build .
+      # push all tagged versions to pypi.org
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.pypi_password }}
