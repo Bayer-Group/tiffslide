@@ -271,11 +271,18 @@ class TiffSlide:
         thumb_w, thumb_h = size
         downsample = max(slide_w / thumb_w, slide_h / thumb_h)
         level = self.get_best_level_for_downsample(downsample)
-        tile = self.read_region((0, 0), level, self.level_dimensions[level])
-        # Apply on solid background
-        bg_color = f"#{self.properties[PROPERTY_NAME_BACKGROUND_COLOR] or 'ffffff'}"
-        thumb = Image.new("RGB", tile.size, bg_color)
-        thumb.paste(tile, None, None)
+
+        # read the best suited level
+        _level_dimensions = self.level_dimensions[level]
+        img = self.read_region((0, 0), level, _level_dimensions)
+
+        # now composite the thumbnail
+        thumb = Image.new(
+            mode="RGB",
+            size=img.size,
+            color=f"#{self.properties[PROPERTY_NAME_BACKGROUND_COLOR] or 'ffffff'}",
+        )
+        thumb.paste(img, box=None, mask=None)
         thumb.thumbnail(size, Image.ANTIALIAS)
         return thumb
 
