@@ -21,6 +21,7 @@ else:
     from backports.cached_property import cached_property
     from importlib_metadata import version
 
+import numpy as np
 import zarr
 from PIL import Image
 from tifffile import TiffFile
@@ -219,10 +220,10 @@ class TiffSlide:
             self._zarr_grp = zarr.open(store, mode="r")
         return self._zarr_grp
 
-    def read_region(
+    def _read_region_as_array(
         self, location: Tuple[int, int], level: int, size: Tuple[int, int]
-    ) -> Image.Image:
-        """return the requested region as a PIL.Image
+    ) -> np.ndarray:
+        """return the requested region as a numpy array
 
         Parameters
         ----------
@@ -244,7 +245,24 @@ class TiffSlide:
         if isinstance(self.ts_zarr_grp, zarr.core.Array):
             arr = self.ts_zarr_grp[ry0:ry1, rx0:rx1]
         else:
-            arr = self.ts_zarr_grp[level, ry0:ry1, rx0:rx1]
+            arr = self.ts_zarr_grp[str(level)][ry0:ry1, rx0:rx1]
+        return arr
+
+    def read_region(
+        self, location: Tuple[int, int], level: int, size: Tuple[int, int]
+    ) -> Image.Image:
+        """return the requested region as a PIL.Image
+
+        Parameters
+        ----------
+        location :
+            pixel location (x, y) in level 0 of the image
+        level :
+            target level used to read the image
+        size :
+            size (width, height) of the requested region
+        """
+        arr = self._read_region_as_array(location, level, size)
         return Image.fromarray(arr)
 
     def get_thumbnail(self, size: Tuple[int, int]) -> Image.Image:
