@@ -21,8 +21,10 @@ dependencies:
   - python>=3.7
   - pip
 
+  - fsspec
+  - imagecodecs
   - pillow
-  - tifffile
+  - tifffile>=2020.9.22
   - zarr
 
   # development dependencies
