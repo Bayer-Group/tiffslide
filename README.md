@@ -38,6 +38,19 @@ import tiffslide as openslide
 slide = openslide.OpenSlide('path/to/my/file.svs')
 ```
 
+A nice side effect of using tiffslide is that your code will also work with
+fsspec:
+
+```python
+import fsspec
+from tiffslide import TiffSlide
+
+with fsspec.open("s3://my-bucket/file.svs") as f:
+    slide = TiffSlide(f)
+    thumb = slide.get_thumbnail((200, 200))
+```
+
+
 ## Development Installation
 
 1. Install conda and git
