@@ -292,26 +292,27 @@ class _LazyAssociatedImagesDict(Mapping[str, Image.Image]):
 
     def __init__(self, tifffile: TiffFile):
         series = tifffile.series[1:]
-        self._k: Dict[str, TiffPageSeries] = {s.name.lower(): s for s in series}
+        self.series_map: Dict[str, TiffPageSeries] = {s.name.lower(): s for s in series}
         self._m: Dict[str, Image.Image] = {}
 
     def __repr__(self) -> str:
         args = ", ".join(
             f"{name!r}: <lazy-loaded PIL.Image.Image size={s.shape[1]}x{s.shape[0]} ...>"
-            for name, s in self._k.items()
+            for name, s in self.series_map.items()
         )
+        # pretend to be a normal dictionary
         return f"{{{args}}}"
 
     def __getitem__(self, k: str) -> Image.Image:
         if k in self._m:
             return self._m[k]
         else:
-            s = self._k[k]
+            s = self.series_map[k]
             self._m[k] = img = Image.fromarray(s.asarray())
             return img
 
     def __len__(self) -> int:
-        return len(self._k)
+        return len(self.series_map)
 
     def __iter__(self) -> Iterator[str]:
-        yield from self._k
+        yield from self.series_map
