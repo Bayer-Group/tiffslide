@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import math
 import re
 import sys
@@ -80,7 +78,7 @@ class TiffSlide:
         self._zarr_grp: Optional[Union[zarr.core.Array, zarr.hierarchy.Group]] = None
         self._metadata: Optional[Dict[str, Any]] = None
 
-    def __enter__(self) -> TiffSlide:
+    def __enter__(self) -> "TiffSlide":
         return self
 
     def __exit__(
