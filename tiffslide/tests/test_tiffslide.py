@@ -72,10 +72,7 @@ def test_image_get_best_level_for_downsample(slide):
 
 
 def test_image_read_region(slide):
-    assert slide.read_region((0, 0), 0, (2220, 2967)).size == (
-        2220,
-        2967
-    )
+    assert slide.read_region((0, 0), 0, (2220, 2967)).size == (2220, 2967)
 
 
 def test_image_get_thumbnail(slide):
@@ -135,4 +132,5 @@ def test_compat_unsupported_abstractslide():
     with pytest.warns(UserWarning):
         with pytest.raises(ImportError):
             from tiffslide import AbstractSlide
+
             _ = AbstractSlide

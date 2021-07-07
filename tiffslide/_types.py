@@ -8,4 +8,4 @@ __all__ = [
 ]
 
 # todo: check if this covers all relevant use cases
-PathOrFileLike = Union[str, bytes, 'PathLike[str]', IO[str], IO[bytes]]
+PathOrFileLike = Union[str, bytes, "PathLike[str]", IO[str], IO[bytes]]

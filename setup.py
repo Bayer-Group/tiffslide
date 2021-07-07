@@ -9,6 +9,7 @@
 #   in that case.
 #
 from setuptools import setup
+
 setup(
     # providing the settings is required for `python setup.py develop`
     # to work correctly with setuptools_scm
@@ -19,5 +20,5 @@ setup(
         "write_to": "tiffslide/_version.py",
         "version_scheme": "post-release",
     },
-    setup_requires=['setuptools_scm']
+    setup_requires=["setuptools_scm"],
 )

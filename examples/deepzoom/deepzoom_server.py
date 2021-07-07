@@ -16,18 +16,18 @@ _dzgen = None
 @app.route("/")
 def index():
     fn = _dzgen._urlpath  # just so we don't need to worry about caching
-    su = url_for('dzi', image_fn=hashlib.sha1(fn.encode()).hexdigest())
+    su = url_for("dzi", image_fn=hashlib.sha1(fn.encode()).hexdigest())
     return render_template("index.html", filename=fn, slide_url=su)
 
 
 @app.route("/<image_fn>.dzi")
 def dzi(image_fn):
     resp = make_response(_dzgen.get_dzi())
-    resp.mimetype = 'application/xml'
+    resp.mimetype = "application/xml"
     return resp
 
 
-@app.route('/<image_fn>_files/<int:level>/<int:col>_<int:row>.jpeg')
+@app.route("/<image_fn>_files/<int:level>/<int:col>_<int:row>.jpeg")
 def tile(image_fn, level, col, row):
     try:
         tile_bytes = _dzgen.get_tile(level, col, row)
@@ -35,7 +35,7 @@ def tile(image_fn, level, col, row):
         return abort(404)
 
     resp = make_response(tile_bytes)
-    resp.mimetype = 'image/jpeg'
+    resp.mimetype = "image/jpeg"
     return resp
 
 
@@ -43,9 +43,9 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--port', type=int, default=8000, help='server port')
-    parser.add_argument('--bind', type=str, default='127.0.0.1', help='server address')
-    parser.add_argument('svs_file', help='svs file')
+    parser.add_argument("--port", type=int, default=8000, help="server port")
+    parser.add_argument("--bind", type=str, default="127.0.0.1", help="server address")
+    parser.add_argument("svs_file", help="svs file")
     args = parser.parse_args()
 
     _dzgen = MinimalComputeAperioDZGenerator(args.svs_file)
