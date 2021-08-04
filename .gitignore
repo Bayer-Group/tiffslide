@@ -3,6 +3,7 @@ __pycache__
 .eggs/**
 .mypy_cache
 .pytest_cache
+.tox
 build/**
 dist/**
 docs/build/**
