@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import math
 import re
 import sys
@@ -30,7 +32,7 @@ from tifffile.tifffile import svs_description_metadata
 from tiffslide._types import PathOrFileLike
 
 if TYPE_CHECKING:
-    from numpy.typing import ArrayLike
+    import numpy as np
 
 
 __all__ = [
@@ -78,7 +80,7 @@ class TiffSlide:
         self._zarr_grp: Optional[Union[zarr.core.Array, zarr.hierarchy.Group]] = None
         self._metadata: Optional[Dict[str, Any]] = None
 
-    def __enter__(self) -> "TiffSlide":
+    def __enter__(self) -> TiffSlide:
         return self
 
     def __exit__(
@@ -224,7 +226,7 @@ class TiffSlide:
 
     def _read_region_as_array(
         self, location: Tuple[int, int], level: int, size: Tuple[int, int]
-    ) -> "ArrayLike":
+    ) -> np.ndarray:
         """return the requested region as a numpy array
 
         Parameters
@@ -244,7 +246,7 @@ class TiffSlide:
         _rw, _rh = size
         rx1 = rx0 + _rw
         ry1 = ry0 + _rh
-        arr: "ArrayLike"
+        arr: np.ndarray
         if isinstance(self.ts_zarr_grp, zarr.core.Array):
             arr = self.ts_zarr_grp[ry0:ry1, rx0:rx1]
         else:
