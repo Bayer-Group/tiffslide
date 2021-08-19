@@ -22,6 +22,7 @@ else:
     from backports.cached_property import cached_property
     from importlib_metadata import version
 
+import tifffile
 import zarr
 from PIL import Image
 from tifffile import TiffFile
@@ -164,16 +165,18 @@ class TiffSlide:
                     aperio_meta = {}
                 else:
                     raise
+                vendor = "generic-tiff"  # todo: need to handle more supported formats in the future
             else:
                 # Normalize the aperio metadata
                 aperio_meta.pop("", None)
                 aperio_meta.pop("Aperio Image Library", None)
                 if aperio_meta and "Header" not in aperio_meta:
                     aperio_meta["Header"] = _aperio_recovered_header
+                vendor = "aperio"
 
             md = {
                 PROPERTY_NAME_COMMENT: aperio_desc,
-                PROPERTY_NAME_VENDOR: "aperio",
+                PROPERTY_NAME_VENDOR: vendor,
                 PROPERTY_NAME_QUICKHASH1: None,
                 PROPERTY_NAME_BACKGROUND_COLOR: None,
                 PROPERTY_NAME_OBJECTIVE_POWER: aperio_meta.get("AppMag", None),
@@ -196,6 +199,38 @@ class TiffSlide:
                 md[f"tiffslide.level[{lvl}].tile-width"] = page.tilewidth
 
             md["tiff.ImageDescription"] = aperio_desc
+
+            if md[PROPERTY_NAME_MPP_X] is None or md[PROPERTY_NAME_MPP_Y] is None:
+                # recover mpp from tiff tags
+                try:
+                    resolution_unit = self.ts_tifffile.pages[0].tags["ResolutionUnit"].value
+                    x_resolution = self.ts_tifffile.pages[0].tags["XResolution"].value[0]
+                    y_resolution = self.ts_tifffile.pages[0].tags["YResolution"].value[0]
+                except KeyError:
+                    pass
+                else:
+                    md['tiff.ResolutionUnit'] = resolution_unit.name
+                    md['tiff.XResolution'] = x_resolution
+                    md['tiff.YResolution'] = y_resolution
+
+                    RESUNIT = tifffile.TIFF.RESUNIT
+                    scale = {
+                        RESUNIT.INCH: 25400.0,
+                        RESUNIT.CENTIMETER: 10000.0,
+                        RESUNIT.MILLIMETER: 1000.0,
+                        RESUNIT.MICROMETER: 1.0,
+                        RESUNIT.NONE: None,
+                    }.get(resolution_unit, None)
+                    if scale is not None:
+                        try:
+                            mpp_x = scale / x_resolution
+                            mpp_y = scale / y_resolution
+                        except ArithmeticError:
+                            pass
+                        else:
+                            md[PROPERTY_NAME_MPP_X] = mpp_x
+                            md[PROPERTY_NAME_MPP_Y] = mpp_y
+
             self._metadata = md
         return self._metadata
 
