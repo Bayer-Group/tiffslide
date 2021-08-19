@@ -34,6 +34,7 @@ from tiffslide._types import PathOrFileLike
 
 if TYPE_CHECKING:
     import numpy as np
+    import numpy.typing as npt
 
 
 __all__ = [
@@ -261,7 +262,7 @@ class TiffSlide:
 
     def _read_region_as_array(
         self, location: Tuple[int, int], level: int, size: Tuple[int, int]
-    ) -> np.ndarray:
+    ) -> npt.NDArray[np.int_]:
         """return the requested region as a numpy array
 
         Parameters
@@ -281,7 +282,7 @@ class TiffSlide:
         _rw, _rh = size
         rx1 = rx0 + _rw
         ry1 = ry0 + _rh
-        arr: np.ndarray
+        arr: npt.NDArray[np.int_]
         if isinstance(self.ts_zarr_grp, zarr.core.Array):
             arr = self.ts_zarr_grp[ry0:ry1, rx0:rx1]
         else:
