@@ -13,6 +13,7 @@ from typing import Dict
 from typing import Iterator
 from typing import Sequence
 from typing import Tuple
+from typing import Union
 from warnings import warn
 from xml.etree.ElementTree import Element
 from xml.etree.ElementTree import ElementTree
@@ -47,10 +48,12 @@ class MinimalComputeAperioDZGenerator:
 
     """
 
-    def __init__(self, urlpath: str, **kwargs: Any) -> None:
-        self._urlpath = urlpath
+    def __init__(self, urlpath: Union[str, fsspec.core.OpenFile], **kwargs: Any) -> None:
         self._kwargs = kwargs
-        self._openfile = fsspec.open(urlpath, **kwargs)
+        if isinstance(urlpath, fsspec.core.OpenFile):
+            self._openfile = urlpath
+        else:
+            self._openfile = fsspec.open(urlpath, **kwargs)
 
         with self._openfile as f, TiffFile(f) as tiff:
             baseline = tiff.series[0]
