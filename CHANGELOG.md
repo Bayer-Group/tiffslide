@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - ...
 ...
 
+## [0.1.1] - 2021-08-25
+### Fixed
+- fixed typing with newer versions of numpy
+- fixed missing mpp for generic tiffs that provide `[XY]Resolution` and `ResolutionUnit`
+- allow providing OpenFile objects to `tiffslide.deepzoom`
+
 ## [0.1.0] - 2021-07-06
 ### Fixed
 - allow passing file objects
@@ -28,5 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [Unreleased]: 
 https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/tree/v0.1.0
+[0.1.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/tree/v0.0.1
