@@ -306,16 +306,42 @@ class TiffSlide:
         arr = self._read_region_as_array(location, level, size)
         return Image.fromarray(arr)
 
-    def get_thumbnail(self, size: Tuple[int, int]) -> Image.Image:
-        """return the thumbnail of the slide as a PIL.Image with a maximum size"""
+    def get_thumbnail(self, size: Tuple[int, int], *, use_embedded: bool = False) -> Image.Image:
+        """return the thumbnail of the slide as a PIL.Image with a maximum size
+
+        Parameters
+        ----------
+        size:
+            width,height tuple defining maximum size of the thumbnail in each direction.
+            the thumbnail itself keeps the image aspect ratio
+        use_embedded:
+            if True uses the embedded thumbnail in the image (if available and smaller
+            than the highest level) to generate the thumbnail image
+
+        """
+        if (
+            use_embedded
+            and 'thumbnail' in self.associated_images
+            and size <= self.associated_images.series_map['thumbnail'].shape[1::-1]
+        ):
+            thumb_byte_size = self.associated_images.series_map['thumbnail'].size
+        else:
+            thumb_byte_size = -1
+
         slide_w, slide_h = self.dimensions
         thumb_w, thumb_h = size
         downsample = max(slide_w / thumb_w, slide_h / thumb_h)
         level = self.get_best_level_for_downsample(downsample)
 
-        # read the best suited level
-        _level_dimensions = self.level_dimensions[level]
-        img = self.read_region((0, 0), level, _level_dimensions)
+        level_byte_size = self.ts_tifffile.series[0].levels[level].size
+
+        if 0 < thumb_byte_size < level_byte_size:
+            # read the embedded thumbnail if it uses fewer bytes
+            img = self.associated_images['thumbnail']
+        else:
+            # read the best suited level
+            _level_dimensions = self.level_dimensions[level]
+            img = self.read_region((0, 0), level, _level_dimensions)
 
         # now composite the thumbnail
         thumb = Image.new(
