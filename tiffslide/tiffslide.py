@@ -239,7 +239,7 @@ class TiffSlide:
         return self._metadata
 
     @cached_property
-    def associated_images(self) -> Mapping[str, Image.Image]:
+    def associated_images(self) -> _LazyAssociatedImagesDict:
         """return associated images as a mapping of names to PIL images"""
         return _LazyAssociatedImagesDict(self.ts_tifffile)
 
