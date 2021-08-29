@@ -13,14 +13,17 @@ from typing import TYPE_CHECKING
 from typing import Tuple
 from typing import Type
 from typing import Union
+from typing import overload
 from warnings import warn
 
 if sys.version_info[:2] >= (3, 8):
     from functools import cached_property
     from importlib.metadata import version
+    from typing import Literal
 else:
     from backports.cached_property import cached_property
     from importlib_metadata import version
+    from typing_extensions import Literal
 
 import tifffile
 import zarr
@@ -274,6 +277,33 @@ class TiffSlide:
         size :
             size (width, height) of the requested region
         """
+        warn("use: Tiffslide.read_region(loc, lvl, size, as_array=True)", category=DeprecationWarning, stacklevel=2)
+        return self.read_region(location, level, size, as_array=True)
+
+    @overload
+    def read_region(self, location: Tuple[int, int], level: int, size: Tuple[int, int], *, as_array: Literal[False] = ...) -> Image.Image: ...
+    @overload
+    def read_region(self, location: Tuple[int, int], level: int, size: Tuple[int, int], *, as_array: Literal[True] = ...) -> npt.NDArray[np.int_]: ...
+
+    def read_region(
+        self,
+        location: Tuple[int, int], level: int, size: Tuple[int, int],
+        *,
+        as_array: bool = False
+    ) -> Union[Image.Image, npt.NDArray[np.int_]]:
+        """return the requested region as a PIL.Image
+
+        Parameters
+        ----------
+        location :
+            pixel location (x, y) in level 0 of the image
+        level :
+            target level used to read the image
+        size :
+            size (width, height) of the requested region
+        as_array :
+            if True, return the region as numpy array
+        """
         base_x, base_y = location
         base_w, base_h = self.dimensions
         level_w, level_h = self.level_dimensions[level]
@@ -287,24 +317,11 @@ class TiffSlide:
             arr = self.ts_zarr_grp[ry0:ry1, rx0:rx1]
         else:
             arr = self.ts_zarr_grp[str(level)][ry0:ry1, rx0:rx1]
-        return arr
 
-    def read_region(
-        self, location: Tuple[int, int], level: int, size: Tuple[int, int]
-    ) -> Image.Image:
-        """return the requested region as a PIL.Image
-
-        Parameters
-        ----------
-        location :
-            pixel location (x, y) in level 0 of the image
-        level :
-            target level used to read the image
-        size :
-            size (width, height) of the requested region
-        """
-        arr = self._read_region_as_array(location, level, size)
-        return Image.fromarray(arr)
+        if as_array:
+            return arr
+        else:
+            return Image.fromarray(arr)
 
     def get_thumbnail(self, size: Tuple[int, int], *, use_embedded: bool = False) -> Image.Image:
         """return the thumbnail of the slide as a PIL.Image with a maximum size

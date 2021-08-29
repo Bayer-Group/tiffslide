@@ -75,6 +75,10 @@ def test_image_read_region(slide):
     assert slide.read_region((0, 0), 0, (2220, 2967)).size == (2220, 2967)
 
 
+def test_image_read_region_as_array(slide):
+    assert slide.read_region((0, 0), 0, (2220, 2967), as_array=True).shape[:2] == (2967, 2220)
+
+
 @pytest.mark.parametrize("use_embedded", [True, False])
 def test_image_get_thumbnail(slide, use_embedded):
     thumb = slide.get_thumbnail((200, 200), use_embedded=use_embedded)

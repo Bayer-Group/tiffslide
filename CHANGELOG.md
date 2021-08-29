@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - ...
 ### Added
 - add `use_embedded` kwarg to `TiffSlide.get_thumbnail`
+- add `as_array` kwarg to `TiffSlide.get_region`
+
+### Change
+- deprecate internal `_read_region_as_array`
 
 ## [0.1.1] - 2021-08-25
 ### Fixed
