@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import re
 import sys
+from fractions import Fraction
 from types import TracebackType
 from typing import Any
 from typing import Dict
@@ -208,14 +209,14 @@ class TiffSlide:
                 # recover mpp from tiff tags
                 try:
                     resolution_unit = self.ts_tifffile.pages[0].tags["ResolutionUnit"].value
-                    x_resolution = self.ts_tifffile.pages[0].tags["XResolution"].value[0]
-                    y_resolution = self.ts_tifffile.pages[0].tags["YResolution"].value[0]
+                    x_resolution = Fraction(*self.ts_tifffile.pages[0].tags["XResolution"].value)
+                    y_resolution = Fraction(*self.ts_tifffile.pages[0].tags["YResolution"].value)
                 except KeyError:
                     pass
                 else:
                     md['tiff.ResolutionUnit'] = resolution_unit.name
-                    md['tiff.XResolution'] = x_resolution
-                    md['tiff.YResolution'] = y_resolution
+                    md['tiff.XResolution'] = float(x_resolution)
+                    md['tiff.YResolution'] = float(y_resolution)
 
                     RESUNIT = tifffile.TIFF.RESUNIT
                     scale = {
