@@ -1,4 +1,5 @@
 __pycache__
+.hypothesis
 .coverage*
 .eggs/**
 .mypy_cache

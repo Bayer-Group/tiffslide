@@ -15,7 +15,8 @@ _dzgen = None
 
 @app.route("/")
 def index():
-    fn = _dzgen._urlpath  # just so we don't need to worry about caching
+    # noinspection PyProtectedMember
+    fn = _dzgen._openfile.path  # just so we don't need to worry about caching
     su = url_for("dzi", image_fn=hashlib.sha1(fn.encode()).hexdigest())
     return render_template("index.html", filename=fn, slide_url=su)
 
