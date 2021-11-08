@@ -35,14 +35,14 @@ def __getattr__(name):  # type: ignore
     """support some drop-in behavior"""
     # alias the most important bits
     if name in {"OpenSlideUnsupportedFormatError", "OpenSlideError"}:
-        warn(f"compatibility: aliasing tiffslide.TiffFileError to {name!r}")
+        warn(f"compatibility: aliasing tiffslide.TiffFileError to {name!r}", stacklevel=2)
         return TiffFileError
     elif name in {"OpenSlide", "ImageSlide"}:
-        warn(f"compatibility: aliasing tiffslide.TiffSlide to {name!r}")
+        warn(f"compatibility: aliasing tiffslide.TiffSlide to {name!r}", stacklevel=2)
         return TiffSlide
     # warn if internals are imported that we dont support
     if name in {"AbstractSlide", "__library_version__"}:
-        warn(f"{name!r} is not provided by tiffslide")
+        warn(f"{name!r} is not provided by tiffslide", stacklevel=2)
     raise AttributeError(name)
 
 
