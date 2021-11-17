@@ -230,7 +230,7 @@ class MinimalComputeAperioDZGenerator:
 
             elif (out_width, out_height) != dst.size:
                 dst = dst.crop((0, 0, out_width, out_height))
-                thumb_size = (max(1, out_width // 2), max(1, out_height // 2))
+                thumb_size = (max(1, math.ceil(out_width / 2)), max(1, math.ceil(out_height / 2)))
 
             else:
                 thumb_size = (self._tile_size, self._tile_size)
