@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import os.path
 import re
 import sys
 from fractions import Fraction
@@ -16,6 +17,9 @@ from typing import Type
 from typing import Union
 from typing import overload
 from warnings import warn
+
+from fsspec.core import url_to_fs
+from fsspec.implementations.local import LocalFileSystem
 
 if sys.version_info[:2] >= (3, 8):
     from functools import cached_property
@@ -81,8 +85,61 @@ class TiffSlide:
     tifffile backed whole slide image container emulating openslide.OpenSlide
     """
 
-    def __init__(self, filename: PathOrFileLike):
-        self.ts_tifffile: TiffFile = TiffFile(filename)  # may raise TiffFileError
+    def __init__(
+        self,
+        filename: PathOrFileLike,
+        *,
+        tifffile_options: dict[str, Any] | None = None,
+        storage_options: dict[str, Any] | None = None,
+    ) -> None:
+        """TiffSlide.__init__
+
+        Parameters
+        ----------
+        filename:
+            a local filename or a fsspec urlpath or a file object
+        tifffile_options:
+            a dictionary with keyword arguments passed to the TiffFile constructor
+        storage_options:
+            a dictionary with keyword arguments passed to fsspec
+        """
+        if tifffile_options is None:
+            tifffile_options = {}
+        if storage_options is None:
+            storage_options = {}
+
+        f = filename
+        urlpath = None
+        if isinstance(filename, (str, os.PathLike)):
+            # a string or path-like object
+            fs, path = url_to_fs(filename, **storage_options)
+            urlpath = os.fspath(filename)
+            if isinstance(fs, LocalFileSystem):
+                f = path
+            else:
+                f = fs.open(path)
+
+        elif storage_options:
+            warn(
+                "storage_options ignored when file-like object is provided",
+                stacklevel=2
+            )
+
+        if hasattr(f, 'fs') and hasattr(f, 'path'):
+            # provided an fsspec OpenFile-like object
+            fs, path = f.fs, f.path
+            if "name" not in tifffile_options:
+                tifffile_options["name"] = (
+                    getattr(f, "full_name", os.path.basename(path))
+                )
+            f = fs.open(path)
+            proto = fs.protocol
+            if isinstance(proto, (tuple, list)):
+                proto = proto[0]
+            urlpath = f"{proto}://{path}"
+
+        self.ts_tifffile: TiffFile = TiffFile(f, **tifffile_options)  # may raise TiffFileError
+        self._urlpath = urlpath
         self._zarr_grp: Optional[Union[zarr.core.Array, zarr.hierarchy.Group]] = None
         self._metadata: Optional[Dict[str, Any]] = None
 
