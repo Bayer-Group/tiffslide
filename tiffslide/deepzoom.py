@@ -108,6 +108,7 @@ class MinimalComputeAperioDZGenerator:
                     "image_wh": (im_width, im_length),
                     "offsets": page.dataoffsets,
                     "bytecounts": page.databytecounts,
+                    "requires_rgb_color_fix": page.photometric == TIFF.PHOTOMETRIC.RGB
                 }
 
     @property
@@ -148,6 +149,7 @@ class MinimalComputeAperioDZGenerator:
         (im_width, im_length) = info["image_wh"]
         dataoffsets = info["offsets"]
         databytecounts = info["bytecounts"]
+        requires_rgb_color_fix = info["requires_rgb_color_fix"]
 
         if not ((0 <= x < idx_width) and (0 <= y < idx_length)):
             raise IndexError(
@@ -163,13 +165,14 @@ class MinimalComputeAperioDZGenerator:
 
         with BytesIO() as buffer:
             buffer.write(jpeg_tables_tag[:-2])
-            # to directly provide the stored tiles from disk, we need to fix that svs tiles
-            # use a jpeg colorspace that doesn't show up correctly in the browser if the default
-            # jpeg headers are used
-            # See https://stackoverflow.com/questions/8747904/extract-jpeg-from-tiff-file/9658206#9658206
-            buffer.write(
-                b"\xFF\xEE\x00\x0E\x41\x64\x6F\x62\x65\x00\x64\x80\x00\x00\x00\x00"
-            )  # colorspace fix
+            if requires_rgb_color_fix:
+                # to directly provide the stored tiles from disk, we need to fix that svs tiles
+                # use a jpeg colorspace that doesn't show up correctly in the browser if the default
+                # jpeg headers are used
+                # See https://stackoverflow.com/questions/8747904/extract-jpeg-from-tiff-file/9658206#9658206
+                buffer.write(
+                    b"\xFF\xEE\x00\x0E\x41\x64\x6F\x62\x65\x00\x64\x80\x00\x00\x00\x00"
+                )  # colorspace fix
             buffer.write(data[2:])
             tile_data = buffer.getvalue()
 
