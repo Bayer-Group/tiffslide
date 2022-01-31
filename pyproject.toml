@@ -19,6 +19,11 @@ addopts = [
   "-p", "no:faulthandler",
 ]
 
+[tool.isort]
+profile = "black"
+py_version = "37"
+force_single_line = true
+extend_skip = ["setup.py", "docs/source/conf.py"]
 
 [tool.coverage.run]
 source = ["tifffile"]
