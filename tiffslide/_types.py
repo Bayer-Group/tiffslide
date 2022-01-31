@@ -31,7 +31,7 @@ else:
 
 
 @runtime_checkable
-class OpenFileLike(Protocol, ContextManager[IO[AnyStr]]):
+class OpenFileLike(Protocol):
     """minimal fsspec open file type"""
 
     fs: AbstractFileSystem
@@ -66,4 +66,4 @@ class TiffFileIO(Protocol):
         ...
 
 
-PathOrFileOrBufferLike = Union[AnyStr, PathLikeAnyStr, OpenFileLike[AnyStr], TiffFileIO]
+PathOrFileOrBufferLike = Union[AnyStr, PathLikeAnyStr, OpenFileLike, TiffFileIO]
