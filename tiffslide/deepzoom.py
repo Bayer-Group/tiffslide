@@ -48,7 +48,9 @@ class MinimalComputeAperioDZGenerator:
 
     """
 
-    def __init__(self, urlpath: Union[str, fsspec.core.OpenFile], **kwargs: Any) -> None:
+    def __init__(
+        self, urlpath: Union[str, fsspec.core.OpenFile], **kwargs: Any
+    ) -> None:
         self._kwargs = kwargs
         if isinstance(urlpath, fsspec.core.OpenFile):
             self._openfile = urlpath
@@ -108,7 +110,7 @@ class MinimalComputeAperioDZGenerator:
                     "image_wh": (im_width, im_length),
                     "offsets": page.dataoffsets,
                     "bytecounts": page.databytecounts,
-                    "requires_rgb_color_fix": page.photometric == TIFF.PHOTOMETRIC.RGB
+                    "requires_rgb_color_fix": page.photometric == TIFF.PHOTOMETRIC.RGB,
                 }
 
     @property
@@ -233,7 +235,10 @@ class MinimalComputeAperioDZGenerator:
 
             elif (out_width, out_height) != dst.size:
                 dst = dst.crop((0, 0, out_width, out_height))
-                thumb_size = (max(1, math.ceil(out_width / 2)), max(1, math.ceil(out_height / 2)))
+                thumb_size = (
+                    max(1, math.ceil(out_width / 2)),
+                    max(1, math.ceil(out_height / 2)),
+                )
 
             else:
                 thumb_size = (self._tile_size, self._tile_size)
