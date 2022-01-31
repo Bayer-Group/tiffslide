@@ -156,7 +156,7 @@ class TiffSlide:
                     return vendor
         return None
 
-    @property
+    @cached_property
     def dimensions(self) -> tuple[int, int]:
         """return the width and height of level 0"""
         series0 = self.ts_tifffile.series[0]
@@ -164,17 +164,17 @@ class TiffSlide:
         h, w, _ = series0.shape
         return w, h
 
-    @property
+    @cached_property
     def level_count(self) -> int:
         """return the number of levels"""
         return len(self.ts_tifffile.series[0].levels)
 
-    @property
+    @cached_property
     def level_dimensions(self) -> tuple[tuple[int, int], ...]:
         """return the dimensions of levels as a list"""
         return tuple(lvl.shape[1::-1] for lvl in self.ts_tifffile.series[0].levels)
 
-    @property
+    @cached_property
     def level_downsamples(self) -> tuple[float, ...]:
         """return the downsampling factors of levels as a list"""
         w0, h0 = self.dimensions
@@ -293,7 +293,7 @@ class TiffSlide:
                 return lvl - 1
         return self.level_count - 1
 
-    @property
+    @cached_property
     def ts_zarr_grp(self) -> zarr.core.Array | zarr.hierarchy.Group:
         """return the tiff image as a zarr array or group
 
