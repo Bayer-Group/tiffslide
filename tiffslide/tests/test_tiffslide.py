@@ -76,7 +76,10 @@ def test_image_read_region(slide):
 
 
 def test_image_read_region_as_array(slide):
-    assert slide.read_region((0, 0), 0, (2220, 2967), as_array=True).shape[:2] == (2967, 2220)
+    assert slide.read_region((0, 0), 0, (2220, 2967), as_array=True).shape[:2] == (
+        2967,
+        2220,
+    )
 
 
 @pytest.mark.parametrize("use_embedded", [True, False])
@@ -97,10 +100,26 @@ def test_image_associated_images(slide):
         assert img.size
 
 
-def test_tiffslide_from_fsspec(svs_small_urlpath):
+def test_tiffslide_from_fsspec_buffer(svs_small_urlpath):
     with fsspec.open(svs_small_urlpath) as f:
         slide = TiffSlide(f)
         _ = slide.get_thumbnail((200, 200))
+
+
+def test_tiffslide_from_fsspec_openfile(svs_small_urlpath):
+    of = fsspec.open(svs_small_urlpath)
+    slide = TiffSlide(of)
+    _ = slide.get_thumbnail((200, 200))
+
+
+def test_tiffslide_from_fsspec_urlpath(svs_small_urlpath):
+    slide = TiffSlide(svs_small_urlpath)
+    _ = slide.get_thumbnail((200, 200))
+
+
+def test_tiffslide_reject_unsupported_file():
+    with pytest.raises(ValueError):
+        TiffSlide(dict())  # type: ignore
 
 
 # === test aliases and fallbacks ========================================
