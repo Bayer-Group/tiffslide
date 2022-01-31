@@ -7,19 +7,18 @@ import sys
 from fractions import Fraction
 from types import TracebackType
 from typing import Any
-from typing import Dict
+from typing import AnyStr
 from typing import Iterator
 from typing import Mapping
-from typing import Optional
 from typing import TYPE_CHECKING
-from typing import Tuple
-from typing import Type
-from typing import Union
 from typing import overload
 from warnings import warn
 
 from fsspec.core import url_to_fs
 from fsspec.implementations.local import LocalFileSystem
+
+from tiffslide._types import OpenFileLike
+from tiffslide._types import TiffFileIO
 
 if sys.version_info[:2] >= (3, 8):
     from functools import cached_property
@@ -38,7 +37,7 @@ from tifffile import TiffFileError as TiffFileError
 from tifffile import TiffPageSeries
 from tifffile.tifffile import svs_description_metadata
 
-from tiffslide._types import PathOrFileLike
+from tiffslide._types import PathOrFileOrBufferLike
 
 if TYPE_CHECKING:
     import numpy as np
@@ -87,12 +86,12 @@ class TiffSlide:
 
     def __init__(
         self,
-        filename: PathOrFileLike,
+        filename: PathOrFileOrBufferLike[AnyStr],
         *,
         tifffile_options: dict[str, Any] | None = None,
         storage_options: dict[str, Any] | None = None,
     ) -> None:
-        """TiffSlide.__init__
+        """TiffSlide constructor
 
         Parameters
         ----------
@@ -103,54 +102,23 @@ class TiffSlide:
         storage_options:
             a dictionary with keyword arguments passed to fsspec
         """
-        if tifffile_options is None:
-            tifffile_options = {}
-        if storage_options is None:
-            storage_options = {}
+        # tifffile instance, can raise TiffFileError
+        self.ts_tifffile = _prepare_tifffile(
+            filename, storage_options=storage_options, tifffile_options=tifffile_options
+        )
 
-        f = filename
-        urlpath = None
-        if isinstance(filename, (str, os.PathLike)):
-            # a string or path-like object
-            fs, path = url_to_fs(filename, **storage_options)
-            urlpath = os.fspath(filename)
-            if isinstance(fs, LocalFileSystem):
-                f = path
-            else:
-                f = fs.open(path)
-
-        elif storage_options:
-            warn(
-                "storage_options ignored when file-like object is provided",
-                stacklevel=2
-            )
-
-        if hasattr(f, 'fs') and hasattr(f, 'path'):
-            # provided an fsspec OpenFile-like object
-            fs, path = f.fs, f.path
-            if "name" not in tifffile_options:
-                tifffile_options["name"] = (
-                    getattr(f, "full_name", os.path.basename(path))
-                )
-            f = fs.open(path)
-            proto = fs.protocol
-            if isinstance(proto, (tuple, list)):
-                proto = proto[0]
-            urlpath = f"{proto}://{path}"
-
-        self.ts_tifffile: TiffFile = TiffFile(f, **tifffile_options)  # may raise TiffFileError
-        self._urlpath = urlpath
-        self._zarr_grp: Optional[Union[zarr.core.Array, zarr.hierarchy.Group]] = None
-        self._metadata: Optional[Dict[str, Any]] = None
+        # state
+        self._zarr_grp: zarr.core.Array | zarr.hierarchy.Group | None = None
+        self._metadata: dict[str, Any] | None = None
 
     def __enter__(self) -> TiffSlide:
         return self
 
     def __exit__(
         self,
-        exc_type: Optional[Type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
     ) -> None:
         self.close()
 
@@ -167,20 +135,29 @@ class TiffSlide:
         return f"{type(self).__name__}({self.ts_tifffile.filename!r})"
 
     @classmethod
-    def detect_format(cls, filename: PathOrFileLike) -> Optional[str]:
+    def detect_format(
+        cls,
+        filename: PathOrFileOrBufferLike[AnyStr],
+        *,
+        tifffile_options: dict[str, Any] | None = None,
+        storage_options: dict[str, Any] | None = None,
+    ) -> str | None:
         """return the detected format as a str or None if unknown/unimplemented"""
         _vendor_compat_map = dict(
             svs="aperio",
             # add more when needed
         )
-        with TiffFile(filename) as t:
+        tf = _prepare_tifffile(
+            filename, tifffile_options=tifffile_options, storage_options=storage_options
+        )
+        with tf as t:
             for prop, vendor in _vendor_compat_map.items():
                 if getattr(t, f"is_{prop}"):
                     return vendor
         return None
 
     @property
-    def dimensions(self) -> Tuple[int, int]:
+    def dimensions(self) -> tuple[int, int]:
         """return the width and height of level 0"""
         series0 = self.ts_tifffile.series[0]
         assert series0.ndim == 3, "loosen restrictions in future versions"
@@ -193,18 +170,18 @@ class TiffSlide:
         return len(self.ts_tifffile.series[0].levels)
 
     @property
-    def level_dimensions(self) -> Tuple[Tuple[int, int], ...]:
+    def level_dimensions(self) -> tuple[tuple[int, int], ...]:
         """return the dimensions of levels as a list"""
         return tuple(lvl.shape[1::-1] for lvl in self.ts_tifffile.series[0].levels)
 
     @property
-    def level_downsamples(self) -> Tuple[float, ...]:
+    def level_downsamples(self) -> tuple[float, ...]:
         """return the downsampling factors of levels as a list"""
         w0, h0 = self.dimensions
         return tuple(math.sqrt((w0 * h0) / (w * h)) for w, h in self.level_dimensions)
 
     @cached_property
-    def properties(self) -> Dict[str, Any]:
+    def properties(self) -> dict[str, Any]:
         """image properties / metadata as a dict"""
         if self._metadata is None:
             aperio_desc = self.ts_tifffile.pages[0].description
@@ -265,15 +242,21 @@ class TiffSlide:
             if md[PROPERTY_NAME_MPP_X] is None or md[PROPERTY_NAME_MPP_Y] is None:
                 # recover mpp from tiff tags
                 try:
-                    resolution_unit = self.ts_tifffile.pages[0].tags["ResolutionUnit"].value
-                    x_resolution = Fraction(*self.ts_tifffile.pages[0].tags["XResolution"].value)
-                    y_resolution = Fraction(*self.ts_tifffile.pages[0].tags["YResolution"].value)
+                    resolution_unit = (
+                        self.ts_tifffile.pages[0].tags["ResolutionUnit"].value
+                    )
+                    x_resolution = Fraction(
+                        *self.ts_tifffile.pages[0].tags["XResolution"].value
+                    )
+                    y_resolution = Fraction(
+                        *self.ts_tifffile.pages[0].tags["YResolution"].value
+                    )
                 except KeyError:
                     pass
                 else:
-                    md['tiff.ResolutionUnit'] = resolution_unit.name
-                    md['tiff.XResolution'] = float(x_resolution)
-                    md['tiff.YResolution'] = float(y_resolution)
+                    md["tiff.ResolutionUnit"] = resolution_unit.name
+                    md["tiff.XResolution"] = float(x_resolution)
+                    md["tiff.YResolution"] = float(y_resolution)
 
                     RESUNIT = tifffile.TIFF.RESUNIT
                     scale = {
@@ -311,7 +294,7 @@ class TiffSlide:
         return self.level_count - 1
 
     @property
-    def ts_zarr_grp(self) -> Union[zarr.core.Array, zarr.hierarchy.Group]:
+    def ts_zarr_grp(self) -> zarr.core.Array | zarr.hierarchy.Group:
         """return the tiff image as a zarr array or group
 
         NOTE: this is extra functionality and not part of the drop-in behaviour
@@ -322,7 +305,7 @@ class TiffSlide:
         return self._zarr_grp
 
     def _read_region_as_array(
-        self, location: Tuple[int, int], level: int, size: Tuple[int, int]
+        self, location: tuple[int, int], level: int, size: tuple[int, int]
     ) -> npt.NDArray[np.int_]:
         """return the requested region as a numpy array
 
@@ -335,20 +318,43 @@ class TiffSlide:
         size :
             size (width, height) of the requested region
         """
-        warn("use: Tiffslide.read_region(loc, lvl, size, as_array=True)", category=DeprecationWarning, stacklevel=2)
+        warn(
+            "use: Tiffslide.read_region(loc, lvl, size, as_array=True)",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
         return self.read_region(location, level, size, as_array=True)
 
     @overload
-    def read_region(self, location: Tuple[int, int], level: int, size: Tuple[int, int], *, as_array: Literal[False] = ...) -> Image.Image: ...
+    def read_region(
+        self,
+        location: tuple[int, int],
+        level: int,
+        size: tuple[int, int],
+        *,
+        as_array: Literal[False] = ...,
+    ) -> Image.Image:
+        ...
+
     @overload
-    def read_region(self, location: Tuple[int, int], level: int, size: Tuple[int, int], *, as_array: Literal[True] = ...) -> npt.NDArray[np.int_]: ...
+    def read_region(
+        self,
+        location: tuple[int, int],
+        level: int,
+        size: tuple[int, int],
+        *,
+        as_array: Literal[True] = ...,
+    ) -> npt.NDArray[np.int_]:
+        ...
 
     def read_region(
         self,
-        location: Tuple[int, int], level: int, size: Tuple[int, int],
+        location: tuple[int, int],
+        level: int,
+        size: tuple[int, int],
         *,
-        as_array: bool = False
-    ) -> Union[Image.Image, npt.NDArray[np.int_]]:
+        as_array: bool = False,
+    ) -> Image.Image | npt.NDArray[np.int_]:
         """return the requested region as a PIL.Image
 
         Parameters
@@ -381,7 +387,9 @@ class TiffSlide:
         else:
             return Image.fromarray(arr)
 
-    def get_thumbnail(self, size: Tuple[int, int], *, use_embedded: bool = False) -> Image.Image:
+    def get_thumbnail(
+        self, size: tuple[int, int], *, use_embedded: bool = False
+    ) -> Image.Image:
         """return the thumbnail of the slide as a PIL.Image with a maximum size
 
         Parameters
@@ -396,10 +404,10 @@ class TiffSlide:
         """
         if (
             use_embedded
-            and 'thumbnail' in self.associated_images
-            and size <= self.associated_images.series_map['thumbnail'].shape[1::-1]
+            and "thumbnail" in self.associated_images
+            and size <= self.associated_images.series_map["thumbnail"].shape[1::-1]
         ):
-            thumb_byte_size = self.associated_images.series_map['thumbnail'].size
+            thumb_byte_size = self.associated_images.series_map["thumbnail"].size
         else:
             thumb_byte_size = -1
 
@@ -412,7 +420,7 @@ class TiffSlide:
 
         if 0 < thumb_byte_size < level_byte_size:
             # read the embedded thumbnail if it uses fewer bytes
-            img = self.associated_images['thumbnail']
+            img = self.associated_images["thumbnail"]
         else:
             # read the best suited level
             _level_dimensions = self.level_dimensions[level]
@@ -434,8 +442,8 @@ class _LazyAssociatedImagesDict(Mapping[str, Image.Image]):
 
     def __init__(self, tifffile: TiffFile):
         series = tifffile.series[1:]
-        self.series_map: Dict[str, TiffPageSeries] = {s.name.lower(): s for s in series}
-        self._m: Dict[str, Image.Image] = {}
+        self.series_map: dict[str, TiffPageSeries] = {s.name.lower(): s for s in series}
+        self._m: dict[str, Image.Image] = {}
 
     def __repr__(self) -> str:
         args = ", ".join(
@@ -458,3 +466,74 @@ class _LazyAssociatedImagesDict(Mapping[str, Image.Image]):
 
     def __iter__(self) -> Iterator[str]:
         yield from self.series_map
+
+
+def _prepare_tifffile(
+    fb: PathOrFileOrBufferLike[AnyStr],
+    *,
+    tifffile_options: dict[str, Any] | None = None,
+    storage_options: dict[str, Any] | None = None,
+) -> TiffFile:
+    """prepare a TiffFile instance
+
+    Allows to provide fsspec urlpaths as well as fsspec OpenFile instances directly.
+
+    Parameters
+    ----------
+    fb:
+        a urlpath like string, an fsspec OpenFile like instance or a buffer like instance
+    tifffile_options:
+        keyword arguments passed to tifffile.TiffFile
+    storage_options:
+        keyword arguments passed to fsspec AbstractFileSystem.open
+    """
+    tf_kw: dict[str, Any] = tifffile_options or {}
+    st_kw: dict[str, Any] = storage_options or {}
+
+    def _warn_unused_storage_options(kw: Any) -> None:
+        if kw:
+            warn(
+                "storage_options ignored when providing file or buffer like object",
+                stacklevel=3,
+            )
+
+    if isinstance(fb, OpenFileLike):
+        # provided an fsspec compatible OpenFile instance
+        _warn_unused_storage_options(st_kw)
+
+        fs, path = fb.fs, fb.path
+
+        # set name for tifffile.FileHandle
+        if "name" not in tf_kw:
+            if hasattr(fb, "full_name"):
+                name = os.path.basename(fb.full_name)  # type: ignore
+            else:
+                name = os.path.basename(path)
+            tf_kw["name"] = name
+
+        return TiffFile(fs.open(path), **tf_kw)
+
+    elif isinstance(fb, TiffFileIO):
+        # provided an IO stream like instance
+        _warn_unused_storage_options(st_kw)
+
+        return TiffFile(fb, **tf_kw)
+
+    elif isinstance(fb, (str, os.PathLike)):
+        # provided a string like url
+        urlpath = os.fspath(fb)
+        fs, path = url_to_fs(urlpath, **st_kw)
+        if isinstance(fs, LocalFileSystem):
+            return TiffFile(path, **tf_kw)
+        else:
+            # set name for tifffile.FileHandle
+            if "name" not in tf_kw:
+                tf_kw["name"] = os.path.basename(path)
+
+            return TiffFile(fs.open(path), **tf_kw)
+
+    else:
+        # let's try anyways ...
+        _warn_unused_storage_options(st_kw)
+
+        return TiffFile(fb, **tf_kw)

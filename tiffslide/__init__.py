@@ -3,9 +3,10 @@
 a somewhat drop-in replacement for openslide-python using tifffile and zarr
 
 """
+from typing import AnyStr
 from warnings import warn
 
-from tiffslide._types import PathOrFileLike
+from tiffslide._types import PathOrFileOrBufferLike
 from tiffslide.tiffslide import TiffSlide
 from tiffslide.tiffslide import TiffFileError
 from tiffslide.tiffslide import (
@@ -35,7 +36,9 @@ def __getattr__(name):  # type: ignore
     """support some drop-in behavior"""
     # alias the most important bits
     if name in {"OpenSlideUnsupportedFormatError", "OpenSlideError"}:
-        warn(f"compatibility: aliasing tiffslide.TiffFileError to {name!r}", stacklevel=2)
+        warn(
+            f"compatibility: aliasing tiffslide.TiffFileError to {name!r}", stacklevel=2
+        )
         return TiffFileError
     elif name in {"OpenSlide", "ImageSlide"}:
         warn(f"compatibility: aliasing tiffslide.TiffSlide to {name!r}", stacklevel=2)
@@ -46,6 +49,6 @@ def __getattr__(name):  # type: ignore
     raise AttributeError(name)
 
 
-def open_slide(filename: PathOrFileLike) -> TiffSlide:
+def open_slide(filename: PathOrFileOrBufferLike[AnyStr]) -> TiffSlide:
     """drop-in helper function"""
     return TiffSlide(filename)
