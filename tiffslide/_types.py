@@ -1,14 +1,13 @@
 import os
 import sys
 from types import TracebackType
+from typing import IO
 from typing import Any
 from typing import AnyStr
 from typing import ContextManager
-from typing import IO
 from typing import Optional
 from typing import Type
 from typing import Union
-
 
 if sys.version_info >= (3, 8):
     from typing import Protocol

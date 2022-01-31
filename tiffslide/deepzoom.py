@@ -22,9 +22,9 @@ from xml.etree.ElementTree import SubElement
 import fsspec
 from PIL import Image
 from PIL import ImageFile
+from tifffile import TIFF
 from tifffile import TiffFile
 from tifffile import TiffPage
-from tifffile import TIFF
 
 # improve robustness when encountering corrupted tiles
 ImageFile.LOAD_TRUNCATED_IMAGES = True

@@ -7,22 +7,19 @@ from typing import AnyStr
 from warnings import warn
 
 from tiffslide._types import PathOrFileOrBufferLike
-from tiffslide.tiffslide import TiffSlide
+from tiffslide.tiffslide import PROPERTY_NAME_BACKGROUND_COLOR
+from tiffslide.tiffslide import PROPERTY_NAME_BOUNDS_HEIGHT
+from tiffslide.tiffslide import PROPERTY_NAME_BOUNDS_WIDTH
+from tiffslide.tiffslide import PROPERTY_NAME_BOUNDS_X
+from tiffslide.tiffslide import PROPERTY_NAME_BOUNDS_Y
+from tiffslide.tiffslide import PROPERTY_NAME_COMMENT
+from tiffslide.tiffslide import PROPERTY_NAME_MPP_X
+from tiffslide.tiffslide import PROPERTY_NAME_MPP_Y
+from tiffslide.tiffslide import PROPERTY_NAME_OBJECTIVE_POWER
+from tiffslide.tiffslide import PROPERTY_NAME_QUICKHASH1
+from tiffslide.tiffslide import PROPERTY_NAME_VENDOR
 from tiffslide.tiffslide import TiffFileError
-from tiffslide.tiffslide import (
-    PROPERTY_NAME_COMMENT,
-    PROPERTY_NAME_VENDOR,
-    PROPERTY_NAME_QUICKHASH1,
-    PROPERTY_NAME_BACKGROUND_COLOR,
-    PROPERTY_NAME_OBJECTIVE_POWER,
-    PROPERTY_NAME_MPP_X,
-    PROPERTY_NAME_MPP_Y,
-    PROPERTY_NAME_BOUNDS_X,
-    PROPERTY_NAME_BOUNDS_Y,
-    PROPERTY_NAME_BOUNDS_WIDTH,
-    PROPERTY_NAME_BOUNDS_HEIGHT,
-)
-
+from tiffslide.tiffslide import TiffSlide
 
 try:
     from tiffslide._version import version as __version__

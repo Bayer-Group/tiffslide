@@ -1,12 +1,12 @@
+import importlib
 import os
 
 import fsspec
 import pytest
-import importlib
 
 import tiffslide
-from tiffslide import TiffSlide
 from tiffslide import TiffFileError
+from tiffslide import TiffSlide
 
 
 @pytest.fixture
