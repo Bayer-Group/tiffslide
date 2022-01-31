@@ -1,8 +1,9 @@
 import hashlib
 
-from flask import Flask, render_template
+from flask import Flask
 from flask import abort
 from flask import make_response
+from flask import render_template
 from flask import url_for
 
 from tiffslide.deepzoom import MinimalComputeAperioDZGenerator

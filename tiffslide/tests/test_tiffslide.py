@@ -1,5 +1,8 @@
 import importlib
 import os
+import subprocess
+import sys
+from textwrap import dedent
 
 import fsspec
 import pytest
@@ -159,3 +162,34 @@ def test_compat_unsupported_abstractslide():
             from tiffslide import AbstractSlide
 
             _ = AbstractSlide
+
+
+def test_thread_safety(svs_small, tmp_path):
+    """reproduce threading issue reported in:
+
+    https://github.com/bayer-science-for-a-better-life/tiffslide/issues/14
+
+    """
+    bug_py = tmp_path.joinpath("threading_bug.py")
+    bug_py.write_text(
+        dedent(
+            f"""\
+            import tiffslide
+            from multiprocessing.pool import ThreadPool
+
+            def read_region(slide):
+                _ = slide.read_region((0, 0), 0, (10, 10))
+
+            # number of threads
+            num_threads = 8
+
+            ts = tiffslide.TiffSlide({os.fspath(svs_small)!r})
+
+            with ThreadPool(num_threads) as pool:
+                pool.starmap(read_region, [(ts, ) for _ in range(num_threads*2)])
+            """
+        )
+    )
+    for _ in range(10):
+        out = subprocess.run([sys.executable, bug_py], capture_output=True)
+        assert out.returncode == 0, out.stderr.decode()
