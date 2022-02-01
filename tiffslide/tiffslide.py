@@ -504,7 +504,13 @@ def _prepare_tifffile(
                 stacklevel=3,
             )
 
-    if isinstance(fb, OpenFileLike):
+    if isinstance(fb, TiffFileIO):
+        # provided an IO stream like instance
+        _warn_unused_storage_options(st_kw)
+
+        return TiffFile(fb, **tf_kw)
+
+    elif isinstance(fb, OpenFileLike):
         # provided an fsspec compatible OpenFile instance
         _warn_unused_storage_options(st_kw)
 
@@ -519,12 +525,6 @@ def _prepare_tifffile(
             tf_kw["name"] = name
 
         return TiffFile(fs.open(path), **tf_kw)
-
-    elif isinstance(fb, TiffFileIO):
-        # provided an IO stream like instance
-        _warn_unused_storage_options(st_kw)
-
-        return TiffFile(fb, **tf_kw)
 
     elif isinstance(fb, (str, os.PathLike)):
         # provided a string like url
