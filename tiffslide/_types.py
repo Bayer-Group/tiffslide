@@ -4,7 +4,6 @@ from types import TracebackType
 from typing import IO
 from typing import Any
 from typing import AnyStr
-from typing import ContextManager
 from typing import Optional
 from typing import Type
 from typing import Union

@@ -14,12 +14,6 @@ from typing import Mapping
 from typing import overload
 from warnings import warn
 
-from fsspec.core import url_to_fs
-from fsspec.implementations.local import LocalFileSystem
-
-from tiffslide._types import OpenFileLike
-from tiffslide._types import TiffFileIO
-
 if sys.version_info[:2] >= (3, 8):
     from functools import cached_property
     from importlib.metadata import version
@@ -31,13 +25,17 @@ else:
 
 import tifffile
 import zarr
+from fsspec.core import url_to_fs
+from fsspec.implementations.local import LocalFileSystem
 from PIL import Image
 from tifffile import TiffFile
 from tifffile import TiffFileError as TiffFileError
 from tifffile import TiffPageSeries
 from tifffile.tifffile import svs_description_metadata
 
+from tiffslide._types import OpenFileLike
 from tiffslide._types import PathOrFileOrBufferLike
+from tiffslide._types import TiffFileIO
 
 if TYPE_CHECKING:
     import numpy as np
