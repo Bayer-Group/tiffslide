@@ -329,6 +329,15 @@ class TiffSlide:
         location: tuple[int, int],
         level: int,
         size: tuple[int, int],
+    ) -> Image.Image:
+        ...
+
+    @overload
+    def read_region(
+        self,
+        location: tuple[int, int],
+        level: int,
+        size: tuple[int, int],
         *,
         as_array: Literal[False] = ...,
     ) -> Image.Image:
