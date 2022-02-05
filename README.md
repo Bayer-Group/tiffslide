@@ -24,6 +24,19 @@ If there are any questions open an issue, and we'll do our best to help!
 
 ## Documentation
 
+### Installation
+
+tiffslide's stable releases can be installed via `pip`:
+```bash
+pip install tiffslide
+```
+Or via `conda`:
+```bash
+conda install -c conda-forge tiffslide
+```
+
+### Usage
+
 tiffslide's behavior aims to be identical to openslide-python where it makes sense.
 If you rely heavily on the internals of openslide, this is not the package you are looking for.
 In case we add more features, we will add documentation here.
