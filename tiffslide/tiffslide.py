@@ -474,16 +474,16 @@ def _prepare_tifffile(
 ) -> TiffFile:
     """prepare a TiffFile instance
 
-    Allows to provide fsspec urlpaths as well as fsspec OpenFile instances directly.
+    Allows providing fsspec urlpaths as well as fsspec OpenFile instances directly.
 
     Parameters
     ----------
     fb:
-        a urlpath like string, an fsspec OpenFile like instance or a buffer like instance
+        an urlpath like string, a fsspec OpenFile like instance or a buffer like instance
     tifffile_options:
         keyword arguments passed to tifffile.TiffFile
     storage_options:
-        keyword arguments passed to fsspec AbstractFileSystem.open
+        keyword arguments passed to fsspec AbstractFileSystem.open()
     """
     tf_kw: dict[str, Any] = tifffile_options or {}
     st_kw: dict[str, Any] = storage_options or {}
@@ -502,7 +502,7 @@ def _prepare_tifffile(
         return TiffFile(fb, **tf_kw)
 
     elif isinstance(fb, OpenFileLike):
-        # provided an fsspec compatible OpenFile instance
+        # provided a fsspec compatible OpenFile instance
         _warn_unused_storage_options(st_kw)
 
         fs, path = fb.fs, fb.path
