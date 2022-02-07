@@ -21,7 +21,6 @@ dependencies:
   - zarr
 
   # python 3.7 compat
-  - backports.cached_property
   - importlib_metadata
   - typing_extensions
 
@@ -31,4 +30,5 @@ dependencies:
   - pytest>=6
   - pytest-cov
   - pip:
+    - backports.cached_property  # python 3.7 compat
     - "-e ."
