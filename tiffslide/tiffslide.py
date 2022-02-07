@@ -105,10 +105,6 @@ class TiffSlide:
             filename, storage_options=storage_options, tifffile_options=tifffile_options
         )
 
-        # state
-        self._zarr_grp: zarr.core.Array | zarr.hierarchy.Group | None = None
-        self._metadata: dict[str, Any] | None = None
-
     def __enter__(self) -> TiffSlide:
         return self
 
@@ -121,12 +117,12 @@ class TiffSlide:
         self.close()
 
     def close(self) -> None:
-        if self._zarr_grp:
+        ts_zarr_grp = self.__dict__.pop("ts_zarr_grp", None)
+        if ts_zarr_grp is not None:
             try:
-                self._zarr_grp.close()
+                self.ts_zarr_grp.close()
             except AttributeError:
-                pass  # Arrays dont need to be closed
-            self._zarr_grp = None
+                pass  # Arrays don't need to be closed
         self.ts_tifffile.close()
 
     def __repr__(self) -> str:
@@ -181,101 +177,98 @@ class TiffSlide:
     @cached_property
     def properties(self) -> dict[str, Any]:
         """image properties / metadata as a dict"""
-        if self._metadata is None:
-            aperio_desc = self.ts_tifffile.pages[0].description
+        aperio_desc = self.ts_tifffile.pages[0].description
 
-            if _TIFFFILE_VERSION >= (2021, 6, 14):
-                # tifffile 2021.6.14 fixed the svs parsing.
-                _aperio_desc = aperio_desc
-                _aperio_recovered_header = None  # no need to recover
+        if _TIFFFILE_VERSION >= (2021, 6, 14):
+            # tifffile 2021.6.14 fixed the svs parsing.
+            _aperio_desc = aperio_desc
+            _aperio_recovered_header = None  # no need to recover
 
+        else:
+            # this emulates the new description parsing for older versions
+            _aperio_desc = re.sub(r";Aperio [^;|]*(?=[|])", "", aperio_desc, 1)
+            _aperio_recovered_header = aperio_desc.split("|", 1)[0]
+
+        try:
+            aperio_meta = svs_description_metadata(_aperio_desc)
+        except ValueError as err:
+            if "invalid Aperio image description" in str(err):
+                warn(f"{err} - {self!r}")
+                aperio_meta = {}
             else:
-                # this emulates the new description parsing for older versions
-                _aperio_desc = re.sub(r";Aperio [^;|]*(?=[|])", "", aperio_desc, 1)
-                _aperio_recovered_header = aperio_desc.split("|", 1)[0]
+                raise
+            vendor = "generic-tiff"  # todo: need to handle more supported formats in the future
+        else:
+            # Normalize the aperio metadata
+            aperio_meta.pop("", None)
+            aperio_meta.pop("Aperio Image Library", None)
+            if aperio_meta and "Header" not in aperio_meta:
+                aperio_meta["Header"] = _aperio_recovered_header
+            vendor = "aperio"
 
+        md = {
+            PROPERTY_NAME_COMMENT: aperio_desc,
+            PROPERTY_NAME_VENDOR: vendor,
+            PROPERTY_NAME_QUICKHASH1: None,
+            PROPERTY_NAME_BACKGROUND_COLOR: None,
+            PROPERTY_NAME_OBJECTIVE_POWER: aperio_meta.get("AppMag", None),
+            PROPERTY_NAME_MPP_X: aperio_meta.get("MPP", None),
+            PROPERTY_NAME_MPP_Y: aperio_meta.get("MPP", None),
+            PROPERTY_NAME_BOUNDS_X: None,
+            PROPERTY_NAME_BOUNDS_Y: None,
+            PROPERTY_NAME_BOUNDS_WIDTH: None,
+            PROPERTY_NAME_BOUNDS_HEIGHT: None,
+        }
+        md.update({f"aperio.{k}": v for k, v in sorted(aperio_meta.items())})
+
+        _ds_dimensions = zip(self.level_downsamples, self.level_dimensions)
+        for lvl, (ds, (width, height)) in enumerate(_ds_dimensions):
+            page = self.ts_tifffile.series[0].levels[lvl].pages[0]
+            md[f"tiffslide.level[{lvl}].downsample"] = ds
+            md[f"tiffslide.level[{lvl}].height"] = height
+            md[f"tiffslide.level[{lvl}].width"] = width
+            md[f"tiffslide.level[{lvl}].tile-height"] = page.tilelength
+            md[f"tiffslide.level[{lvl}].tile-width"] = page.tilewidth
+
+        md["tiff.ImageDescription"] = aperio_desc
+
+        if md[PROPERTY_NAME_MPP_X] is None or md[PROPERTY_NAME_MPP_Y] is None:
+            # recover mpp from tiff tags
             try:
-                aperio_meta = svs_description_metadata(_aperio_desc)
-            except ValueError as err:
-                if "invalid Aperio image description" in str(err):
-                    warn(f"{err} - {self!r}")
-                    aperio_meta = {}
-                else:
-                    raise
-                vendor = "generic-tiff"  # todo: need to handle more supported formats in the future
+                resolution_unit = (
+                    self.ts_tifffile.pages[0].tags["ResolutionUnit"].value
+                )
+                x_resolution = Fraction(
+                    *self.ts_tifffile.pages[0].tags["XResolution"].value
+                )
+                y_resolution = Fraction(
+                    *self.ts_tifffile.pages[0].tags["YResolution"].value
+                )
+            except KeyError:
+                pass
             else:
-                # Normalize the aperio metadata
-                aperio_meta.pop("", None)
-                aperio_meta.pop("Aperio Image Library", None)
-                if aperio_meta and "Header" not in aperio_meta:
-                    aperio_meta["Header"] = _aperio_recovered_header
-                vendor = "aperio"
+                md["tiff.ResolutionUnit"] = resolution_unit.name
+                md["tiff.XResolution"] = float(x_resolution)
+                md["tiff.YResolution"] = float(y_resolution)
 
-            md = {
-                PROPERTY_NAME_COMMENT: aperio_desc,
-                PROPERTY_NAME_VENDOR: vendor,
-                PROPERTY_NAME_QUICKHASH1: None,
-                PROPERTY_NAME_BACKGROUND_COLOR: None,
-                PROPERTY_NAME_OBJECTIVE_POWER: aperio_meta.get("AppMag", None),
-                PROPERTY_NAME_MPP_X: aperio_meta.get("MPP", None),
-                PROPERTY_NAME_MPP_Y: aperio_meta.get("MPP", None),
-                PROPERTY_NAME_BOUNDS_X: None,
-                PROPERTY_NAME_BOUNDS_Y: None,
-                PROPERTY_NAME_BOUNDS_WIDTH: None,
-                PROPERTY_NAME_BOUNDS_HEIGHT: None,
-            }
-            md.update({f"aperio.{k}": v for k, v in sorted(aperio_meta.items())})
-
-            _ds_dimensions = zip(self.level_downsamples, self.level_dimensions)
-            for lvl, (ds, (width, height)) in enumerate(_ds_dimensions):
-                page = self.ts_tifffile.series[0].levels[lvl].pages[0]
-                md[f"tiffslide.level[{lvl}].downsample"] = ds
-                md[f"tiffslide.level[{lvl}].height"] = height
-                md[f"tiffslide.level[{lvl}].width"] = width
-                md[f"tiffslide.level[{lvl}].tile-height"] = page.tilelength
-                md[f"tiffslide.level[{lvl}].tile-width"] = page.tilewidth
-
-            md["tiff.ImageDescription"] = aperio_desc
-
-            if md[PROPERTY_NAME_MPP_X] is None or md[PROPERTY_NAME_MPP_Y] is None:
-                # recover mpp from tiff tags
-                try:
-                    resolution_unit = (
-                        self.ts_tifffile.pages[0].tags["ResolutionUnit"].value
-                    )
-                    x_resolution = Fraction(
-                        *self.ts_tifffile.pages[0].tags["XResolution"].value
-                    )
-                    y_resolution = Fraction(
-                        *self.ts_tifffile.pages[0].tags["YResolution"].value
-                    )
-                except KeyError:
-                    pass
-                else:
-                    md["tiff.ResolutionUnit"] = resolution_unit.name
-                    md["tiff.XResolution"] = float(x_resolution)
-                    md["tiff.YResolution"] = float(y_resolution)
-
-                    RESUNIT = tifffile.TIFF.RESUNIT
-                    scale = {
-                        RESUNIT.INCH: 25400.0,
-                        RESUNIT.CENTIMETER: 10000.0,
-                        RESUNIT.MILLIMETER: 1000.0,
-                        RESUNIT.MICROMETER: 1.0,
-                        RESUNIT.NONE: None,
-                    }.get(resolution_unit, None)
-                    if scale is not None:
-                        try:
-                            mpp_x = scale / x_resolution
-                            mpp_y = scale / y_resolution
-                        except ArithmeticError:
-                            pass
-                        else:
-                            md[PROPERTY_NAME_MPP_X] = mpp_x
-                            md[PROPERTY_NAME_MPP_Y] = mpp_y
-
-            self._metadata = md
-        return self._metadata
+                RESUNIT = tifffile.TIFF.RESUNIT
+                scale = {
+                    RESUNIT.INCH: 25400.0,
+                    RESUNIT.CENTIMETER: 10000.0,
+                    RESUNIT.MILLIMETER: 1000.0,
+                    RESUNIT.MICROMETER: 1.0,
+                    RESUNIT.NONE: None,
+                }.get(resolution_unit, None)
+                if scale is not None:
+                    try:
+                        mpp_x = scale / x_resolution
+                        mpp_y = scale / y_resolution
+                    except ArithmeticError:
+                        pass
+                    else:
+                        md[PROPERTY_NAME_MPP_X] = mpp_x
+                        md[PROPERTY_NAME_MPP_Y] = mpp_y
+        return md
 
     @cached_property
     def associated_images(self) -> _LazyAssociatedImagesDict:
@@ -297,10 +290,8 @@ class TiffSlide:
 
         NOTE: this is extra functionality and not part of the drop-in behaviour
         """
-        if self._zarr_grp is None:
-            store = self.ts_tifffile.series[0].aszarr()
-            self._zarr_grp = zarr.open(store, mode="r")
-        return self._zarr_grp
+        store = self.ts_tifffile.series[0].aszarr()
+        return zarr.open(store, mode="r")
 
     def _read_region_as_array(
         self, location: tuple[int, int], level: int, size: tuple[int, int]
