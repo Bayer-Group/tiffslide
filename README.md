@@ -115,7 +115,7 @@ Without conda:
 
 1. Clone tiffslide `git clone https://github.com/bayer-science-for-a-better-life/tiffslide.git`
 2. `cd tiffslide`
-3. `python -m venv venv && source venv/bin/activate`
+3. `python -m venv venv && source venv/bin/activate && python -m pip install -U pip`
 4. `pip install -e .[dev]`
 
 Note that in these environments `tiffslide` is already installed in development
