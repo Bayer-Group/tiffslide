@@ -235,9 +235,7 @@ class TiffSlide:
         if md[PROPERTY_NAME_MPP_X] is None or md[PROPERTY_NAME_MPP_Y] is None:
             # recover mpp from tiff tags
             try:
-                resolution_unit = (
-                    self.ts_tifffile.pages[0].tags["ResolutionUnit"].value
-                )
+                resolution_unit = self.ts_tifffile.pages[0].tags["ResolutionUnit"].value
                 x_resolution = Fraction(
                     *self.ts_tifffile.pages[0].tags["XResolution"].value
                 )
