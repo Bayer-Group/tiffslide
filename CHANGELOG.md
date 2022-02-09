@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ...
 
+## [1.0.0] - 2022-01-31
+### Added
+- docs: add stable version installation instructions
+
+### Changed
+- tiffslide: remove deprecated private method (breaking)
+- tiffslide: remove obsolete internal state after using `cached_property`
+- docs: update and improve the README
+
+### Fixed
+- tiffslide: complete typing overload for `read_region`
+- tiffslide: change order of checks in _prepare_tifffile
+
 ## [0.3.0] - 2022-01-31
 ### Added
 - support opening fsspec urlpaths and openfiles directly
@@ -50,14 +63,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `TiffSlide.read_region_array` method for reading `np.ndarray`
 
 ### Changed
-- removed TiffSlide.ts_filename attribute
+- removed `TiffSlide.ts_filename` attribute
 
 ## [0.0.1] - 2021-03-18
 ### Added
 - initial release of tiffslide and
 
-[Unreleased]:
-https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v0.3.0...v1.0.0
 [0.3.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v0.2.0...v0.2.1
