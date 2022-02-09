@@ -291,27 +291,6 @@ class TiffSlide:
         store = self.ts_tifffile.series[0].aszarr()
         return zarr.open(store, mode="r")
 
-    def _read_region_as_array(
-        self, location: tuple[int, int], level: int, size: tuple[int, int]
-    ) -> npt.NDArray[np.int_]:
-        """return the requested region as a numpy array
-
-        Parameters
-        ----------
-        location :
-            pixel location (x, y) in level 0 of the image
-        level :
-            target level used to read the image
-        size :
-            size (width, height) of the requested region
-        """
-        warn(
-            "use: Tiffslide.read_region(loc, lvl, size, as_array=True)",
-            category=DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.read_region(location, level, size, as_array=True)
-
     @overload
     def read_region(
         self,
