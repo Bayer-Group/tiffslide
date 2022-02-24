@@ -89,7 +89,11 @@ class MinimalComputeAperioDZGenerator:
                 (page,) = page_series.pages
 
                 # more assumptions to ensure programmer sanity
-                assert page.compression == TIFF.COMPRESSION.JPEG
+                assert page.compression in {
+                    TIFF.COMPRESSION.JPEG,
+                    TIFF.COMPRESSION.APERIO_JP2000_YCBC,
+                    TIFF.COMPRESSION.APERIO_JP2000_RGB,
+                }
                 assert page.is_tiled
                 assert page.planarconfig == TIFF.PLANARCONFIG.CONTIG
 
@@ -99,12 +103,8 @@ class MinimalComputeAperioDZGenerator:
                 idx_width = (im_width + st_width - 1) // st_width
                 idx_length = (im_length + st_length - 1) // st_length
 
-                (jpeg_tables_tag,) = (
-                    tag for tag in page.tags.values() if tag.name == "JPEGTables"
-                )
-
                 self._page_info[lvl_idx] = {
-                    "jpeg_header": jpeg_tables_tag.value[:],
+                    "jpeg_tables": page.jpegtables,
                     "idx_wh": (idx_width, idx_length),
                     "tile_wh": (st_width, st_length),
                     "image_wh": (im_width, im_length),
@@ -145,7 +145,7 @@ class MinimalComputeAperioDZGenerator:
     def _read_svs_tile(self, svs_level: int, x: int, y: int) -> bytes:
         """return a single tile from an svs as a jpeg into a buffer"""
         info = self._page_info[svs_level]
-        jpeg_tables_tag = info["jpeg_header"]
+        jpeg_tables = info["jpeg_tables"]
         (idx_width, idx_length) = info["idx_wh"]
         (st_width, st_length) = info["tile_wh"]
         (im_width, im_length) = info["image_wh"]
@@ -165,18 +165,21 @@ class MinimalComputeAperioDZGenerator:
             f.seek(dataoffsets[tile_index])
             data = f.read(databytecounts[tile_index])
 
-        with BytesIO() as buffer:
-            buffer.write(jpeg_tables_tag[:-2])
-            if requires_rgb_color_fix:
-                # to directly provide the stored tiles from disk, we need to fix that svs tiles
-                # use a jpeg colorspace that doesn't show up correctly in the browser if the default
-                # jpeg headers are used
-                # See https://stackoverflow.com/questions/8747904/extract-jpeg-from-tiff-file/9658206#9658206
-                buffer.write(
-                    b"\xFF\xEE\x00\x0E\x41\x64\x6F\x62\x65\x00\x64\x80\x00\x00\x00\x00"
-                )  # colorspace fix
-            buffer.write(data[2:])
-            tile_data = buffer.getvalue()
+        if jpeg_tables is not None:
+            with BytesIO() as buffer:
+                buffer.write(jpeg_tables[:-2])
+                if requires_rgb_color_fix:
+                    # to directly provide the stored tiles from disk, we need to fix that svs tiles
+                    # use a jpeg colorspace that doesn't show up correctly in the browser if the default
+                    # jpeg headers are used
+                    # See https://stackoverflow.com/questions/8747904/extract-jpeg-from-tiff-file/9658206#9658206
+                    buffer.write(
+                        b"\xFF\xEE\x00\x0E\x41\x64\x6F\x62\x65\x00\x64\x80\x00\x00\x00\x00"
+                    )  # colorspace fix
+                buffer.write(data[2:])
+                tile_data = buffer.getvalue()
+        else:
+            tile_data = data
 
         # the outer edges need to be cropped to be interpreted correctly by default openseadragon
         out_width = ((im_width - 1) % st_width) + 1 if x == idx_width - 1 else st_width
