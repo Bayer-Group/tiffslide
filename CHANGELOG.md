@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ...
 
+## [1.0.1] - 2022-02-24
+### Fixed
+- tiffslide.deepzoom: support ycbc and rgb svs with and without jpeg tables
+
 ## [1.0.0] - 2022-01-31
 ### Added
 - docs: add stable version installation instructions
@@ -69,7 +73,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - initial release of tiffslide and
 
-[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v0.3.0...v1.0.0
 [0.3.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v0.2.1...v0.2.2
