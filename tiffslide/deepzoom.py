@@ -92,6 +92,7 @@ class MinimalComputeAperioDZGenerator:
                 assert page.compression in {
                     TIFF.COMPRESSION.JPEG,
                     TIFF.COMPRESSION.APERIO_JP2000_YCBC,
+                    TIFF.COMPRESSION.JPEG_2000_LOSSY,
                     TIFF.COMPRESSION.APERIO_JP2000_RGB,
                 }
                 assert page.is_tiled
