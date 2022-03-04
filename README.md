@@ -6,6 +6,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/bayer-science-for-a-better-life/tiffslide)](https://github.com/bayer-science-for-a-better-life/tiffslide/issues)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/tiffslide?label=pypi)](https://pypi.org/project/tiffslide/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/tiffslide)](https://github.com/bayer-science-for-a-better-life/tiffslide)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6327079.svg)](https://doi.org/10.5281/zenodo.6327079)
 
 Welcome to `tiffslide` :wave:, a [tifffile](https://github.com/cgohlke/tifffile/) based
 drop-in replacement for [openslide-python](https://github.com/openslide/openslide-python).
