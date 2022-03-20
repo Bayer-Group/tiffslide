@@ -96,6 +96,7 @@ def svs_small_props():
                                  '0.000000|ImageID = 1004486|OriginalWidth = '
                                  '46920|Originalheight = 33014|Filtered = '
                                  '5|OriginalWidth = 46000|OriginalHeight = 32914',
+        'tiffslide.series-index': 0,
         'tiffslide.background-color': None,
         'tiffslide.bounds-height': None,
         'tiffslide.bounds-width': None,

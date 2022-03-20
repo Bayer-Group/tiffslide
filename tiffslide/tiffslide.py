@@ -5,6 +5,7 @@ import os.path
 import re
 import sys
 from fractions import Fraction
+from itertools import count
 from types import TracebackType
 from typing import TYPE_CHECKING
 from typing import Any
@@ -153,20 +154,37 @@ class TiffSlide:
     @cached_property
     def dimensions(self) -> tuple[int, int]:
         """return the width and height of level 0"""
-        series0 = self.ts_tifffile.series[0]
-        assert series0.ndim == 3, "loosen restrictions in future versions"
-        h, w, _ = series0.shape
-        return w, h
+        prop = self.properties
+        return (
+            prop["tiffslide.level[0].width"],
+            prop["tiffslide.level[0].height"],
+        )
 
     @cached_property
     def level_count(self) -> int:
         """return the number of levels"""
-        return len(self.ts_tifffile.series[0].levels)
+        prop = self.properties
+        lvl = 1
+        while f"tiffslide.level[{lvl}].width" in prop:
+            lvl += 1
+        return lvl
 
     @cached_property
     def level_dimensions(self) -> tuple[tuple[int, int], ...]:
         """return the dimensions of levels as a list"""
-        return tuple(lvl.shape[1::-1] for lvl in self.ts_tifffile.series[0].levels)
+        prop = self.properties
+        lvl_dims = [self.dimensions]
+        for lvl in count(1):
+            try:
+                lvl_dim = (
+                    prop[f"tiffslide.level[{lvl}].width"],
+                    prop[f"tiffslide.level[{lvl}].height"],
+                )
+            except KeyError:
+                break
+            else:
+                lvl_dims.append(lvl_dim)
+        return tuple(lvl_dims)
 
     @cached_property
     def level_downsamples(self) -> tuple[float, ...]:
@@ -177,71 +195,58 @@ class TiffSlide:
     @cached_property
     def properties(self) -> dict[str, Any]:
         """image properties / metadata as a dict"""
-        aperio_desc = self.ts_tifffile.pages[0].description
-
-        if _TIFFFILE_VERSION >= (2021, 6, 14):
-            # tifffile 2021.6.14 fixed the svs parsing.
-            _aperio_desc = aperio_desc
-            _aperio_recovered_header = None  # no need to recover
-
-        else:
-            # this emulates the new description parsing for older versions
-            _aperio_desc = re.sub(r";Aperio [^;|]*(?=[|])", "", aperio_desc, 1)
-            _aperio_recovered_header = aperio_desc.split("|", 1)[0]
-
-        try:
-            aperio_meta = svs_description_metadata(_aperio_desc)
-        except ValueError as err:
-            if "invalid Aperio image description" in str(err):
-                warn(f"{err} - {self!r}")
-                aperio_meta = {}
-            else:
-                raise
-            vendor = "generic-tiff"  # todo: need to handle more supported formats in the future
-        else:
-            # Normalize the aperio metadata
-            aperio_meta.pop("", None)
-            aperio_meta.pop("Aperio Image Library", None)
-            if aperio_meta and "Header" not in aperio_meta:
-                aperio_meta["Header"] = _aperio_recovered_header
-            vendor = "aperio"
-
-        md = {
-            PROPERTY_NAME_COMMENT: aperio_desc,
-            PROPERTY_NAME_VENDOR: vendor,
+        md: dict[str, Any] = {
+            PROPERTY_NAME_COMMENT: None,
+            PROPERTY_NAME_VENDOR: None,
             PROPERTY_NAME_QUICKHASH1: None,
             PROPERTY_NAME_BACKGROUND_COLOR: None,
-            PROPERTY_NAME_OBJECTIVE_POWER: aperio_meta.get("AppMag", None),
-            PROPERTY_NAME_MPP_X: aperio_meta.get("MPP", None),
-            PROPERTY_NAME_MPP_Y: aperio_meta.get("MPP", None),
+            PROPERTY_NAME_OBJECTIVE_POWER: None,
+            PROPERTY_NAME_MPP_X: None,
+            PROPERTY_NAME_MPP_Y: None,
             PROPERTY_NAME_BOUNDS_X: None,
             PROPERTY_NAME_BOUNDS_Y: None,
             PROPERTY_NAME_BOUNDS_WIDTH: None,
             PROPERTY_NAME_BOUNDS_HEIGHT: None,
         }
-        md.update({f"aperio.{k}": v for k, v in sorted(aperio_meta.items())})
+        tf = self.ts_tifffile
 
-        _ds_dimensions = zip(self.level_downsamples, self.level_dimensions)
-        for lvl, (ds, (width, height)) in enumerate(_ds_dimensions):
-            page = self.ts_tifffile.series[0].levels[lvl].pages[0]
-            md[f"tiffslide.level[{lvl}].downsample"] = ds
+        if tf.is_svs:
+            desc = md["tiff.ImageDescription"] = tf.pages[0].description
+            series_idx = md["tiffslide.series-index"] = 0
+            _md = _parse_metadata_aperio(desc)
+
+        else:
+            # todo: need to handle more supported formats in the future
+            desc = md["tiff.ImageDescription"] = tf.pages[0].description
+            series_idx = md["tiffslide.series-index"] = 0
+            _md = {
+                PROPERTY_NAME_COMMENT: desc,
+                PROPERTY_NAME_VENDOR: "generic-tiff",
+            }
+
+        md.update(_md)
+
+        # calculate level info
+        series0 = tf.series[series_idx]
+        assert series0.ndim == 3, "loosen restrictions in future versions"
+        h0, w0, _ = series0.shape
+        level_dimensions = (lvl.shape[1::-1] for lvl in series0.levels)
+
+        for lvl, (width, height) in enumerate(level_dimensions):
+            downsample = math.sqrt((w0 * h0) / (width * height))
+            page = series0.levels[lvl].pages[0]
+            md[f"tiffslide.level[{lvl}].downsample"] = downsample
             md[f"tiffslide.level[{lvl}].height"] = height
             md[f"tiffslide.level[{lvl}].width"] = width
             md[f"tiffslide.level[{lvl}].tile-height"] = page.tilelength
             md[f"tiffslide.level[{lvl}].tile-width"] = page.tilewidth
 
-        md["tiff.ImageDescription"] = aperio_desc
-
         if md[PROPERTY_NAME_MPP_X] is None or md[PROPERTY_NAME_MPP_Y] is None:
             # recover mpp from tiff tags
             try:
-                resolution_unit = self.ts_tifffile.pages[0].tags["ResolutionUnit"].value
-                x_resolution = Fraction(
-                    *self.ts_tifffile.pages[0].tags["XResolution"].value
-                )
-                y_resolution = Fraction(
-                    *self.ts_tifffile.pages[0].tags["YResolution"].value
-                )
+                resolution_unit = series0.pages[0].tags["ResolutionUnit"].value
+                x_resolution = Fraction(*series0.pages[0].tags["XResolution"].value)
+                y_resolution = Fraction(*series0.pages[0].tags["YResolution"].value)
             except KeyError:
                 pass
             else:
@@ -271,7 +276,9 @@ class TiffSlide:
     @cached_property
     def associated_images(self) -> _LazyAssociatedImagesDict:
         """return associated images as a mapping of names to PIL images"""
-        return _LazyAssociatedImagesDict(self.ts_tifffile)
+        idx = self.properties["tiffslide.series-index"]
+        series = self.ts_tifffile.series[idx + 1 :]
+        return _LazyAssociatedImagesDict(series)
 
     def get_best_level_for_downsample(self, downsample: float) -> int:
         """return the best level for a given downsampling factor"""
@@ -288,7 +295,8 @@ class TiffSlide:
 
         NOTE: this is extra functionality and not part of the drop-in behaviour
         """
-        store = self.ts_tifffile.series[0].aszarr()
+        idx = self.properties["tiffslide.series-index"]
+        store = self.ts_tifffile.series[idx].aszarr()
         return zarr.open(store, mode="r")
 
     @overload
@@ -391,7 +399,8 @@ class TiffSlide:
         downsample = max(slide_w / thumb_w, slide_h / thumb_h)
         level = self.get_best_level_for_downsample(downsample)
 
-        level_byte_size = self.ts_tifffile.series[0].levels[level].size
+        idx = self.properties["tiffslide.series-index"]
+        level_byte_size = self.ts_tifffile.series[idx].levels[level].size
 
         if 0 < thumb_byte_size < level_byte_size:
             # read the embedded thumbnail if it uses fewer bytes
@@ -415,8 +424,7 @@ class TiffSlide:
 class _LazyAssociatedImagesDict(Mapping[str, Image.Image]):
     """lazily load associated images"""
 
-    def __init__(self, tifffile: TiffFile):
-        series = tifffile.series[1:]
+    def __init__(self, series: list[TiffPageSeries]):
         self.series_map: dict[str, TiffPageSeries] = {s.name.lower(): s for s in series}
         self._m: dict[str, Image.Image] = {}
 
@@ -512,3 +520,44 @@ def _prepare_tifffile(
         _warn_unused_storage_options(st_kw)
 
         return TiffFile(fb, **tf_kw)
+
+
+def _parse_metadata_aperio(desc: str) -> dict[str, Any]:
+    """Aperio SVS metadata"""
+    if _TIFFFILE_VERSION >= (2021, 6, 14):
+        # tifffile 2021.6.14 fixed the svs parsing.
+        _aperio_desc = desc
+        _aperio_recovered_header = None  # no need to recover
+
+    else:
+        # this emulates the new description parsing for older versions
+        _aperio_desc = re.sub(r";Aperio [^;|]*(?=[|])", "", desc, 1)
+        _aperio_recovered_header = desc.split("|", 1)[0]
+
+    try:
+        aperio_meta = svs_description_metadata(_aperio_desc)
+    except ValueError:
+        raise
+    else:
+        # Normalize the aperio metadata
+        aperio_meta.pop("", None)
+        aperio_meta.pop("Aperio Image Library", None)
+        if aperio_meta and "Header" not in aperio_meta:
+            aperio_meta["Header"] = _aperio_recovered_header
+        vendor = "aperio"
+
+    md = {
+        PROPERTY_NAME_COMMENT: desc,
+        PROPERTY_NAME_VENDOR: vendor,
+        PROPERTY_NAME_QUICKHASH1: None,
+        PROPERTY_NAME_BACKGROUND_COLOR: None,
+        PROPERTY_NAME_OBJECTIVE_POWER: aperio_meta.get("AppMag", None),
+        PROPERTY_NAME_MPP_X: aperio_meta.get("MPP", None),
+        PROPERTY_NAME_MPP_Y: aperio_meta.get("MPP", None),
+        PROPERTY_NAME_BOUNDS_X: None,
+        PROPERTY_NAME_BOUNDS_Y: None,
+        PROPERTY_NAME_BOUNDS_WIDTH: None,
+        PROPERTY_NAME_BOUNDS_HEIGHT: None,
+    }
+    md.update({f"aperio.{k}": v for k, v in sorted(aperio_meta.items())})
+    return md
