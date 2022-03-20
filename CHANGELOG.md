@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased] - ...
+### Changes
+- tiffslide: refactor .properties to simplify adding new formats
+- tiffslide.deepzoom: allow JPEG2000 LOSSY
 
 ## [1.0.1] - 2022-02-24
 ### Fixed
