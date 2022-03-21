@@ -14,6 +14,7 @@ from typing import Iterator
 from typing import Mapping
 from typing import overload
 from warnings import warn
+import xmltodict
 
 if sys.version_info[:2] >= (3, 8):
     from functools import cached_property
@@ -89,6 +90,7 @@ class TiffSlide:
         *,
         tifffile_options: dict[str, Any] | None = None,
         storage_options: dict[str, Any] | None = None,
+        series_idx: int | str = 'auto',
     ) -> None:
         """TiffSlide constructor
 
@@ -100,11 +102,15 @@ class TiffSlide:
             a dictionary with keyword arguments passed to the TiffFile constructor
         storage_options:
             a dictionary with keyword arguments passed to fsspec
+        series_idx:
+            a integer|str is used to select which series
         """
         # tifffile instance, can raise TiffFileError
         self.ts_tifffile = _prepare_tifffile(
             filename, storage_options=storage_options, tifffile_options=tifffile_options
         )
+        assert isinstance(series_idx, (str, int))
+        self.series_idx = series_idx
 
     def __enter__(self) -> TiffSlide:
         return self
@@ -210,19 +216,38 @@ class TiffSlide:
         }
         tf = self.ts_tifffile
 
+        series_idx = self.series_idx
+
         if tf.is_svs:
-            desc = md["tiff.ImageDescription"] = tf.pages[0].description
-            series_idx = md["tiffslide.series-index"] = 0
+            if series_idx == 'auto':
+                series_idx = 0
+
+            desc = md["tiff.ImageDescription"] = tf.pages[series_idx].description
+            md["tiffslide.series-index"] = series_idx
             _md = _parse_metadata_aperio(desc)
 
+        elif tf.is_scn:
+            desc = tf.scn_metadata
+            if series_idx == 'auto':
+                series_idx = _auto_select_series_scn(desc)
+
+            md["tiff.ImageDescription"] = desc
+            md["tiffslide.series-index"] = series_idx
+            _md = _parse_metadata_scn(desc, series_idx)
+
         else:
+            if series_idx == 'auto':
+                series_idx = 0
+
             # todo: need to handle more supported formats in the future
-            desc = md["tiff.ImageDescription"] = tf.pages[0].description
-            series_idx = md["tiffslide.series-index"] = 0
+            desc = md["tiff.ImageDescription"] = tf.pages[series_idx].description
+            md["tiffslide.series-index"] = series_idx
             _md = {
                 PROPERTY_NAME_COMMENT: desc,
                 PROPERTY_NAME_VENDOR: "generic-tiff",
             }
+
+        self.series_idx = series_idx
 
         md.update(_md)
 
@@ -560,4 +585,62 @@ def _parse_metadata_aperio(desc: str) -> dict[str, Any]:
         PROPERTY_NAME_BOUNDS_HEIGHT: None,
     }
     md.update({f"aperio.{k}": v for k, v in sorted(aperio_meta.items())})
+    return md
+
+
+def _auto_select_series_scn(desc: str):
+    tree = xmltodict.parse(desc)
+
+    marco_sizeX = int(tree['scn']['collection']['@sizeX'])
+    marco_sizeY = int(tree['scn']['collection']['@sizeY'])
+
+    select_i = 0
+
+    for i, image in enumerate(tree['scn']['collection']['image']):
+        offsetX = int(image['view']['@offsetX'])
+        offsetY = int(image['view']['@offsetY'])
+        sizeX = int(image['view']['@sizeX'])
+        sizeY = int(image['view']['@sizeY'])
+
+        select_i = i
+        if not (offsetX == 0 and offsetY == 0 and sizeX == marco_sizeX and sizeY == marco_sizeY):
+            break
+
+    return select_i
+
+
+def _parse_metadata_scn(desc: str, series_idx=0) -> dict[str, Any]:
+    """Leica metadata"""
+
+    tree = xmltodict.parse(desc)
+
+    image = tree['scn']['collection']['image'][series_idx]
+
+    # use auto recovery
+    # mpp_x = float(image['pixels']['@sizeX']) / float(image['view']['@sizeX']) / 1000
+    # mpp_y = float(image['pixels']['@sizeY']) / float(image['view']['@sizeY']) / 1000
+    mpp_x = None
+    mpp_y = None
+
+    obj_pow = float(image['scanSettings']['objectiveSettings']['objective'])
+
+    md = {
+        PROPERTY_NAME_COMMENT: desc,
+        PROPERTY_NAME_VENDOR: 'leica',
+        PROPERTY_NAME_QUICKHASH1: None,
+        PROPERTY_NAME_BACKGROUND_COLOR: None,
+        PROPERTY_NAME_OBJECTIVE_POWER: obj_pow,
+        PROPERTY_NAME_MPP_X: mpp_x,
+        PROPERTY_NAME_MPP_Y: mpp_y,
+        PROPERTY_NAME_BOUNDS_X: None,
+        PROPERTY_NAME_BOUNDS_Y: None,
+        PROPERTY_NAME_BOUNDS_WIDTH: None,
+        PROPERTY_NAME_BOUNDS_HEIGHT: None,
+        'leica.aperture': float(image['scanSettings']['illuminationSettings']['numericalAperture']),
+        'leica.creation-date': str(image['creationDate']),
+        'leica.device-model': str(image['device']['@model']),
+        'leica.device-version': str(image['device']['@version']),
+        'leica.illumination-source': str(image['scanSettings']['illuminationSettings']['illuminationSource']),
+    }
+
     return md
