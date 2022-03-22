@@ -106,7 +106,6 @@ class TiffSlide:
         self.ts_tifffile = _prepare_tifffile(
             filename, storage_options=storage_options, tifffile_options=tifffile_options
         )
-        self.series_idx = 'auto'
 
     def __enter__(self) -> TiffSlide:
         return self
@@ -212,38 +211,24 @@ class TiffSlide:
         }
         tf = self.ts_tifffile
 
-        series_idx = self.series_idx
-
         if tf.is_svs:
-            if series_idx == 'auto':
-                series_idx = 0
-
-            desc = md["tiff.ImageDescription"] = tf.pages[series_idx].description
-            md["tiffslide.series-index"] = series_idx
+            desc = md["tiff.ImageDescription"] = tf.pages[0].description
+            series_idx = md["tiffslide.series-index"] = 0
             _md = _parse_metadata_aperio(desc)
 
         elif tf.is_scn:
-            desc = tf.scn_metadata
-            if series_idx == 'auto':
-                series_idx = _auto_select_series_scn(desc)
-
-            md["tiff.ImageDescription"] = desc
-            md["tiffslide.series-index"] = series_idx
+            desc = md["tiff.ImageDescription"] = tf.scn_metadata
+            series_idx = md["tiffslide.series-index"] = _auto_select_series_scn(desc)
             _md = _parse_metadata_scn(desc, series_idx)
 
         else:
-            if series_idx == 'auto':
-                series_idx = 0
-
             # todo: need to handle more supported formats in the future
-            desc = md["tiff.ImageDescription"] = tf.pages[series_idx].description
-            md["tiffslide.series-index"] = series_idx
+            desc = md["tiff.ImageDescription"] = tf.pages[0].description
+            series_idx = md["tiffslide.series-index"] = 0
             _md = {
                 PROPERTY_NAME_COMMENT: desc,
                 PROPERTY_NAME_VENDOR: "generic-tiff",
             }
-
-        self.series_idx = series_idx
 
         md.update(_md)
 
