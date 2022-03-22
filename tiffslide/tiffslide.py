@@ -139,18 +139,14 @@ class TiffSlide:
         storage_options: dict[str, Any] | None = None,
     ) -> str | None:
         """return the detected format as a str or None if unknown/unimplemented"""
-        _vendor_compat_map = dict(
-            svs="aperio",
-            # add more when needed
-        )
-        tf = _prepare_tifffile(
-            filename, tifffile_options=tifffile_options, storage_options=storage_options
-        )
+        try:
+            tf = _prepare_tifffile(
+                filename, tifffile_options=tifffile_options, storage_options=storage_options
+            )
+        except TiffFileError:
+            return None
         with tf as t:
-            for prop, vendor in _vendor_compat_map.items():
-                if getattr(t, f"is_{prop}"):
-                    return vendor
-        return None
+            return _detect_format(t)
 
     @cached_property
     def dimensions(self) -> tuple[int, int]:
@@ -223,6 +219,11 @@ class TiffSlide:
 
         else:
             # todo: need to handle more supported formats in the future
+            if tf.is_bif or tf.is_ndpi:
+                vendor = _detect_format(tf)
+                warn(
+                    f"no special {vendor!r}-format metadata parsing implemented yet!"
+                )
             desc = tf.pages[0].description
             series_idx = 0
             _md = {
@@ -447,6 +448,20 @@ class TiffSlide:
         thumb.paste(img, box=None, mask=None)
         thumb.thumbnail(size, Image.ANTIALIAS)
         return thumb
+
+
+def _detect_format(tf: TiffFile) -> str:
+    _vendor_compat_map = dict(
+        svs="aperio",
+        scn="leica",
+        bif="ventana",
+        ndpi="hamamatsu",
+        # add more when needed
+    )
+    for prop, vendor in _vendor_compat_map.items():
+        if getattr(tf, f"is_{prop}"):
+            return vendor
+    return "generic-tiff"
 
 
 class _LazyAssociatedImagesDict(Mapping[str, Image.Image]):
