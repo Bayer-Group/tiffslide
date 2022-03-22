@@ -237,8 +237,16 @@ class TiffSlide:
         # calculate level info
         series0 = tf.series[series_idx]
         assert series0.ndim == 3, "loosen restrictions in future versions"
-        h0, w0, _ = series0.shape
-        level_dimensions = (lvl.shape[1::-1] for lvl in series0.levels)
+        axes0 = md["tiffslide.series-axes"] = series0.axes
+
+        if axes0 == "YXS":
+            h0, w0, _ = series0.shape
+            level_dimensions = ((lvl.shape[1], lvl.shape[0]) for lvl in series0.levels)
+        elif axes0 == "CYX":
+            _, h0, w0 = series0.shape
+            level_dimensions = ((lvl.shape[2], lvl.shape[1]) for lvl in series0.levels)
+        else:
+            raise NotImplementedError(f"series with axes={axes0!r} not supported yet")
 
         for lvl, (width, height) in enumerate(level_dimensions):
             downsample = math.sqrt((w0 * h0) / (width * height))
@@ -367,11 +375,23 @@ class TiffSlide:
         _rw, _rh = size
         rx1 = rx0 + _rw
         ry1 = ry0 + _rh
+
+        axes = self.properties["tiffslide.series-axes"]
+        if axes == "YXS":
+            selection = slice(ry0, ry1), slice(rx0, rx1), slice(None)
+        elif axes == "CYX":
+            selection = slice(None), slice(ry0, ry1), slice(rx0, rx1)
+        else:
+            raise NotImplementedError
+
         arr: npt.NDArray[np.int_]
         if isinstance(self.ts_zarr_grp, zarr.core.Array):
-            arr = self.ts_zarr_grp[ry0:ry1, rx0:rx1]
+            arr = self.ts_zarr_grp[selection]
         else:
-            arr = self.ts_zarr_grp[str(level)][ry0:ry1, rx0:rx1]
+            arr = self.ts_zarr_grp[str(level)][selection]
+
+        if axes == "CYX":
+            arr = arr.transpose((2, 1, 0))
 
         if as_array:
             return arr
@@ -661,3 +681,8 @@ def _xml_to_dict(xml: str) -> dict[str, Any]:
         return {tag: d}
 
     return _to_dict(x)  # type: ignore
+
+
+def _label_series_axes(axes: str) -> tuple[str, ...]:
+    """helper to make series shapes more understandable"""
+    return tuple(tifffile.TIFF.AXES_LABELS[c] for c in axes)
