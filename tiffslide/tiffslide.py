@@ -212,25 +212,27 @@ class TiffSlide:
         tf = self.ts_tifffile
 
         if tf.is_svs:
-            desc = md["tiff.ImageDescription"] = tf.pages[0].description
-            series_idx = md["tiffslide.series-index"] = 0
+            desc = tf.pages[0].description
+            series_idx = 0
             _md = _parse_metadata_aperio(desc)
 
         elif tf.is_scn:
-            desc = md["tiff.ImageDescription"] = tf.scn_metadata
-            series_idx = md["tiffslide.series-index"] = _auto_select_series_scn(desc)
+            desc = tf.scn_metadata
+            series_idx = _auto_select_series_scn(desc)
             _md = _parse_metadata_scn(desc, series_idx)
 
         else:
             # todo: need to handle more supported formats in the future
-            desc = md["tiff.ImageDescription"] = tf.pages[0].description
-            series_idx = md["tiffslide.series-index"] = 0
+            desc = tf.pages[0].description
+            series_idx = 0
             _md = {
                 PROPERTY_NAME_COMMENT: desc,
                 PROPERTY_NAME_VENDOR: "generic-tiff",
             }
 
         md.update(_md)
+        md["tiff.ImageDescription"] = desc
+        md["tiffslide.series-index"] = series_idx
 
         # calculate level info
         series0 = tf.series[series_idx]
