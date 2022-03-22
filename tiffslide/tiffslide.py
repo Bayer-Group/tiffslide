@@ -14,7 +14,7 @@ from typing import Iterator
 from typing import Mapping
 from typing import overload
 from warnings import warn
-import xmltodict
+from xml.etree import ElementTree
 
 if sys.version_info[:2] >= (3, 8):
     from functools import cached_property
@@ -589,7 +589,7 @@ def _parse_metadata_aperio(desc: str) -> dict[str, Any]:
 
 
 def _auto_select_series_scn(desc: str):
-    tree = xmltodict.parse(desc)
+    tree = _xml_to_dict(desc)
 
     marco_sizeX = int(tree['scn']['collection']['@sizeX'])
     marco_sizeY = int(tree['scn']['collection']['@sizeY'])
@@ -612,7 +612,7 @@ def _auto_select_series_scn(desc: str):
 def _parse_metadata_scn(desc: str, series_idx=0) -> dict[str, Any]:
     """Leica metadata"""
 
-    tree = xmltodict.parse(desc)
+    tree = _xml_to_dict(desc)
 
     image = tree['scn']['collection']['image'][series_idx]
 
@@ -644,3 +644,25 @@ def _parse_metadata_scn(desc: str, series_idx=0) -> dict[str, Any]:
     }
 
     return md
+
+def _xml_to_dict(xml: str) -> dict:
+    def _to_dict(e):
+        tag = e.tag[e.tag.find("}") + 1:]
+        d = {f"@{k}": v for k, v in e.attrib.items()}
+        for c in e:
+            key, val = _to_dict(c).popitem()
+            if key not in d:
+                d[key] = val
+            elif not isinstance(d[key], list):
+                d[key] = [d[key], val]
+            else:
+                d[key].append(val)
+        if e.text and e.text.strip():
+            if d:
+                d["#text"] = e.text
+            else:
+                d = e.text
+        return {tag: d}
+
+    x = ElementTree.fromstring(xml)
+    return _to_dict(x)
