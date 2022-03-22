@@ -5,6 +5,7 @@ import sys
 from textwrap import dedent
 
 import fsspec
+import numpy as np
 import pytest
 
 import tiffslide
@@ -13,12 +14,14 @@ from tiffslide import TiffSlide
 
 
 @pytest.fixture
-def slide(svs_small):
-    yield TiffSlide(svs_small)
+def slide(wsi_file):
+    yield TiffSlide(wsi_file)
 
 
-def test_image_detect_format(svs_small):
-    assert TiffSlide.detect_format(svs_small) == "aperio"
+def test_image_detect_format(wsi_file):
+    fmt = TiffSlide.detect_format(wsi_file)
+    assert fmt is not None
+    assert isinstance(fmt, str)
 
 
 def test_image_open_incorrect_path():
@@ -33,8 +36,8 @@ def test_image_open_unsupported_image(tmp_path):
         TiffSlide(f)
 
 
-def test_image_open(svs_small):
-    TiffSlide(svs_small)
+def test_image_open(wsi_file):
+    TiffSlide(wsi_file)
 
 
 def test_image_context_manager(slide):
@@ -43,35 +46,52 @@ def test_image_context_manager(slide):
         _ = t.ts_zarr_grp
 
 
-def test_image_repr(svs_small, slide):
-    assert os.path.basename(os.fspath(svs_small)) in repr(slide)
+def test_image_repr(wsi_file, slide):
+    assert os.path.basename(os.fspath(wsi_file)) in repr(slide)
 
 
 def test_image_dimensions(slide):
-    assert slide.dimensions == (2220, 2967)
+    assert isinstance(slide.dimensions, tuple)
+    assert len(slide.dimensions) == 2
+    assert slide.dimensions[0] > 0 and slide.dimensions[1] > 0
 
 
 def test_image_level_count(slide):
-    assert slide.level_count == 1
+    assert slide.level_count >= 1
 
 
 def test_image_level_dimensions(slide):
-    assert slide.level_dimensions == ((2220, 2967),)
+    assert isinstance(slide.level_dimensions, tuple)
+    assert len(slide.level_dimensions) >= 1
+    assert slide.dimensions == slide.level_dimensions[0]
+    x0, y0 = slide.dimensions
+    for x1, y1 in slide.level_dimensions[1:]:
+        assert x1 < x0 and y1 < y0
+        x0, y0 = x1, y1
 
 
 def test_image_level_downsamples(slide):
-    assert slide.level_downsamples == (1.0,)
+    assert isinstance(slide.level_downsamples, tuple)
+    assert len(slide.level_downsamples) >= 1
+    for ds in slide.level_downsamples:
+        assert isinstance(ds, float)
+        assert ds >= 1.0
 
 
 def test_image_properties(slide, svs_small_props):
-    assert slide.properties == svs_small_props
+    if slide.ts_tifffile.filename == "CMU-1-Small-Region.svs":
+        assert slide.properties == svs_small_props
+    else:
+        pytest.skip(msg="needs examples")
 
 
 def test_image_get_best_level_for_downsample(slide):
-    # single layer image...
     assert slide.get_best_level_for_downsample(1.0) == 0
-    assert slide.get_best_level_for_downsample(2.0) == 0
-    assert slide.get_best_level_for_downsample(4.0) == 0
+    lvl = 0
+    for ds in np.arange(0, 10, 0.5):
+        lvl_new = slide.get_best_level_for_downsample(ds)
+        assert lvl <= lvl_new
+        lvl = lvl_new
 
 
 def test_image_read_region(slide):
@@ -94,29 +114,30 @@ def test_image_get_thumbnail(slide, use_embedded):
 def test_image_associated_images(slide):
     assoc = slide.associated_images
     assert repr(assoc)
-    assert len(assoc) == 3
-    assert "thumbnail" in assoc
-    assert "label" in assoc
-    assert "macro" in assoc
-    for key in assoc:
-        img = assoc[key]
-        assert img.size
+    assert len(assoc) >= 0
+    if slide.ts_tifffile.filename.endswith(".svs"):
+        assert "thumbnail" in assoc
+        assert "label" in assoc
+        assert "macro" in assoc
+        for key in assoc:
+            img = assoc[key]
+            assert img.size
 
 
-def test_tiffslide_from_fsspec_buffer(svs_small_urlpath):
-    with fsspec.open(svs_small_urlpath) as f:
+def test_tiffslide_from_fsspec_buffer(wsi_file_urlpath):
+    with fsspec.open(wsi_file_urlpath) as f:
         slide = TiffSlide(f)
         _ = slide.get_thumbnail((200, 200))
 
 
-def test_tiffslide_from_fsspec_openfile(svs_small_urlpath):
-    of = fsspec.open(svs_small_urlpath)
+def test_tiffslide_from_fsspec_openfile(wsi_file_urlpath):
+    of = fsspec.open(wsi_file_urlpath)
     slide = TiffSlide(of)
     _ = slide.get_thumbnail((200, 200))
 
 
-def test_tiffslide_from_fsspec_urlpath(svs_small_urlpath):
-    slide = TiffSlide(svs_small_urlpath)
+def test_tiffslide_from_fsspec_urlpath(wsi_file_urlpath):
+    slide = TiffSlide(wsi_file_urlpath)
     _ = slide.get_thumbnail((200, 200))
 
 
@@ -126,8 +147,8 @@ def test_tiffslide_reject_unsupported_file():
 
 
 # === test aliases and fallbacks ========================================
-def test_compat_open_slide(svs_small):
-    assert isinstance(tiffslide.open_slide(svs_small), TiffSlide)
+def test_compat_open_slide(wsi_file):
+    assert isinstance(tiffslide.open_slide(wsi_file), TiffSlide)
 
 
 @pytest.mark.parametrize(
@@ -164,7 +185,7 @@ def test_compat_unsupported_abstractslide():
             _ = AbstractSlide
 
 
-def test_thread_safety(svs_small, tmp_path):
+def test_thread_safety(wsi_file, tmp_path):
     """reproduce threading issue reported in:
 
     https://github.com/bayer-science-for-a-better-life/tiffslide/issues/14
@@ -183,7 +204,7 @@ def test_thread_safety(svs_small, tmp_path):
             # number of threads
             num_threads = 8
 
-            ts = tiffslide.TiffSlide({os.fspath(svs_small)!r})
+            ts = tiffslide.TiffSlide({os.fspath(wsi_file)!r})
 
             with ThreadPool(num_threads) as pool:
                 pool.starmap(read_region, [(ts, ) for _ in range(num_threads*2)])

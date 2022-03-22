@@ -1,7 +1,12 @@
 import hashlib
+import os
 import pathlib
 import shutil
 import urllib.request
+from itertools import cycle
+from itertools import groupby
+from itertools import islice
+from operator import attrgetter
 
 import fsspec
 import pytest
@@ -18,40 +23,91 @@ def md5(fn):
     return m.hexdigest()
 
 
-@pytest.fixture(scope="session")
-def svs_small():
-    """download the smallest aperio test image svs"""
-    small_image = "CMU-1-Small-Region.svs"
-    small_image_md5 = "1ad6e35c9d17e4d85fb7e3143b328efe"
-    data_dir = pathlib.Path(__file__).parent / "data"
+def _wsi_files():
+    """gather images"""
 
-    data_dir.mkdir(parents=True, exist_ok=True)
-    img_fn = data_dir / small_image
+    local_test_images = os.environ.get("TIFFSLIDE_TEST_IMAGES", None)
+    if local_test_images:
+        _paths = []
+        for img in pathlib.Path(local_test_images).glob("**/*"):
+            # todo:
+            #  - .zip files need to be tested
+            #  - .zvi files need to be handled
+            if img.suffix in {".svs", ".ndpi", ".scn", ".bif", ".tiff"}:
+                _paths.append(img.absolute())
 
-    if not img_fn.is_file():
-        # download svs from openslide test images
-        url = IMAGES_BASE_URL + small_image
-        with urllib.request.urlopen(url) as response, open(img_fn, "wb") as out_file:
-            shutil.copyfileobj(response, out_file)
+        def roundrobin(iterables):
+            """roundrobin('ABC', 'D', 'EF') --> A D E B F C"""
+            num_active = len(iterables)
+            nexts = cycle(iter(it).__next__ for it in iterables)
+            while num_active:
+                try:
+                    for next in nexts:
+                        yield next()
+                except StopIteration:
+                    # Remove the iterator we just exhausted from the cycle.
+                    num_active -= 1
+                    nexts = cycle(islice(nexts, num_active))
 
-    if md5(img_fn) != small_image_md5:  # pragma: no cover
-        shutil.rmtree(img_fn)
-        pytest.fail("incorrect md5")
+        get_suffix = attrgetter("suffix")
+        paths = [
+            pytest.param(img, id=img.name)
+            for img in roundrobin(
+                [
+                    sorted(list(group), key=lambda x: int(x.stat().st_size))
+                    for key, group in groupby(
+                        sorted(_paths, key=get_suffix), key=get_suffix
+                    )
+                ]
+            )
+        ]
+
     else:
-        yield img_fn.absolute()
+        paths = [pytest.param(None, id="CMU-1-Small-Region.svs")]
+    return paths
+
+
+@pytest.fixture(scope="session", params=_wsi_files())
+def wsi_file(request):
+    """download the smallest aperio test image svs or use local"""
+    if request.param is None:
+        small_image = "CMU-1-Small-Region.svs"
+        small_image_md5 = "1ad6e35c9d17e4d85fb7e3143b328efe"
+        data_dir = pathlib.Path(__file__).parent / "data"
+
+        data_dir.mkdir(parents=True, exist_ok=True)
+        img_fn = data_dir / small_image
+
+        if not img_fn.is_file():
+            # download svs from openslide test images
+            url = IMAGES_BASE_URL + small_image
+            with urllib.request.urlopen(url) as response, open(
+                img_fn, "wb"
+            ) as out_file:
+                shutil.copyfileobj(response, out_file)
+
+        if md5(img_fn) != small_image_md5:  # pragma: no cover
+            shutil.rmtree(img_fn)
+            pytest.fail("incorrect md5")
+    else:
+        img_fn = request.param
+
+    yield img_fn.absolute()
 
 
 @pytest.fixture
-def svs_small_urlpath(svs_small):
-    urlpath = f"memory://{svs_small.name}"
+def wsi_file_urlpath(wsi_file):
+    if wsi_file.stat().st_size > 100 * 1024 * 1024:
+        pytest.skip(msg="reduce ram usage of tests")
+    urlpath = f"memory://{wsi_file.name}"
     fs: fsspec.AbstractFileSystem = fsspec.get_filesystem_class("memory")()
     of = fsspec.open(urlpath, mode="wb")
     with of as f:
-        f.write(svs_small.read_bytes())
+        f.write(wsi_file.read_bytes())
     try:
         yield urlpath
     finally:
-        fs.rm(svs_small.name)
+        fs.rm(wsi_file.name)
 
 
 @pytest.fixture(scope="session")
@@ -97,6 +153,7 @@ def svs_small_props():
                                  '46920|Originalheight = 33014|Filtered = '
                                  '5|OriginalWidth = 46000|OriginalHeight = 32914',
         'tiffslide.series-index': 0,
+        'tiffslide.series-axes': 'YXS',
         'tiffslide.background-color': None,
         'tiffslide.bounds-height': None,
         'tiffslide.bounds-width': None,
