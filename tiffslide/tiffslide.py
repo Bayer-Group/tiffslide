@@ -90,7 +90,6 @@ class TiffSlide:
         *,
         tifffile_options: dict[str, Any] | None = None,
         storage_options: dict[str, Any] | None = None,
-        series_idx: int | str = 'auto',
     ) -> None:
         """TiffSlide constructor
 
@@ -102,15 +101,12 @@ class TiffSlide:
             a dictionary with keyword arguments passed to the TiffFile constructor
         storage_options:
             a dictionary with keyword arguments passed to fsspec
-        series_idx:
-            a integer|str is used to select which series
         """
         # tifffile instance, can raise TiffFileError
         self.ts_tifffile = _prepare_tifffile(
             filename, storage_options=storage_options, tifffile_options=tifffile_options
         )
-        assert isinstance(series_idx, (str, int))
-        self.series_idx = series_idx
+        self.series_idx = 'auto'
 
     def __enter__(self) -> TiffSlide:
         return self
