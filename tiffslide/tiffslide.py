@@ -569,33 +569,38 @@ def _parse_metadata_aperio(desc: str) -> dict[str, Any]:
     return md
 
 
-def _auto_select_series_scn(desc: str):
+def _auto_select_series_scn(desc: str) -> int:
+    """selects the first non-macro series of an SCN file"""
     tree = _xml_to_dict(desc)
 
-    marco_sizeX = int(tree['scn']['collection']['@sizeX'])
-    marco_sizeY = int(tree['scn']['collection']['@sizeY'])
+    marco_sizeX = int(tree["scn"]["collection"]["@sizeX"])
+    marco_sizeY = int(tree["scn"]["collection"]["@sizeY"])
 
-    select_i = 0
+    for idx, image in enumerate(tree["scn"]["collection"]["image"]):
+        offsetX = int(image["view"]["@offsetX"])
+        offsetY = int(image["view"]["@offsetY"])
+        sizeX = int(image["view"]["@sizeX"])
+        sizeY = int(image["view"]["@sizeY"])
 
-    for i, image in enumerate(tree['scn']['collection']['image']):
-        offsetX = int(image['view']['@offsetX'])
-        offsetY = int(image['view']['@offsetY'])
-        sizeX = int(image['view']['@sizeX'])
-        sizeY = int(image['view']['@sizeY'])
-
-        select_i = i
-        if not (offsetX == 0 and offsetY == 0 and sizeX == marco_sizeX and sizeY == marco_sizeY):
+        is_macro_image = (
+            offsetX == 0
+            and offsetY == 0
+            and sizeX == marco_sizeX
+            and sizeY == marco_sizeY
+        )
+        if not is_macro_image:
             break
+    else:
+        raise ValueError("SCN: no main image found")
 
-    return select_i
+    return idx
 
 
-def _parse_metadata_scn(desc: str, series_idx=0) -> dict[str, Any]:
+def _parse_metadata_scn(desc: str, series_idx: int) -> dict[str, Any]:
     """Leica metadata"""
-
     tree = _xml_to_dict(desc)
 
-    image = tree['scn']['collection']['image'][series_idx]
+    image = tree["scn"]["collection"]["image"][series_idx]
 
     # use auto recovery
     # mpp_x = float(image['pixels']['@sizeX']) / float(image['view']['@sizeX']) / 1000
@@ -603,11 +608,11 @@ def _parse_metadata_scn(desc: str, series_idx=0) -> dict[str, Any]:
     mpp_x = None
     mpp_y = None
 
-    obj_pow = float(image['scanSettings']['objectiveSettings']['objective'])
+    obj_pow = float(image["scanSettings"]["objectiveSettings"]["objective"])
 
     md = {
         PROPERTY_NAME_COMMENT: desc,
-        PROPERTY_NAME_VENDOR: 'leica',
+        PROPERTY_NAME_VENDOR: "leica",
         PROPERTY_NAME_QUICKHASH1: None,
         PROPERTY_NAME_BACKGROUND_COLOR: None,
         PROPERTY_NAME_OBJECTIVE_POWER: obj_pow,
@@ -617,18 +622,26 @@ def _parse_metadata_scn(desc: str, series_idx=0) -> dict[str, Any]:
         PROPERTY_NAME_BOUNDS_Y: None,
         PROPERTY_NAME_BOUNDS_WIDTH: None,
         PROPERTY_NAME_BOUNDS_HEIGHT: None,
-        'leica.aperture': float(image['scanSettings']['illuminationSettings']['numericalAperture']),
-        'leica.creation-date': str(image['creationDate']),
-        'leica.device-model': str(image['device']['@model']),
-        'leica.device-version': str(image['device']['@version']),
-        'leica.illumination-source': str(image['scanSettings']['illuminationSettings']['illuminationSource']),
+        "leica.aperture": float(
+            image["scanSettings"]["illuminationSettings"]["numericalAperture"]
+        ),
+        "leica.creation-date": str(image["creationDate"]),
+        "leica.device-model": str(image["device"]["@model"]),
+        "leica.device-version": str(image["device"]["@version"]),
+        "leica.illumination-source": str(
+            image["scanSettings"]["illuminationSettings"]["illuminationSource"]
+        ),
     }
 
     return md
 
-def _xml_to_dict(xml: str) -> dict:
-    def _to_dict(e):
-        tag = e.tag[e.tag.find("}") + 1:]
+
+def _xml_to_dict(xml: str) -> dict[str, Any]:
+    """helper function to convert xml string to a dictionary"""
+    x = ElementTree.fromstring(xml)
+
+    def _to_dict(e):  # type: ignore
+        tag = e.tag[e.tag.find("}") + 1 :]
         d = {f"@{k}": v for k, v in e.attrib.items()}
         for c in e:
             key, val = _to_dict(c).popitem()
@@ -645,5 +658,4 @@ def _xml_to_dict(xml: str) -> dict:
                 d = e.text
         return {tag: d}
 
-    x = ElementTree.fromstring(xml)
-    return _to_dict(x)
+    return _to_dict(x)  # type: ignore
