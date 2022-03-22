@@ -392,7 +392,7 @@ class TiffSlide:
             arr = self.ts_zarr_grp[str(level)][selection]
 
         if axes == "CYX":
-            arr = arr.transpose((2, 1, 0))
+            arr = arr.transpose((1, 2, 0))
 
         if as_array:
             return arr
