@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased] - ...
+
+## [1.1.0] - 2022-03-22
+### Added
+- support Leica SCN format
+- support using local images for tests via TIFFSLIDE_TEST_IMAGES env var
+
 ### Changes
 - tiffslide: refactor .properties to simplify adding new formats
 - tiffslide.deepzoom: allow JPEG2000 LOSSY
@@ -76,7 +82,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - initial release of tiffslide and
 
-[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v0.3.0...v1.0.0
 [0.3.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v0.2.2...v0.3.0

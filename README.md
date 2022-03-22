@@ -24,8 +24,9 @@ Development [happens on github](https://github.com/bayer-science-for-a-better-li
 
 ## Notes
 
-Currently, we are targeting support for Aperio SVS but contributions to expand
-to a larger variety of file formats that tifffile supports are very welcome :heart:
+TiffSlide aims to be compatible with all formats that openslide supports and more,
+but not all are implemented yet. Aperio SVS is currently the most tested format.
+Contributions to expand to a larger variety of file formats that tifffile supports are very welcome :heart:
 <br>
 If there are any questions open an issue, and we'll do our best to help!
 
