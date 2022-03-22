@@ -14,6 +14,7 @@ from typing import Iterator
 from typing import Mapping
 from typing import overload
 from warnings import warn
+from xml.etree import ElementTree
 
 if sys.version_info[:2] >= (3, 8):
     from functools import cached_property
@@ -214,6 +215,11 @@ class TiffSlide:
             desc = md["tiff.ImageDescription"] = tf.pages[0].description
             series_idx = md["tiffslide.series-index"] = 0
             _md = _parse_metadata_aperio(desc)
+
+        elif tf.is_scn:
+            desc = md["tiff.ImageDescription"] = tf.scn_metadata
+            series_idx = md["tiffslide.series-index"] = _auto_select_series_scn(desc)
+            _md = _parse_metadata_scn(desc, series_idx)
 
         else:
             # todo: need to handle more supported formats in the future
@@ -561,3 +567,83 @@ def _parse_metadata_aperio(desc: str) -> dict[str, Any]:
     }
     md.update({f"aperio.{k}": v for k, v in sorted(aperio_meta.items())})
     return md
+
+
+def _auto_select_series_scn(desc: str):
+    tree = _xml_to_dict(desc)
+
+    marco_sizeX = int(tree['scn']['collection']['@sizeX'])
+    marco_sizeY = int(tree['scn']['collection']['@sizeY'])
+
+    select_i = 0
+
+    for i, image in enumerate(tree['scn']['collection']['image']):
+        offsetX = int(image['view']['@offsetX'])
+        offsetY = int(image['view']['@offsetY'])
+        sizeX = int(image['view']['@sizeX'])
+        sizeY = int(image['view']['@sizeY'])
+
+        select_i = i
+        if not (offsetX == 0 and offsetY == 0 and sizeX == marco_sizeX and sizeY == marco_sizeY):
+            break
+
+    return select_i
+
+
+def _parse_metadata_scn(desc: str, series_idx=0) -> dict[str, Any]:
+    """Leica metadata"""
+
+    tree = _xml_to_dict(desc)
+
+    image = tree['scn']['collection']['image'][series_idx]
+
+    # use auto recovery
+    # mpp_x = float(image['pixels']['@sizeX']) / float(image['view']['@sizeX']) / 1000
+    # mpp_y = float(image['pixels']['@sizeY']) / float(image['view']['@sizeY']) / 1000
+    mpp_x = None
+    mpp_y = None
+
+    obj_pow = float(image['scanSettings']['objectiveSettings']['objective'])
+
+    md = {
+        PROPERTY_NAME_COMMENT: desc,
+        PROPERTY_NAME_VENDOR: 'leica',
+        PROPERTY_NAME_QUICKHASH1: None,
+        PROPERTY_NAME_BACKGROUND_COLOR: None,
+        PROPERTY_NAME_OBJECTIVE_POWER: obj_pow,
+        PROPERTY_NAME_MPP_X: mpp_x,
+        PROPERTY_NAME_MPP_Y: mpp_y,
+        PROPERTY_NAME_BOUNDS_X: None,
+        PROPERTY_NAME_BOUNDS_Y: None,
+        PROPERTY_NAME_BOUNDS_WIDTH: None,
+        PROPERTY_NAME_BOUNDS_HEIGHT: None,
+        'leica.aperture': float(image['scanSettings']['illuminationSettings']['numericalAperture']),
+        'leica.creation-date': str(image['creationDate']),
+        'leica.device-model': str(image['device']['@model']),
+        'leica.device-version': str(image['device']['@version']),
+        'leica.illumination-source': str(image['scanSettings']['illuminationSettings']['illuminationSource']),
+    }
+
+    return md
+
+def _xml_to_dict(xml: str) -> dict:
+    def _to_dict(e):
+        tag = e.tag[e.tag.find("}") + 1:]
+        d = {f"@{k}": v for k, v in e.attrib.items()}
+        for c in e:
+            key, val = _to_dict(c).popitem()
+            if key not in d:
+                d[key] = val
+            elif not isinstance(d[key], list):
+                d[key] = [d[key], val]
+            else:
+                d[key].append(val)
+        if e.text and e.text.strip():
+            if d:
+                d["#text"] = e.text
+            else:
+                d = e.text
+        return {tag: d}
+
+    x = ElementTree.fromstring(xml)
+    return _to_dict(x)
