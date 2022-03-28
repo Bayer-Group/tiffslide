@@ -141,7 +141,9 @@ class TiffSlide:
         """return the detected format as a str or None if unknown/unimplemented"""
         try:
             tf = _prepare_tifffile(
-                filename, tifffile_options=tifffile_options, storage_options=storage_options
+                filename,
+                tifffile_options=tifffile_options,
+                storage_options=storage_options,
             )
         except TiffFileError:
             return None
@@ -221,9 +223,7 @@ class TiffSlide:
             # todo: need to handle more supported formats in the future
             if tf.is_bif or tf.is_ndpi:
                 vendor = _detect_format(tf)
-                warn(
-                    f"no special {vendor!r}-format metadata parsing implemented yet!"
-                )
+                warn(f"no special {vendor!r}-format metadata parsing implemented yet!")
             desc = tf.pages[0].description
             series_idx = 0
             _md = {

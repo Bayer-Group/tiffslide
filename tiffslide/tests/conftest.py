@@ -74,14 +74,18 @@ def _wsi_files():
 
     else:
         paths = [
-            pytest.param(TestImageType.DOWNLOAD_SMALLEST_CMU, id="CMU-1-Small-Region.svs"),
-            pytest.param(TestImageType.GENERATE_PYRAMIDAL_IMG, id="generated-pyramidal"),
+            pytest.param(
+                TestImageType.DOWNLOAD_SMALLEST_CMU, id="CMU-1-Small-Region.svs"
+            ),
+            pytest.param(
+                TestImageType.GENERATE_PYRAMIDAL_IMG, id="generated-pyramidal"
+            ),
         ]
     return paths
 
 
 def _write_test_tiff(
-    pth: os.PathLike,
+    pth: os.PathLike[str],
     size: tuple[int, int],
     tile_size: int = 128,
     mpp: float = 0.5,
@@ -155,7 +159,9 @@ def wsi_file(request, tmp_path_factory):
             pytest.fail("incorrect md5")
 
     elif request.param == TestImageType.GENERATE_PYRAMIDAL_IMG:
-        img_fn = tmp_path_factory.mktemp("_generated_test_tiffs").joinpath("_small_pyramid.tiff")
+        img_fn = tmp_path_factory.mktemp("_generated_test_tiffs").joinpath(
+            "_small_pyramid.tiff"
+        )
         _write_test_tiff(img_fn, (4096, 4096))
 
     else:
