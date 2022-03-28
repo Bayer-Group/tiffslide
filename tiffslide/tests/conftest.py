@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import enum
 import hashlib
 import os
 import pathlib
@@ -9,7 +12,9 @@ from itertools import islice
 from operator import attrgetter
 
 import fsspec
+import numpy as np
 import pytest
+import tifffile
 
 # openslide aperio test images
 IMAGES_BASE_URL = "http://openslide.cs.cmu.edu/download/openslide-testdata/Aperio/"
@@ -21,6 +26,11 @@ def md5(fn):
         for chunk in iter(lambda: f.read(4096), b""):
             m.update(chunk)
     return m.hexdigest()
+
+
+class TestImageType(enum.Enum):
+    DOWNLOAD_SMALLEST_CMU = enum.auto()
+    GENERATE_PYRAMIDAL_IMG = enum.auto()
 
 
 def _wsi_files():
@@ -63,14 +73,68 @@ def _wsi_files():
         ]
 
     else:
-        paths = [pytest.param(None, id="CMU-1-Small-Region.svs")]
+        paths = [
+            pytest.param(TestImageType.DOWNLOAD_SMALLEST_CMU, id="CMU-1-Small-Region.svs"),
+            pytest.param(TestImageType.GENERATE_PYRAMIDAL_IMG, id="generated-pyramidal"),
+        ]
     return paths
 
 
+def _write_test_tiff(
+    pth: os.PathLike,
+    size: tuple[int, int],
+    tile_size: int = 128,
+    mpp: float = 0.5,
+) -> None:
+    def _num_pyramids(ldim: int, tsize: int) -> int:
+        assert ldim > 0 and tsize > 0
+        n = 0
+        while ldim > tsize:
+            ldim //= 2
+            n += 1
+        return n
+
+    data = np.random.randint(0, 255, (size[0], size[1], 3), dtype=np.uint8)
+
+    with tifffile.TiffWriter(pth, bigtiff=True, ome=True) as tif:
+        im_height, im_width, _ = data.shape
+        options0 = {}
+        metadata = {}
+        if mpp:
+            metadata = {
+                "PhysicalSizeX": mpp,
+                "PhysicalSizeXUnit": "µm",
+                "PhysicalSizeY": mpp,
+                "PhysicalSizeYUnit": "µm",
+            }
+            options0["resolution"] = (1.0 / mpp, 1.0 / mpp, "MICROMETER")
+        options = dict(
+            tile=(tile_size, tile_size),
+            photometric="rgb",
+            compression="jpeg",
+            metadata=metadata,
+        )
+        num_pyramids = _num_pyramids(max(im_height, im_width), tile_size)
+        tif.write(
+            data,
+            subifds=num_pyramids,
+            **options0,
+            **options,
+        )
+        lvl_data = data
+        for _ in range(num_pyramids):
+            lvl_data = lvl_data[::2, ::2, :]
+            tif.write(
+                lvl_data,
+                subfiletype=1,
+                **options,
+            )
+
+
 @pytest.fixture(scope="session", params=_wsi_files())
-def wsi_file(request):
+def wsi_file(request, tmp_path_factory):
     """download the smallest aperio test image svs or use local"""
-    if request.param is None:
+    if request.param == TestImageType.DOWNLOAD_SMALLEST_CMU:
         small_image = "CMU-1-Small-Region.svs"
         small_image_md5 = "1ad6e35c9d17e4d85fb7e3143b328efe"
         data_dir = pathlib.Path(__file__).parent / "data"
@@ -89,6 +153,11 @@ def wsi_file(request):
         if md5(img_fn) != small_image_md5:  # pragma: no cover
             shutil.rmtree(img_fn)
             pytest.fail("incorrect md5")
+
+    elif request.param == TestImageType.GENERATE_PYRAMIDAL_IMG:
+        img_fn = tmp_path_factory.mktemp("_generated_test_tiffs").joinpath("_small_pyramid.tiff")
+        _write_test_tiff(img_fn, (4096, 4096))
+
     else:
         img_fn = request.param
 
