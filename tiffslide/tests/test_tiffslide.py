@@ -82,7 +82,7 @@ def test_image_properties(slide, svs_small_props):
     if slide.ts_tifffile.filename == "CMU-1-Small-Region.svs":
         assert slide.properties == svs_small_props
     else:
-        pytest.skip(msg="needs examples")
+        pytest.skip("needs examples")
 
 
 def test_image_get_best_level_for_downsample(slide):

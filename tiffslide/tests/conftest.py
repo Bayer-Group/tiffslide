@@ -98,7 +98,7 @@ def wsi_file(request):
 @pytest.fixture
 def wsi_file_urlpath(wsi_file):
     if wsi_file.stat().st_size > 100 * 1024 * 1024:
-        pytest.skip(msg="reduce ram usage of tests")
+        pytest.skip("reduce ram usage of tests")
     urlpath = f"memory://{wsi_file.name}"
     fs: fsspec.AbstractFileSystem = fsspec.get_filesystem_class("memory")()
     of = fsspec.open(urlpath, mode="wb")
