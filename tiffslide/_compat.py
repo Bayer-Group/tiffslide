@@ -17,8 +17,8 @@ from typing import Sequence
 
 import numpy as np
 import zarr
-from imagecodecs import imread
 from imagecodecs import __version__ as _imagecodecs_version
+from imagecodecs import imread
 
 from tiffslide._types import PathOrFileOrBufferLike
 
@@ -32,16 +32,14 @@ __all__ = [
 ]
 
 
-
 class NotTiffFile:
-
     def __init__(
         self,
         arg: PathOrFileOrBufferLike,
         mode: Literal["rb"] | None = None,
         name: str | None = None,
         *_args,
-        **_kwargs
+        **_kwargs,
     ):
         if mode is not None and mode != "rb":
             raise ValueError("mode must be 'rb'")
@@ -68,9 +66,9 @@ class NotTiffFile:
 
     def __exit__(
         self,
-        exc_type: Optional[type[BaseException]],
-        exc: Optional[BaseException],
-        traceback: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
     ) -> None:
         return None
 
@@ -135,7 +133,7 @@ class NotTiffPage:
                 "imagecodecs.__version__": _imagecodecs_version,
                 "codec": self._codec,
             },
-            separators=(',', ':')
+            separators=(",", ":"),
         )
         return f"tiffslide={data}"
 

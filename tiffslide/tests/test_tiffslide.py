@@ -148,6 +148,7 @@ def test_tiffslide_reject_unsupported_file():
 
 # === test aliases and fallbacks ========================================
 
+
 def test_compat_open_slide(wsi_file):
     assert isinstance(tiffslide.open_slide(wsi_file), TiffSlide)
 

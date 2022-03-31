@@ -7,7 +7,6 @@ from typing import AnyStr
 from warnings import warn
 
 from tiffslide._types import PathOrFileOrBufferLike
-from tiffslide.tiffslide import NotTiffSlide
 from tiffslide.tiffslide import PROPERTY_NAME_BACKGROUND_COLOR
 from tiffslide.tiffslide import PROPERTY_NAME_BOUNDS_HEIGHT
 from tiffslide.tiffslide import PROPERTY_NAME_BOUNDS_WIDTH
@@ -19,6 +18,7 @@ from tiffslide.tiffslide import PROPERTY_NAME_MPP_Y
 from tiffslide.tiffslide import PROPERTY_NAME_OBJECTIVE_POWER
 from tiffslide.tiffslide import PROPERTY_NAME_QUICKHASH1
 from tiffslide.tiffslide import PROPERTY_NAME_VENDOR
+from tiffslide.tiffslide import NotTiffSlide
 from tiffslide.tiffslide import TiffFileError
 from tiffslide.tiffslide import TiffSlide
 
@@ -42,7 +42,9 @@ def __getattr__(name):  # type: ignore
         warn(f"compatibility: aliasing tiffslide.TiffSlide to {name!r}", stacklevel=2)
         return TiffSlide
     elif name == "ImageSlide":
-        warn(f"compatibility: aliasing tiffslide.NotTiffSlide to {name!r}", stacklevel=2)
+        warn(
+            f"compatibility: aliasing tiffslide.NotTiffSlide to {name!r}", stacklevel=2
+        )
         return NotTiffSlide
     # warn if internals are imported that we dont support
     if name in {"AbstractSlide", "__library_version__"}:
