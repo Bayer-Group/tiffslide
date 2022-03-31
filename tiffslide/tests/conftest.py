@@ -15,6 +15,7 @@ import fsspec
 import numpy as np
 import pytest
 import tifffile
+from imagecodecs import imwrite
 
 # openslide aperio test images
 IMAGES_BASE_URL = "http://openslide.cs.cmu.edu/download/openslide-testdata/Aperio/"
@@ -133,6 +134,21 @@ def _write_test_tiff(
                 subfiletype=1,
                 **options,
             )
+
+
+def _write_test_jpg(
+    pth: os.PathLike[str],
+    size: tuple[int, int],
+):
+    arr = np.random.randint(0, 255, size=(size[0], size[1], 3), dtype=np.uint8)
+    imwrite(pth, arr)
+
+
+@pytest.fixture(scope="session")
+def jpg_file(tmp_path_factory):
+    jpg_pth = tmp_path_factory.mktemp("test_images").joinpath("test.jpg")
+    _write_test_jpg(jpg_pth, (1024, 1024))
+    yield jpg_pth
 
 
 @pytest.fixture(scope="session", params=_wsi_files())

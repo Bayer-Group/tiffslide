@@ -147,6 +147,7 @@ def test_tiffslide_reject_unsupported_file():
 
 
 # === test aliases and fallbacks ========================================
+
 def test_compat_open_slide(wsi_file):
     assert isinstance(tiffslide.open_slide(wsi_file), TiffSlide)
 
@@ -174,7 +175,7 @@ def test_compat_alias_exception(exc_name):
 def test_compat_alias_tiffslide(cls_name):
     with pytest.warns(UserWarning):
         cls = getattr(importlib.import_module("tiffslide"), cls_name)
-    assert cls is TiffSlide
+    assert issubclass(cls, TiffSlide)
 
 
 def test_compat_unsupported_abstractslide():
@@ -214,3 +215,14 @@ def test_thread_safety(wsi_file, tmp_path):
     for _ in range(10):
         out = subprocess.run([sys.executable, bug_py], capture_output=True)
         assert out.returncode == 0, out.stderr.decode()
+
+
+def test_non_tiff_fallback(jpg_file):
+    # noinspection PyProtectedMember
+    from tiffslide import open_slide
+
+    ts = open_slide(jpg_file)
+    assert ts.properties
+    assert ts.get_thumbnail((10, 10))
+    assert ts.associated_images == {}
+    assert ts.read_region((0, 0), 0, (10, 10))
