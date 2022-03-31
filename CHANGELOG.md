@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ...
 
+## [1.1.1] - 2022-03-31
+## Changes
+- change conda environment back to have conda devenv features in a compatibility way
+
+## Fixed
+- fixes py37 zarr/tifffile version compatibility issue for installs via pypi
+
 ## [1.1.0] - 2022-03-22
 ### Added
 - support Leica SCN format
@@ -82,7 +89,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - initial release of tiffslide and
 
-[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v0.3.0...v1.0.0
