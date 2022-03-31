@@ -4,6 +4,9 @@
 # If you just want to install tiffslide you can do so via:
 #   >>> conda install -c conda-forge tiffslide
 #
+# conda-devenv:
+#   {% set TIFFSLIDE_DEVEL = os.environ.get('TIFFSLIDE_DEVEL', False) %}
+#
 name: tiffslide
 
 channels:
@@ -20,15 +23,10 @@ dependencies:
   - tifffile>=2020.9.22
   - zarr
 
-  # python 3.7 compat
-  - importlib_metadata
-  - typing_extensions
-
   # development dependencies
-  - black
-  - mypy
-  - pytest>=6
-  - pytest-cov
-  - pip:
-    - backports.cached_property  # python 3.7 compat
-    - "-e ."
+  - black       # [ TIFFSLIDE_DEVEL ]
+  - mypy        # [ TIFFSLIDE_DEVEL ]
+  - pytest>=6   # [ TIFFSLIDE_DEVEL ]
+  - pytest-cov  # [ TIFFSLIDE_DEVEL ]
+  - pip:        # [ TIFFSLIDE_DEVEL ]
+    - "-e ."    # [ TIFFSLIDE_DEVEL ]

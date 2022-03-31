@@ -23,14 +23,6 @@ jobs:
             python-version: 3.7
     steps:
     - uses: actions/checkout@v1
-    - name: Make python reference python3 because conda-devenv needs it
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.x'
-    - name: Create the environment.yml via conda-devenv
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install --upgrade setuptools
     - name: Cache conda
       uses: actions/cache@v1
       env:
@@ -38,11 +30,11 @@ jobs:
         CACHE_NUMBER: 0
       with:
         path: ~/conda_pkgs_dir
-        key: ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{ hashFiles('dev_environment.yml') }}
+        key: ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{ hashFiles('environment.devenv.yml') }}
     - name: Setup conda
       uses: conda-incubator/setup-miniconda@v2
       with:
-        environment-file: dev_environment.yml
+        environment-file: environment.devenv.yml
         python-version: ${{ matrix.python-version }}
         auto-update-conda: true
         activate-environment: tiffslide

@@ -110,7 +110,7 @@ With conda:
 
 1. Clone tiffslide `git clone https://github.com/bayer-science-for-a-better-life/tiffslide.git`
 2. `cd tiffslide`
-3. `conda env create -f dev_environment.yml`
+3. `conda env create -f environment.devenv.yml`
 4. Activate the environment `conda activate tiffslide`
 
 Without conda:
