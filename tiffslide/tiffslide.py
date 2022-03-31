@@ -12,6 +12,7 @@ from typing import Any
 from typing import AnyStr
 from typing import Iterator
 from typing import Mapping
+from typing import TypeVar
 from typing import overload
 from warnings import warn
 from xml.etree import ElementTree
@@ -35,6 +36,7 @@ from tifffile import TiffFileError as TiffFileError
 from tifffile import TiffPageSeries
 from tifffile.tifffile import svs_description_metadata
 
+from tiffslide._compat import NotTiffFile
 from tiffslide._types import OpenFileLike
 from tiffslide._types import PathOrFileOrBufferLike
 from tiffslide._types import TiffFileIO
@@ -58,6 +60,7 @@ __all__ = [
     "PROPERTY_NAME_BOUNDS_HEIGHT",
     "TiffSlide",
     "TiffFileError",
+    "NotTiffSlide",
 ]
 
 # all relevant tifffile version numbers work with this.
@@ -104,7 +107,10 @@ class TiffSlide:
         """
         # tifffile instance, can raise TiffFileError
         self.ts_tifffile = _prepare_tifffile(
-            filename, storage_options=storage_options, tifffile_options=tifffile_options
+            filename,
+            storage_options=storage_options,
+            tifffile_options=tifffile_options,
+            _cls=TiffFile,
         )
 
     def __enter__(self) -> TiffSlide:
@@ -144,6 +150,7 @@ class TiffSlide:
                 filename,
                 tifffile_options=tifffile_options,
                 storage_options=storage_options,
+                _cls=TiffFile,
             )
         except TiffFileError:
             return None
@@ -251,7 +258,7 @@ class TiffSlide:
 
         for lvl, (width, height) in enumerate(level_dimensions):
             downsample = math.sqrt((w0 * h0) / (width * height))
-            page = series0.levels[lvl].pages[0]
+            page = series0.levels[lvl][0]
             md[f"tiffslide.level[{lvl}].downsample"] = downsample
             md[f"tiffslide.level[{lvl}].height"] = height
             md[f"tiffslide.level[{lvl}].width"] = width
@@ -260,10 +267,11 @@ class TiffSlide:
 
         if md[PROPERTY_NAME_MPP_X] is None or md[PROPERTY_NAME_MPP_Y] is None:
             # recover mpp from tiff tags
+            page0 = series0[0]
             try:
-                resolution_unit = series0.pages[0].tags["ResolutionUnit"].value
-                x_resolution = Fraction(*series0.pages[0].tags["XResolution"].value)
-                y_resolution = Fraction(*series0.pages[0].tags["YResolution"].value)
+                resolution_unit = page0.tags["ResolutionUnit"].value
+                x_resolution = Fraction(*page0.tags["XResolution"].value)
+                y_resolution = Fraction(*page0.tags["YResolution"].value)
             except KeyError:
                 pass
             else:
@@ -450,6 +458,46 @@ class TiffSlide:
         return thumb
 
 
+class NotTiffSlide(TiffSlide):
+    # noinspection PyMissingConstructor
+    def __init__(
+        self,
+        filename: PathOrFileOrBufferLike[AnyStr],
+        *,
+        tifffile_options: dict[str, Any] | None = None,
+        storage_options: dict[str, Any] | None = None,
+    ) -> None:
+        # tifffile instance, can raise TiffFileError
+        self.ts_tifffile = _prepare_tifffile(
+            filename,
+            storage_options=storage_options,
+            tifffile_options=tifffile_options,
+            _cls=NotTiffFile,
+        )
+
+    @classmethod
+    def detect_format(
+        cls,
+        filename: PathOrFileOrBufferLike[AnyStr],
+        *,
+        tifffile_options: dict[str, Any] | None = None,
+        storage_options: dict[str, Any] | None = None,
+    ) -> str | None:
+        """return the detected format as a str or None if unknown/unimplemented"""
+        try:
+            tf = _prepare_tifffile(
+                filename,
+                tifffile_options=tifffile_options,
+                storage_options=storage_options,
+                _cls=NotTiffFile,
+            )
+        except ValueError:
+            return None
+        with tf as t:
+            # noinspection PyProtectedMember
+            return t.pages[0]._codec
+
+
 def _detect_format(tf: TiffFile) -> str:
     _vendor_compat_map = dict(
         svs="aperio",
@@ -494,12 +542,16 @@ class _LazyAssociatedImagesDict(Mapping[str, Image.Image]):
         yield from self.series_map
 
 
+TF = TypeVar("TF", TiffFile, NotTiffFile)
+
+
 def _prepare_tifffile(
     fb: PathOrFileOrBufferLike[AnyStr],
     *,
     tifffile_options: dict[str, Any] | None = None,
     storage_options: dict[str, Any] | None = None,
-) -> TiffFile:
+    _cls: type[TF] = TiffFile,
+) -> TF:
     """prepare a TiffFile instance
 
     Allows providing fsspec urlpaths as well as fsspec OpenFile instances directly.
@@ -527,7 +579,7 @@ def _prepare_tifffile(
         # provided an IO stream like instance
         _warn_unused_storage_options(st_kw)
 
-        return TiffFile(fb, **tf_kw)
+        return _cls(fb, **tf_kw)
 
     elif isinstance(fb, OpenFileLike):
         # provided a fsspec compatible OpenFile instance
@@ -543,26 +595,26 @@ def _prepare_tifffile(
                 name = os.path.basename(path)
             tf_kw["name"] = name
 
-        return TiffFile(fs.open(path), **tf_kw)
+        return _cls(fs.open(path), **tf_kw)
 
     elif isinstance(fb, (str, os.PathLike)):
         # provided a string like url
         urlpath = os.fspath(fb)
         fs, path = url_to_fs(urlpath, **st_kw)
         if isinstance(fs, LocalFileSystem):
-            return TiffFile(path, **tf_kw)
+            return _cls(path, **tf_kw)
         else:
             # set name for tifffile.FileHandle
             if "name" not in tf_kw:
                 tf_kw["name"] = os.path.basename(path)
 
-            return TiffFile(fs.open(path), **tf_kw)
+            return _cls(fs.open(path), **tf_kw)
 
     else:
         # let's try anyways ...
         _warn_unused_storage_options(st_kw)
 
-        return TiffFile(fb, **tf_kw)
+        return _cls(fb, **tf_kw)
 
 
 def _parse_metadata_aperio(desc: str) -> dict[str, Any]:
