@@ -7,25 +7,32 @@ from __future__ import annotations
 
 import json
 import os.path
+import sys
 from pathlib import PurePath
 from types import MappingProxyType
 from types import TracebackType
+from typing import TYPE_CHECKING
 from typing import Any
-from typing import Literal
-from typing import Optional
+from typing import Mapping
 from typing import Sequence
+
+if sys.version_info >= (3, 8):
+    from typing import Literal
+else:
+    from typing_extensions import Literal
 
 import numpy as np
 import zarr
 from imagecodecs import __version__ as _imagecodecs_version
 from imagecodecs import imread
 
-from tiffslide._types import PathOrFileOrBufferLike
-
 try:
     from tiffslide._version import version as _tiffslide_version
 except ImportError:  # pragma: no cover
     _tiffslide_version = "not-installed"
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 __all__ = [
     "NotTiffFile",
@@ -35,12 +42,12 @@ __all__ = [
 class NotTiffFile:
     def __init__(
         self,
-        arg: PathOrFileOrBufferLike,
+        arg: Any,
         mode: Literal["rb"] | None = None,
         name: str | None = None,
-        *_args,
-        **_kwargs,
-    ):
+        *_args: Any,
+        **_kwargs: Any,
+    ) -> None:
         if mode is not None and mode != "rb":
             raise ValueError("mode must be 'rb'")
         if name is None:
@@ -109,7 +116,7 @@ class NotTiffPageSeries:
     def aszarr(self) -> zarr.storage.MemoryStore:
         return self.pages[0].aszarr()
 
-    def asarray(self) -> np.ndarray:
+    def asarray(self) -> NDArray[np.uint8]:
         return self.pages[0].asarray()
 
 
@@ -117,11 +124,11 @@ NotTiffPages = Sequence["NotTiffPage"]
 
 
 class NotTiffPage:
-    tags = MappingProxyType({})
+    tags: Mapping[Any, Any] = MappingProxyType({})
     tilelength = 0
     tilewidth = 0
 
-    def __init__(self, array: np.ndarray, codec: str):
+    def __init__(self, array: NDArray[np.uint8], codec: str):
         self._array = array
         self._codec = codec
 
@@ -152,5 +159,5 @@ class NotTiffPage:
     def aszarr(self) -> zarr.storage.MemoryStore:
         return zarr.creation.array(self._array).store
 
-    def asarray(self) -> np.ndarray:
+    def asarray(self) -> NDArray[np.uint8]:
         return self._array
