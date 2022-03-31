@@ -1,6 +1,6 @@
 """tiffslide.deepzoom
 
-tiffslide.deepzoom is not intended to be used as a drop-in replacement for
+tiffslide.deepzoom is not intended to be used as a drop-in replacement
 for openslide's DeepZoomGenerator. It's aiming to provide the basis for a
 minimal overhead tile server for viewing tiled whole slide images in the
 browser without having to re-tile the existing layers in the slide.
