@@ -7,6 +7,7 @@ from typing import AnyStr
 from warnings import warn
 
 from tiffslide._types import PathOrFileOrBufferLike
+from tiffslide.tiffslide import NotTiffSlide
 from tiffslide.tiffslide import PROPERTY_NAME_BACKGROUND_COLOR
 from tiffslide.tiffslide import PROPERTY_NAME_BOUNDS_HEIGHT
 from tiffslide.tiffslide import PROPERTY_NAME_BOUNDS_WIDTH
@@ -37,9 +38,12 @@ def __getattr__(name):  # type: ignore
             f"compatibility: aliasing tiffslide.TiffFileError to {name!r}", stacklevel=2
         )
         return TiffFileError
-    elif name in {"OpenSlide", "ImageSlide"}:
+    elif name == "OpenSlide":
         warn(f"compatibility: aliasing tiffslide.TiffSlide to {name!r}", stacklevel=2)
         return TiffSlide
+    elif name == "ImageSlide":
+        warn(f"compatibility: aliasing tiffslide.NotTiffSlide to {name!r}", stacklevel=2)
+        return NotTiffSlide
     # warn if internals are imported that we dont support
     if name in {"AbstractSlide", "__library_version__"}:
         warn(f"{name!r} is not provided by tiffslide", stacklevel=2)
@@ -47,5 +51,19 @@ def __getattr__(name):  # type: ignore
 
 
 def open_slide(filename: PathOrFileOrBufferLike[AnyStr]) -> TiffSlide:
-    """drop-in helper function"""
-    return TiffSlide(filename)
+    """drop-in helper function
+
+    Note: this will always try to fallback to the NotTiffSlide class
+      in case creating a TiffSlide instance fails. If this is undesired
+      use `tiffslide.TiffSlide` directly instead of `tiffslide.open_slide`
+    """
+    try:
+        return TiffSlide(filename)
+    except TiffFileError as original_err:
+        try:
+            return NotTiffSlide(filename)
+        except Exception as fallback_err:
+            # I want this fallback to raise the original error
+            # so that a user code can catch TiffFileError.
+            # this is bending the __cause__ rules a bit...
+            raise original_err from fallback_err
