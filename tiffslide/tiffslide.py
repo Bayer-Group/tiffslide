@@ -382,22 +382,34 @@ class TiffSlide:
         """
         base_x, base_y = location
         base_w, base_h = self.dimensions
-        level_w, level_h = self.level_dimensions[level]
+        _rw, _rh = size
+
+        if level < 0 or level >= len(self.level_dimensions):
+            level_w = level_h = -1
+        else:
+            level_w, level_h = self.level_dimensions[level]
+
         rx0 = (base_x * level_w) // base_w
         ry0 = (base_y * level_h) // base_h
-        _rw, _rh = size
         rx1 = rx0 + _rw
         ry1 = ry0 + _rh
 
-        if (level < 0 or level >= len(self.level_dimensions)) or\
-                (rx0 >= level_w or ry0 >= level_h) or\
+        axes = self.properties["tiffslide.series-axes"]
+
+        if (level_h == -1 or level_w == -1) or \
+                (rx0 >= level_w or ry0 >= level_h) or \
                 (rx1 <= 0 or ry1 <= 0):
 
             if padding:
+                if isinstance(self.ts_zarr_grp, zarr.core.Array):
+                    _za = self.ts_zarr_grp
+                else:
+                    _za = self.ts_zarr_grp[str(0)]
+
                 if axes == "YXS":
-                    n_ch = self.ts_zarr_grp.shape[-1]
+                    n_ch = _za.shape[-1]
                 elif axes == "CYX":
-                    n_ch = self.ts_zarr_grp.shape[0]
+                    n_ch = _za.shape[0]
                 else:
                     raise NotImplementedError
 
@@ -414,7 +426,6 @@ class TiffSlide:
             ry0, ry1 = max(ry0, 0), min(ry1, level_h)
             #
 
-            axes = self.properties["tiffslide.series-axes"]
             if axes == "YXS":
                 selection = slice(ry0, ry1), slice(rx0, rx1), slice(None)
             elif axes == "CYX":
