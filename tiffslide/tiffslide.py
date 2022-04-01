@@ -383,71 +383,76 @@ class TiffSlide:
         base_x, base_y = location
         base_w, base_h = self.dimensions
         _rw, _rh = size
+        axes = self.properties["tiffslide.series-axes"]
 
-        if level < 0 or level >= len(self.level_dimensions):
-            level_w = level_h = -1
-        else:
+        try:
             level_w, level_h = self.level_dimensions[level]
+        except IndexError:
+            if not padding:
+                raise
+            warn(
+                f"level={level} is out-of-bounds, but padding is requested",
+                stacklevel=2
+            )
+
+            zarray: zarr.core.Array
+            if isinstance(self.ts_zarr_grp, zarr.core.Array):
+                zarray = self.ts_zarr_grp
+            else:
+                zarray = self.ts_zarr_grp["0"]
+
+            if axes == "YXS":
+                depth = zarray.shape[2]
+            elif axes == "CYX":
+                depth = zarray.shape[0]
+            else:
+                raise NotImplementedError
+
+            return np.zeros((_rh, _rw, depth), dtype=zarray.dtype)
 
         rx0 = (base_x * level_w) // base_w
         ry0 = (base_y * level_h) // base_h
         rx1 = rx0 + _rw
         ry1 = ry0 + _rh
 
-        axes = self.properties["tiffslide.series-axes"]
+
+        # compute pad
+        pad_x0, pad_x1 = max(-rx0, 0), max(rx1-level_w, 0)
+        pad_y0, pad_y1 = max(-ry0, 0), max(ry1-level_h, 0)
+        #
+        pad_x0, pad_x1 = min(pad_x0, _rw), min(pad_x1, _rw)
+        pad_y0, pad_y1 = min(pad_y0, _rh), min(pad_y1, _rh)
+        # crop coord to valid zone
+        rx0, rx1 = max(rx0, 0), min(rx1, level_w)
+        ry0, ry1 = max(ry0, 0), min(ry1, level_h)
+        #
+        rx1 = max(rx0, rx1)
+        ry1 = max(ry0, ry1)
+        #
+
+        if axes == "YXS":
+            selection = slice(ry0, ry1), slice(rx0, rx1), slice(None)
+        elif axes == "CYX":
+            selection = slice(None), slice(ry0, ry1), slice(rx0, rx1)
+        else:
+            raise NotImplementedError
 
         arr: npt.NDArray[np.int_]
-        
-        if (level_h == -1 or level_w == -1) or \
-                (rx0 >= level_w or ry0 >= level_h) or \
-                (rx1 <= 0 or ry1 <= 0):
-
-            if padding:
-                if isinstance(self.ts_zarr_grp, zarr.core.Array):
-                    _za = self.ts_zarr_grp
-                else:
-                    _za = self.ts_zarr_grp[str(0)]
-
-                if axes == "YXS":
-                    n_ch = _za.shape[-1]
-                elif axes == "CYX":
-                    n_ch = _za.shape[0]
-                else:
-                    raise NotImplementedError
-
-                arr = np.full([_rh, _rw, n_ch], fill_value=0, dtype=np.uint8)
-            else:
-                raise AssertionError('Error! The selection area does not exist.')
-
+        if isinstance(self.ts_zarr_grp, zarr.core.Array):
+            arr = self.ts_zarr_grp[selection]
         else:
-            # compute pad
-            pad_x0, pad_x1 = max(-rx0, 0), max(rx1-level_w, 0)
-            pad_y0, pad_y1 = max(-ry0, 0), max(ry1-level_h, 0)
-            # crop coord to valid zone
-            rx0, rx1 = max(rx0, 0), min(rx1, level_w)
-            ry0, ry1 = max(ry0, 0), min(ry1, level_h)
-            #
+            arr = self.ts_zarr_grp[str(level)][selection]
 
-            if axes == "YXS":
-                selection = slice(ry0, ry1), slice(rx0, rx1), slice(None)
-            elif axes == "CYX":
-                selection = slice(None), slice(ry0, ry1), slice(rx0, rx1)
-            else:
-                raise NotImplementedError
+        if axes == "CYX":
+            arr = arr.transpose((1, 2, 0))
 
-            if isinstance(self.ts_zarr_grp, zarr.core.Array):
-                arr = self.ts_zarr_grp[selection]
-            else:
-                arr = self.ts_zarr_grp[str(level)][selection]
-
-            if axes == "CYX":
-                arr = arr.transpose((1, 2, 0))
-
-            if padding:
-                # do pad, use multi channel value pad
-                arr = np.pad(arr, ((pad_y0, pad_y1), (pad_x0, pad_x1), (0, 0)), mode='constant', constant_values=0)
-                # ensure shape as expected
-                assert arr.shape[0] == _rh and arr.shape[1] == _rw
+        if padding and arr.shape[:2] != (_rh, _rw):
+            # do pad
+            arr = np.pad(arr, ((pad_y0, pad_y1), (pad_x0, pad_x1), (0, 0)), mode='constant', constant_values=0)
+            # ensure shape as expected
+            assert arr.shape[:2] == (_rh, _rw)
+        elif arr.shape[0] == 0 or arr.shape[1] == 0:
+            raise AssertionError(f'level={level},location={location},size={size} has completely exceeded the image area')
 
         if as_array:
             return arr
