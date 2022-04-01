@@ -396,6 +396,8 @@ class TiffSlide:
 
         axes = self.properties["tiffslide.series-axes"]
 
+        arr: npt.NDArray[np.int_]
+        
         if (level_h == -1 or level_w == -1) or \
                 (rx0 >= level_w or ry0 >= level_h) or \
                 (rx1 <= 0 or ry1 <= 0):
@@ -433,7 +435,6 @@ class TiffSlide:
             else:
                 raise NotImplementedError
 
-            arr: npt.NDArray[np.int_]
             if isinstance(self.ts_zarr_grp, zarr.core.Array):
                 arr = self.ts_zarr_grp[selection]
             else:
