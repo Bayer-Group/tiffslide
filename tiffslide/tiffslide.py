@@ -415,19 +415,15 @@ class TiffSlide:
         rx1 = rx0 + _rw
         ry1 = ry0 + _rh
 
+        # dont use np.clip to avoid converting to np.int32 type.
+        clip = lambda x, _min, _max: min(max(x, _min), _max)
 
         # compute pad
-        pad_x0, pad_x1 = max(-rx0, 0), max(rx1-level_w, 0)
-        pad_y0, pad_y1 = max(-ry0, 0), max(ry1-level_h, 0)
-        #
-        pad_x0, pad_x1 = min(pad_x0, _rw), min(pad_x1, _rw)
-        pad_y0, pad_y1 = min(pad_y0, _rh), min(pad_y1, _rh)
+        pad_x0, pad_x1 = clip(-rx0, 0, _rw), clip(rx1-level_w, 0, _rw)
+        pad_y0, pad_y1 = clip(-ry0, 0, _rh), clip(ry1-level_h, 0, _rh)
         # crop coord to valid zone
-        rx0, rx1 = max(rx0, 0), min(rx1, level_w)
-        ry0, ry1 = max(ry0, 0), min(ry1, level_h)
-        #
-        rx1 = max(rx0, rx1)
-        ry1 = max(ry0, ry1)
+        rx0, rx1 = clip(rx0, 0, level_w), clip(rx1, 0, level_w)
+        ry0, ry1 = clip(ry0, 0, level_h), clip(ry1, 0, level_h)
         #
 
         if axes == "YXS":
