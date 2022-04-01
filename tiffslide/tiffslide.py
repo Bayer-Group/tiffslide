@@ -29,7 +29,6 @@ else:
 import tifffile
 import zarr
 import numpy as np
-from typing import Union
 from fsspec.core import url_to_fs
 from fsspec.implementations.local import LocalFileSystem
 from PIL import Image
@@ -379,7 +378,7 @@ class TiffSlide:
         as_array :
             if True, return the region as numpy array
         padding :
-            if True, Will ensure that the size of the returned image is deterministic.
+            if True, will ensure that the size of the returned image is deterministic.
         """
         base_x, base_y = location
         base_w, base_h = self.dimensions
@@ -390,15 +389,19 @@ class TiffSlide:
         rx1 = rx0 + _rw
         ry1 = ry0 + _rh
 
-        # Specify the fill color.
-        pad_value = (0, 0, 0)
-
         if (level < 0 or level >= len(self.level_dimensions)) or\
                 (rx0 >= level_w or ry0 >= level_h) or\
                 (rx1 <= 0 or ry1 <= 0):
 
             if padding:
-                arr = np.full([_rh, _rw, 3], fill_value=pad_value, dtype=np.uint8)
+                if axes == "YXS":
+                    n_ch = self.ts_zarr_grp.shape[-1]
+                elif axes == "CYX":
+                    n_ch = self.ts_zarr_grp.shape[0]
+                else:
+                    raise NotImplementedError
+
+                arr = np.full([_rh, _rw, n_ch], fill_value=0, dtype=np.uint8)
             else:
                 raise AssertionError('Error! The selection area does not exist.')
 
@@ -430,8 +433,7 @@ class TiffSlide:
 
             if padding:
                 # do pad, use multi channel value pad
-                # arr = np.pad(arr, ((pad_y0, pad_y1), (pad_x0, pad_x1), (0, 0)), mode='constant')
-                arr = _copy_make_border(arr, pad_y0, pad_y1, pad_x0, pad_x1, pad_value)
+                arr = np.pad(arr, ((pad_y0, pad_y1), (pad_x0, pad_x1), (0, 0)), mode='constant', constant_values=0)
                 # ensure shape as expected
                 assert arr.shape[0] == _rh and arr.shape[1] == _rw
 
@@ -786,24 +788,3 @@ def _xml_to_dict(xml: str) -> dict[str, Any]:
 def _label_series_axes(axes: str) -> tuple[str, ...]:
     """helper to make series shapes more understandable"""
     return tuple(tifffile.TIFF.AXES_LABELS[c] for c in axes)
-
-
-def _copy_make_border(src: np.ndarray, top: int, bottom: int, left: int, right: int, value: tuple=None) -> np.ndarray:
-    '''
-    My implement cv2.copyMakeBorder.
-    To void cv2.copyMakeBorder exception TypeError: Scalar value for argument 'value' is longer than 4.
-    :param src:     input image
-    :param top:
-    :param bottom:
-    :param left:
-    :param right:
-    :param value:   pad value
-    :return:
-    '''
-    assert top >= 0 and bottom >= 0 and left >= 0 and right >= 0, 'Error! The top, bottom, left or right must be equal or bigger than 0.'
-    new_im = np.zeros([src.shape[0] + top + bottom, src.shape[1] + left + right, src.shape[2]], dtype=src.dtype)
-    nh, nw = new_im.shape[:2]
-    if value is not None:
-        new_im[..., :] = value
-    new_im[top: nh-bottom, left: nw-right] = src
-    return new_im
