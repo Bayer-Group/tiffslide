@@ -198,15 +198,19 @@ def test_thread_safety(wsi_file, tmp_path):
         dedent(
             f"""\
             import tiffslide
+            import random
             from multiprocessing.pool import ThreadPool
-
-            def read_region(slide):
-                _ = slide.read_region((0, 0), 0, (10, 10))
 
             # number of threads
             num_threads = 8
 
             ts = tiffslide.TiffSlide({os.fspath(wsi_file)!r})
+            w, h = ts.dimensions
+
+            def read_region(slide):
+                x = random.randint(0, max(0, w - 10))
+                y = random.randint(0, max(0, h - 10))
+                _ = slide.read_region((x, y), 0, (10, 10))
 
             with ThreadPool(num_threads) as pool:
                 pool.starmap(read_region, [(ts, ) for _ in range(num_threads*2)])
