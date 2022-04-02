@@ -43,7 +43,6 @@ from tiffslide._types import PathOrFileOrBufferLike
 from tiffslide._types import TiffFileIO
 
 if TYPE_CHECKING:
-    import numpy as np
     import numpy.typing as npt
 
 
@@ -820,6 +819,6 @@ def _label_series_axes(axes: str) -> tuple[str, ...]:
     return tuple(tifffile.TIFF.AXES_LABELS[c] for c in axes)
 
 
-def _clip(x, min_, max_):
+def _clip(x: int, min_: int, max_: int) -> int:
     """clip a value to a range"""
     return min(max(x, min_), max_)
