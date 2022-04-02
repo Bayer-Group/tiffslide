@@ -342,6 +342,7 @@ class TiffSlide:
         size: tuple[int, int],
         *,
         as_array: Literal[False] = ...,
+        padding: bool = ...,
     ) -> Image.Image:
         ...
 
@@ -353,6 +354,7 @@ class TiffSlide:
         size: tuple[int, int],
         *,
         as_array: Literal[True] = ...,
+        padding: bool = ...,
     ) -> npt.NDArray[np.int_]:
         ...
 
