@@ -313,3 +313,13 @@ def test_read_region_nopadding_oob(slide):
 
     r = slide.read_region((-100, -100), 0, (10, 10), as_array=True, padding=False)
     assert r.size == 0
+
+
+def test_padding_no_padding(slide):
+
+    lvl = slide.level_count - 1
+    isize = width, height = slide.level_dimensions[lvl]
+    rsize = width + 20, height + 40
+
+    assert rsize == slide.read_region((-10, -10), lvl, rsize, padding=True).size
+    assert isize == slide.read_region((-10, -10), lvl, rsize, padding=False).size
