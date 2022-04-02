@@ -249,10 +249,10 @@ class TiffSlide:
         axes0 = md["tiffslide.series-axes"] = series0.axes
 
         if axes0 == "YXS":
-            h0, w0, _ = series0.shape
+            h0, w0, _ = map(int, series0.shape)
             level_dimensions = ((lvl.shape[1], lvl.shape[0]) for lvl in series0.levels)
         elif axes0 == "CYX":
-            _, h0, w0 = series0.shape
+            _, h0, w0 = map(int, series0.shape)
             level_dimensions = ((lvl.shape[2], lvl.shape[1]) for lvl in series0.levels)
         else:
             raise NotImplementedError(f"series with axes={axes0!r} not supported yet")
@@ -261,8 +261,8 @@ class TiffSlide:
             downsample = math.sqrt((w0 * h0) / (width * height))
             page = series0.levels[lvl][0]
             md[f"tiffslide.level[{lvl}].downsample"] = downsample
-            md[f"tiffslide.level[{lvl}].height"] = height
-            md[f"tiffslide.level[{lvl}].width"] = width
+            md[f"tiffslide.level[{lvl}].height"] = int(height)
+            md[f"tiffslide.level[{lvl}].width"] = int(width)
             md[f"tiffslide.level[{lvl}].tile-height"] = page.tilelength
             md[f"tiffslide.level[{lvl}].tile-width"] = page.tilewidth
 
@@ -380,9 +380,9 @@ class TiffSlide:
         padding :
             if True, will ensure that the size of the returned image is deterministic.
         """
-        base_x, base_y = location
+        base_x, base_y = map(int, location)
         base_w, base_h = self.dimensions
-        _rw, _rh = size
+        _rw, _rh = map(int, size)
         axes = self.properties["tiffslide.series-axes"]
 
         try:
