@@ -2,6 +2,8 @@ import importlib
 import os
 import subprocess
 import sys
+import warnings
+from functools import partial
 from textwrap import dedent
 
 import fsspec
@@ -233,18 +235,81 @@ def test_non_tiff_fallback(jpg_file):
     assert ts.read_region((0, 0), 0, (10, 10))
 
 
-def test_image_read_region_out_of_area(slide):
-    assert slide.read_region(
-        (-100, -100), 0, (50, 50), as_array=True, padding=True
-    ).shape[:2] == (50, 50)
-    assert slide.read_region(
-        (-100, -100), 100, (50, 50), as_array=True, padding=True
-    ).shape[:2] == (50, 50)
-    assert slide.read_region(
-        (-50, -50), 0, (100, 100), as_array=True, padding=True
-    ).shape[:2] == (100, 100)
-    with pytest.raises(AssertionError):
-        slide.read_region((-50, -50), 0, (50, 50), as_array=True, padding=False)
-    assert slide.read_region(
-        (-50, -50), 0, (100, 100), as_array=True, padding=False
-    ).shape[:2] == (50, 50)
+@pytest.mark.parametrize(
+    "loc,lvl",
+    [
+        pytest.param((-100, -100), 0, id="TL-level0"),
+        pytest.param((0, -100), 0, id="TC-level0"),
+        pytest.param((None, -100), 0, id="TR-level0"),
+        pytest.param((None, 0), 0, id="MR-level0"),
+        pytest.param((None, None), 0, id="BR-level0"),
+        pytest.param((0, None), 0, id="BC-level0"),
+        pytest.param((-100, None), 0, id="BL-level0"),
+        pytest.param((-100, 0), 0, id="ML-level0"),
+        pytest.param((0, 0), -1, id="negative-level"),
+        pytest.param((0, 0), None, id="too-big-level"),
+    ],
+)
+def test_read_region_padding_fully_oob(slide, loc, lvl):
+
+    if loc[0] is None:
+        loc = slide.dimensions[0], loc[1]
+    if loc[1] is None:
+        loc = loc[0], slide.dimensions[1]
+    if lvl is None:
+        lvl = slide.level_count
+
+    size = (50, 50)
+
+    def _all_padding(x):
+        return np.all(x == 0)
+
+    with pytest.warns(UserWarning, match="out-of-bounds"):
+        r = slide.read_region(loc, lvl, size, as_array=True, padding=True)
+    assert _all_padding(r), f"{loc!r}, {lvl}"
+
+
+@pytest.mark.parametrize(
+    "loc",
+    [
+        pytest.param((-100, -100), id="TL"),
+        pytest.param((0, -100), id="TC"),
+        pytest.param((None, -100), id="TR"),
+        pytest.param((None, 0), id="MR"),
+        pytest.param((None, None), id="BR"),
+        pytest.param((0, None), id="BC"),
+        pytest.param((-100, None), id="BL"),
+        pytest.param((-100, 0), id="ML"),
+    ],
+)
+def test_read_region_padding_partially_oob(slide, loc):
+
+    size = (150, 150)
+
+    if loc[0] is None:
+        loc = slide.dimensions[0] - 50, loc[1]
+    if loc[1] is None:
+        loc = loc[0], slide.dimensions[1] - 50
+
+    def _all_padding(x):
+        return np.all(x == 0)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        r = slide.read_region(loc, 0, size, as_array=True, padding=True)
+
+    assert not _all_padding(r), f"{loc!r}"
+
+
+def test_read_region_nopadding_oob(slide):
+    r = slide.read_region((-50, -50), 0, (100, 100), as_array=True, padding=False)
+    assert r.shape[:2] == (50, 50)
+    assert np.any(r != 0)
+
+    locationbr = slide.dimensions[0] - 50, slide.dimensions[1] - 50
+    r = slide.read_region(locationbr, 0, (100, 100), as_array=True, padding=False)
+    assert r.shape[:2] == (50, 50)
+    assert np.any(r != 0)
+
+    r = slide.read_region((-100, -100), 0, (10, 10), as_array=True, padding=False)
+    assert r.size == 0
