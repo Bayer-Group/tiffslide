@@ -388,6 +388,8 @@ class TiffSlide:
         axes = self.properties["tiffslide.series-axes"]
 
         try:
+            if level < 0:
+                raise IndexError
             level_w, level_h = self.level_dimensions[level]
         except IndexError:
             if not padding:
@@ -417,10 +419,9 @@ class TiffSlide:
         rx1 = rx0 + _rw
         ry1 = ry0 + _rh
 
-        requires_padding = (
-            padding
-            and not (0 <= rx0 and rx1 <= base_w)
-            and not (0 <= ry0 and ry1 <= base_h)
+        requires_padding = padding and (
+            not (0 <= rx0 and rx1 <= base_w)
+            or not (0 <= ry0 and ry1 <= base_h)
         )
 
         if requires_padding:
