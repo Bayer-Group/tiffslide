@@ -392,7 +392,7 @@ class TiffSlide:
                 raise
             warn(
                 f"level={level} is out-of-bounds, but padding is requested",
-                stacklevel=2
+                stacklevel=2,
             )
 
             zarray: zarr.core.Array
@@ -406,7 +406,7 @@ class TiffSlide:
             elif axes == "CYX":
                 depth = zarray.shape[0]
             else:
-                raise NotImplementedError
+                raise NotImplementedError(f"axes={axes!r}")
 
             return np.zeros((_rh, _rw, depth), dtype=zarray.dtype)
 
