@@ -419,22 +419,21 @@ class TiffSlide:
         rx1 = rx0 + _rw
         ry1 = ry0 + _rh
 
-        requires_padding = padding and (
-            not (0 <= rx0 and rx1 <= base_w)
-            or not (0 <= ry0 and ry1 <= base_h)
-        )
+        in_bound = 0 <= rx0 and rx1 <= base_w and 0 <= ry0 and ry1 <= base_h
+        if not in_bound:
+            # crop coord to valid zone
+            rx0 = _clip(rx0, 0, level_w)
+            rx1 = _clip(rx1, 0, level_w)
+            ry0 = _clip(ry0, 0, level_h)
+            ry1 = _clip(ry1, 0, level_h)
 
+        requires_padding = padding and not in_bound
         if requires_padding:
             # compute padding
             pad_x0 = _clip(-rx0, 0, _rw)
             pad_x1 = _clip(rx1 - level_w, 0, _rw)
             pad_y0 = _clip(-ry0, 0, _rh)
             pad_y1 = _clip(ry1 - level_h, 0, _rh)
-            # crop coord to valid zone
-            rx0 = _clip(rx0, 0, level_w)
-            rx1 = _clip(rx1, 0, level_w)
-            ry0 = _clip(ry0, 0, level_h)
-            ry1 = _clip(ry1, 0, level_h)
 
         if axes == "YXS":
             selection = slice(ry0, ry1), slice(rx0, rx1), slice(None)
