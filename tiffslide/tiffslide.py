@@ -441,7 +441,7 @@ class TiffSlide:
         elif axes == "CYX":
             selection = slice(None), slice(ry0, ry1), slice(rx0, rx1)
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"axes={axes!r}")
 
         arr: npt.NDArray[np.int_]
         if isinstance(self.ts_zarr_grp, zarr.core.Array):
