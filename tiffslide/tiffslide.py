@@ -28,6 +28,7 @@ else:
 
 import tifffile
 import zarr
+import numpy as np
 from fsspec.core import url_to_fs
 from fsspec.implementations.local import LocalFileSystem
 from PIL import Image
@@ -362,6 +363,7 @@ class TiffSlide:
         size: tuple[int, int],
         *,
         as_array: bool = False,
+        padding: bool = True,
     ) -> Image.Image | npt.NDArray[np.int_]:
         """return the requested region as a PIL.Image
 
@@ -375,17 +377,62 @@ class TiffSlide:
             size (width, height) of the requested region
         as_array :
             if True, return the region as numpy array
+        padding :
+            if True, will ensure that the size of the returned image is deterministic.
         """
         base_x, base_y = location
         base_w, base_h = self.dimensions
-        level_w, level_h = self.level_dimensions[level]
+        _rw, _rh = size
+        axes = self.properties["tiffslide.series-axes"]
+
+        try:
+            level_w, level_h = self.level_dimensions[level]
+        except IndexError:
+            if not padding:
+                raise
+            warn(
+                f"level={level} is out-of-bounds, but padding is requested",
+                stacklevel=2,
+            )
+
+            zarray: zarr.core.Array
+            if isinstance(self.ts_zarr_grp, zarr.core.Array):
+                zarray = self.ts_zarr_grp
+            else:
+                zarray = self.ts_zarr_grp["0"]
+
+            if axes == "YXS":
+                depth = zarray.shape[2]
+            elif axes == "CYX":
+                depth = zarray.shape[0]
+            else:
+                raise NotImplementedError(f"axes={axes!r}")
+
+            return np.zeros((_rh, _rw, depth), dtype=zarray.dtype)
+
         rx0 = (base_x * level_w) // base_w
         ry0 = (base_y * level_h) // base_h
-        _rw, _rh = size
         rx1 = rx0 + _rw
         ry1 = ry0 + _rh
 
-        axes = self.properties["tiffslide.series-axes"]
+        requires_padding = (
+            padding
+            and not (0 <= rx0 and rx1 <= base_w)
+            and not (0 <= ry0 and ry1 <= base_h)
+        )
+
+        if requires_padding:
+            # compute padding
+            pad_x0 = _clip(-rx0, 0, _rw)
+            pad_x1 = _clip(rx1 - level_w, 0, _rw)
+            pad_y0 = _clip(-ry0, 0, _rh)
+            pad_y1 = _clip(ry1 - level_h, 0, _rh)
+            # crop coord to valid zone
+            rx0 = _clip(rx0, 0, level_w)
+            rx1 = _clip(rx1, 0, level_w)
+            ry0 = _clip(ry0, 0, level_h)
+            ry1 = _clip(ry1, 0, level_h)
+
         if axes == "YXS":
             selection = slice(ry0, ry1), slice(rx0, rx1), slice(None)
         elif axes == "CYX":
@@ -401,6 +448,21 @@ class TiffSlide:
 
         if axes == "CYX":
             arr = arr.transpose((1, 2, 0))
+
+        if requires_padding:
+            if arr.shape[0] == 0 or arr.shape[1] == 0:
+                warn(
+                    f"location={location!r}, level={level}, size={size!r} is out-of-bounds, but padding is requested",
+                    stacklevel=2,
+                )
+
+            # noinspection PyUnboundLocalVariable
+            arr = np.pad(
+                arr,
+                ((pad_y0, pad_y1), (pad_x0, pad_x1), (0, 0)),
+                mode="constant",
+                constant_values=0,
+            )
 
         if as_array:
             return arr
@@ -753,3 +815,8 @@ def _xml_to_dict(xml: str) -> dict[str, Any]:
 def _label_series_axes(axes: str) -> tuple[str, ...]:
     """helper to make series shapes more understandable"""
     return tuple(tifffile.TIFF.AXES_LABELS[c] for c in axes)
+
+
+def _clip(x, min_, max_):
+    """clip a value to a range"""
+    return min(max(x, min_), max_)

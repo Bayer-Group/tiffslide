@@ -231,3 +231,20 @@ def test_non_tiff_fallback(jpg_file):
     assert ts.get_thumbnail((10, 10))
     assert ts.associated_images == {}
     assert ts.read_region((0, 0), 0, (10, 10))
+
+
+def test_image_read_region_out_of_area(slide):
+    assert slide.read_region(
+        (-100, -100), 0, (50, 50), as_array=True, padding=True
+    ).shape[:2] == (50, 50)
+    assert slide.read_region(
+        (-100, -100), 100, (50, 50), as_array=True, padding=True
+    ).shape[:2] == (50, 50)
+    assert slide.read_region(
+        (-50, -50), 0, (100, 100), as_array=True, padding=True
+    ).shape[:2] == (100, 100)
+    with pytest.raises(AssertionError):
+        slide.read_region((-50, -50), 0, (50, 50), as_array=True, padding=False)
+    assert slide.read_region(
+        (-50, -50), 0, (100, 100), as_array=True, padding=False
+    ).shape[:2] == (50, 50)
