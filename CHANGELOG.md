@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ...
 
+## [1.2.0] - 2022-04-03
+## Added
+- compatibility: add fallback support for non-tiff images via `tiffslide.open_slide` (#19)
+- make region padding configurable
+
+## Fixed
+- compatibility: support padding regions if out-of-bounds region requested (#27)
+- prevent numpy scalar overflows when using np.int32 coords in `read_region` (#29)
+
 ## [1.1.1] - 2022-03-31
 ## Changes
 - change conda environment back to have conda devenv features in a compatibility way
@@ -89,7 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - initial release of tiffslide and
 
-[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.0.0...v1.0.1
