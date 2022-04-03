@@ -323,3 +323,13 @@ def test_padding_no_padding(slide):
 
     assert rsize == slide.read_region((-10, -10), lvl, rsize, padding=True).size
     assert isize == slide.read_region((-10, -10), lvl, rsize, padding=False).size
+
+
+def test_no_numpy_scalar_overflow(slide):
+    loc = np.array([255, 255], dtype=np.uint8)
+    size = np.array([255, 255], dtype=np.uint8)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+
+        slide.read_region(loc, 0, size, as_array=True)
