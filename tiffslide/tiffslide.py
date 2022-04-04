@@ -392,7 +392,7 @@ class TiffSlide:
             level_w, level_h = self.level_dimensions[level]
         except IndexError:
             if not padding:
-                raise
+                raise IndexError(f"level={level} out of range")
             warn(
                 f"level={level} is out-of-bounds, but padding is requested",
                 stacklevel=2,
