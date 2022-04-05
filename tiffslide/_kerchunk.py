@@ -1,36 +1,32 @@
 from __future__ import annotations
 
-import os
+import json
 from io import StringIO
+from typing import Any
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from tiffslide.tiffslide import TiffSlide
 
 
-def extract_kerchunk(slide: TiffSlide):
+KERCHUNK_SPEC_VERSION = 1
+
+def extract_kerchunk(
+    slide: TiffSlide,
+    *,
+    urlpath: str,
+    group_name: str | None = None,
+    level: int | None = None,
+) -> dict[str, Any]:
     """take a tiffslide instance and extract a kerchunk representation"""
-    ...
-
-def to_fsspec(self, url=None, key=None, series=None, level=None, chunkmode=None, version=None):
-    ts = self.ts_tifffile
-    if ts.filehandle.name is None:
-        # noinspection PyProtectedMember
-        _fh = ts.filehandle._fh
-        if hasattr(_fh, 'path'):
-            # fixme: this should be upstreamed
-            ts.filehandle._name = os.path.basename(_fh.path)
-
-    if url is None:
-        if self._urlpath is None:
-            raise NotImplementedError("needs a urlpath")
-        else:
-            url = self._urlpath
+    if slide.ts_tifffile.filename is None:
+        raise ValueError("can't kerchunk a slide that's not backed by a named file")
 
     with StringIO() as f:
-        with self.ts_tifffile.aszarr(
-            key=key, series=series, level=level, chunkmode=chunkmode
-        ) as store:
-            store.write_fsspec(f, url, version=version)
-        return f.getvalue()
+        series_idx = slide.properties["tiffslide.series-index"]
+        series = slide.ts_tifffile.series[series_idx]
+        with series.aszarr(level=level) as store:
+            store.write_fsspec(f, urlpath, groupname=group_name, version=KERCHUNK_SPEC_VERSION)
+        kerchunk_dct = json.loads(f.getvalue())
 
+    return kerchunk_dct
