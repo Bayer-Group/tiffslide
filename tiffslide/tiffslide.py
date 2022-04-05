@@ -26,9 +26,9 @@ else:
     from importlib_metadata import version
     from typing_extensions import Literal
 
+import numpy as np
 import tifffile
 import zarr
-import numpy as np
 from fsspec.core import url_to_fs
 from fsspec.implementations.local import LocalFileSystem
 from PIL import Image
