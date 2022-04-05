@@ -46,7 +46,7 @@ def __getattr__(name):  # type: ignore
             f"compatibility: aliasing tiffslide.NotTiffSlide to {name!r}", stacklevel=2
         )
         return NotTiffSlide
-    # warn if internals are imported that we dont support
+    # warn if internals are imported that we don't support
     if name in {"AbstractSlide", "__library_version__"}:
         warn(f"{name!r} is not provided by tiffslide", stacklevel=2)
     raise AttributeError(name)
@@ -55,7 +55,7 @@ def __getattr__(name):  # type: ignore
 def open_slide(filename: PathOrFileOrBufferLike[AnyStr]) -> TiffSlide:
     """drop-in helper function
 
-    Note: this will always try to fallback to the NotTiffSlide class
+    Note: this will always try to fall back to the NotTiffSlide class
       in case creating a TiffSlide instance fails. If this is undesired
       use `tiffslide.TiffSlide` directly instead of `tiffslide.open_slide`
     """
@@ -66,6 +66,6 @@ def open_slide(filename: PathOrFileOrBufferLike[AnyStr]) -> TiffSlide:
             return NotTiffSlide(filename)
         except Exception as fallback_err:
             # I want this fallback to raise the original error
-            # so that a user code can catch TiffFileError.
+            # so that user code can catch TiffFileError.
             # this is bending the __cause__ rules a bit...
             raise original_err from fallback_err
