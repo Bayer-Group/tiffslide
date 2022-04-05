@@ -61,8 +61,7 @@ class NotTiffFile:
 
         array, codec = imread(arg, return_codec=True)
 
-        page = NotTiffPage(array, codec=codec.__name__)
-        self.pages = [page]
+        self.pages = [NotTiffPage(array, codec=codec.__name__)]
         self.series = [NotTiffPageSeries(self.pages)]
 
     def close(self) -> None:
