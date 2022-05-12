@@ -24,9 +24,10 @@ dependencies:
   - zarr
 
   # development dependencies
-  - black       # [ TIFFSLIDE_DEVEL ]
-  - mypy        # [ TIFFSLIDE_DEVEL ]
-  - pytest>=6   # [ TIFFSLIDE_DEVEL ]
-  - pytest-cov  # [ TIFFSLIDE_DEVEL ]
-  - pip:        # [ TIFFSLIDE_DEVEL ]
-    - "-e ."    # [ TIFFSLIDE_DEVEL ]
+  - black             # [ TIFFSLIDE_DEVEL ]
+  - mypy              # [ TIFFSLIDE_DEVEL ]
+  - pytest>=6         # [ TIFFSLIDE_DEVEL ]
+  - pytest-cov        # [ TIFFSLIDE_DEVEL ]
+  - pytest-benchmark  # [ TIFFSLIDE_DEVEL ]
+  - pip:              # [ TIFFSLIDE_DEVEL ]
+    - "-e ."          # [ TIFFSLIDE_DEVEL ]
