@@ -53,8 +53,8 @@ def run_pytest_benchmarks(force):
             "leica",
         ]
         assert set(ptdf["file_type"].unique()) == set(ft_ax_order)
-        fig, axes = plt.subplots(1, len(ft_ax_order), figsize=(12, 4))
-        fig.suptitle(test_name)
+        fig, axes = plt.subplots(1, len(ft_ax_order), figsize=(10, 4))
+        fig.suptitle(test_name, x=0.1, y=0.99)
         ft_ax_map = {
             ft: ax
             for ft, ax in zip(ft_ax_order, axes)
@@ -75,6 +75,8 @@ def run_pytest_benchmarks(force):
             ax.set_yticklabels([])
         for ax in axes:
             ax.set_xlabel("time (ms)")
+        handles, labels = axes[0].get_legend_handles_labels()
+        fig.legend(handles, labels, loc='upper right')
 
         fig.savefig(root.joinpath("docs", "images", f"benchmark_{test_name}.png"))
 
