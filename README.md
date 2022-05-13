@@ -35,17 +35,17 @@ If there are any questions open an issue, and we'll do our best to help!
 
 Here's a list with currently supported formats.
 
-| File Format    |    can be opened    |    full support     | references                                                                    |
-|----------------|:-------------------:|:-------------------:|-------------------------------------------------------------------------------|
-| Aperio SVS     | :white_check_mark:  | :white_check_mark:  |                                                                               |
-| Generic TIFF   | :white_check_mark:  | :white_check_mark:  |                                                                               |
-| Hamamatsu NDPI | :white_check_mark:  |      :warning:      |                                                                               |
-| Leica SCN      | :white_check_mark:  |      :warning:      |                                                                               |
-| Ventana        | :white_check_mark:  |      :warning:      |                                                                               |
-| Hamamatsu VMS  |   :no_entry_sign:   |   :no_entry_sign:   |                                                                               |
-| DICOM          |   :no_entry_sign:   |   :no_entry_sign:   | [#32](https://github.com/bayer-science-for-a-better-life/tiffslide/issues/32) |
-| Mirax          |   :no_entry_sign:   |   :no_entry_sign:   | [#33](https://github.com/bayer-science-for-a-better-life/tiffslide/issues/33) |
-| Zeiss ZVI      |   :no_entry_sign:   |   :no_entry_sign:   |                                                                               |
+| File Format    |   can be opened    |    full support     | references                                                                    |
+|----------------|:------------------:|:-------------------:|-------------------------------------------------------------------------------|
+| Aperio SVS     | :white_check_mark: | :white_check_mark:  |                                                                               |
+| Generic TIFF   | :white_check_mark: | :white_check_mark:  |                                                                               |
+| Hamamatsu NDPI |     :warning:      |      :warning:      | [#35](https://github.com/bayer-science-for-a-better-life/tiffslide/issues/35) |
+| Leica SCN      |     :warning:      |      :warning:      | [#36](https://github.com/bayer-science-for-a-better-life/tiffslide/issues/36) |
+| Ventana        |     :warning:      |      :warning:      | [#37](https://github.com/bayer-science-for-a-better-life/tiffslide/issues/37) |
+| Hamamatsu VMS  |  :no_entry_sign:   |   :no_entry_sign:   |                                                                               |
+| DICOM          |  :no_entry_sign:   |   :no_entry_sign:   | [#32](https://github.com/bayer-science-for-a-better-life/tiffslide/issues/32) |
+| Mirax          |  :no_entry_sign:   |   :no_entry_sign:   | [#33](https://github.com/bayer-science-for-a-better-life/tiffslide/issues/33) |
+| Zeiss ZVI      |  :no_entry_sign:   |   :no_entry_sign:   |                                                                               |
 
 
 ## Documentation
