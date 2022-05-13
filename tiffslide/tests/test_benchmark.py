@@ -1,15 +1,15 @@
+import importlib
 import os
 import platform
 import random
 import subprocess
 import sys
 import warnings
-from itertools import product
 from getpass import getpass
+from itertools import product
 
 import numpy as np
 import pytest
-import importlib
 
 OPENSLIDE_TESTDATA_DIR = os.getenv("OPENSLIDE_TESTDATA_DIR", None)
 FILES = {
@@ -38,7 +38,9 @@ def root_pw(request):
         warnings.warn("DISK CACHE INVALIDATION NEEDS ROOT, but running non-interactive")
         root_pw = None
     else:
-        root_pw = getpass("\n\nPLEASE ENTER ROOT PW (empty disables disk cache invalidation): ")
+        root_pw = getpass(
+            "\n\nPLEASE ENTER ROOT PW (empty disables disk cache invalidation): "
+        )
     capture.resume_global_capture()
     yield root_pw
 
@@ -54,10 +56,11 @@ def try_to_clear_disk_cache(root_pass):
         max_size = "1000G"
         drop_level = 3
 
-        if 0 != os.system('vmtouch -e -f -q -m %s "%s"' % (max_size, OPENSLIDE_TESTDATA_DIR)):
+        if 0 != os.system(f'vmtouch -e -f -q -m {max_size} "{OPENSLIDE_TESTDATA_DIR}"'):
             subprocess.run(
                 r"""printf '%%s\n' "$SUDO_PASSWORD" """
-                r"""| sudo -p "" -S -- sh -c 'sync && echo %d > /proc/sys/vm/drop_caches'""" % drop_level,
+                r"""| sudo -p "" -S -- sh -c 'sync && echo %d > /proc/sys/vm/drop_caches'"""
+                % drop_level,
                 env=env,
                 check=True,
                 shell=True,
@@ -76,10 +79,7 @@ def try_to_clear_disk_cache(root_pass):
 
 
 @pytest.fixture(
-    params=[
-        pytest.param((ft, m), id=f"{m}-{ft}")
-        for ft, m in product(FILES, MODULES)
-    ]
+    params=[pytest.param((ft, m), id=f"{m}-{ft}") for ft, m in product(FILES, MODULES)]
 )
 def slide_with_tile_size(request, root_pw):
     """yield a slide together with the internal tile size"""
@@ -101,9 +101,7 @@ def slide_with_tile_size(request, root_pw):
             int(slide.properties[f"{module_name}.level[0].tile-height"]),
         )
     except KeyError:
-        warnings.warn(
-            "recovering tile_size via tiffslide"
-        )
+        warnings.warn("recovering tile_size via tiffslide")
         ts_cls = getattr(importlib.import_module("tiffslide"), "TiffSlide")
         p = ts_cls(file_name).properties
         t_size = (
@@ -171,12 +169,18 @@ def test_read_tiles_as_numpy(order, slide_with_tile_size, benchmark):
 
     _read_tile = slide.read_region
     if slide.__class__.__name__ == "OpenSlide":
+
         def read_tile_np(loc, level, size):
             return np.array(_read_tile(loc, level, size))
+
     elif slide.__class__.__name__ == "TiffSlide":
+
         def read_tile_np(loc, level, size):
             return _read_tile(loc, level, size, as_array=True)
+
     else:
         raise NotImplementedError("unknown class")
 
-    benchmark.pedantic(read_tile_np, setup=setup, rounds=64, iterations=1, warmup_rounds=1)
+    benchmark.pedantic(
+        read_tile_np, setup=setup, rounds=64, iterations=1, warmup_rounds=1
+    )

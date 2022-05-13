@@ -34,13 +34,15 @@ def run_pytest_benchmarks(force):
         for rtime in record["stats"]["data"]:
             ps = record["params"].copy()
             file_type, modname = ps.pop("slide_with_tile_size")
-            records.append({
-                "test_name": test_name,
-                "file_type": file_type,
-                "modname": modname,
-                "label": "-".join(ps.values()),
-                "time": rtime,
-            })
+            records.append(
+                {
+                    "test_name": test_name,
+                    "file_type": file_type,
+                    "modname": modname,
+                    "label": "-".join(ps.values()),
+                    "time": rtime,
+                }
+            )
 
     df = pd.DataFrame.from_records(records)
     for test_name, ptdf in df.groupby("test_name"):
@@ -55,10 +57,7 @@ def run_pytest_benchmarks(force):
         assert set(ptdf["file_type"].unique()) == set(ft_ax_order)
         fig, axes = plt.subplots(1, len(ft_ax_order), figsize=(10, 4))
         fig.suptitle(test_name, x=0.1, y=0.99)
-        ft_ax_map = {
-            ft: ax
-            for ft, ax in zip(ft_ax_order, axes)
-        }
+        ft_ax_map = {ft: ax for ft, ax in zip(ft_ax_order, axes)}
 
         for file_type, tdf in ptdf.groupby("file_type"):
             ldf = tdf.groupby(["modname", "label"]).mean()
@@ -76,7 +75,7 @@ def run_pytest_benchmarks(force):
         for ax in axes:
             ax.set_xlabel("time (ms)")
         handles, labels = axes[0].get_legend_handles_labels()
-        fig.legend(handles, labels, loc='upper right')
+        fig.legend(handles, labels, loc="upper right")
 
         fig.savefig(root.joinpath("docs", "images", f"benchmark_{test_name}.png"))
 

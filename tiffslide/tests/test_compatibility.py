@@ -32,12 +32,14 @@ def file_name(request):
 @pytest.fixture()
 def ts_slide(file_name):
     from tiffslide import TiffSlide
+
     yield TiffSlide(file_name)
 
 
 @pytest.fixture()
 def os_slide(file_name):
     from openslide import OpenSlide
+
     yield OpenSlide(file_name)
 
 
