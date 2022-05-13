@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
-def run_pytest_benchmarks(force):
+def run_pytest_benchmarks(force: bool) -> None:
     td = os.environ["OPENSLIDE_TESTDATA_DIR"]
     assert td, f"must set OPENSLIDE_TESTDATA_DIR. Got: {td!r}"
     root = pathlib.Path(__file__).parent.parent
