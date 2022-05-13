@@ -15,7 +15,7 @@ if OPENSLIDE_TESTDATA_DIR is None:
     pytestmark = pytest.mark.skip
 
 else:
-    pytestmark = pytest.mark.compat
+    pytestmark = pytest.mark.compat  # type: ignore
 
     for key, fn in FILES.items():
         FILES[key] = os.path.join(OPENSLIDE_TESTDATA_DIR, fn)
