@@ -418,7 +418,7 @@ class TiffSlide:
         rx1 = rx0 + _rw
         ry1 = ry0 + _rh
 
-        in_bound = 0 <= rx0 and rx1 <= base_w and 0 <= ry0 and ry1 <= base_h
+        in_bound = 0 <= rx0 and rx1 <= level_w and 0 <= ry0 and ry1 <= level_h
         requires_padding = padding and not in_bound
 
         if requires_padding:
