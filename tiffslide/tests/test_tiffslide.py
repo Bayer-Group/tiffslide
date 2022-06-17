@@ -325,6 +325,23 @@ def test_padding_no_padding(slide):
     assert isize == slide.read_region((-10, -10), lvl, rsize, padding=False).size
 
 
+def test_padding_br_on_nonzero_level(slide):
+
+    if slide.level_count == 1:
+        pytest.skip("only one level")
+
+    size = slide.level_dimensions[0]
+    ds_lvl1 = slide.level_downsamples[1]
+    loc = size[0] - int(10 * ds_lvl1), size[1] - int(10 * ds_lvl1)
+    arr = slide.read_region(loc, 1, (20, 20), as_array=True)
+
+    assert arr.shape == (20, 20, 3)
+    padding_bottom = arr[10:, :]
+    padding_right = arr[:, 10:]
+    assert np.all(padding_bottom == 0)
+    assert np.all(padding_right == 0)
+
+
 def test_no_numpy_scalar_overflow(slide):
     loc = np.array([255, 255], dtype=np.uint8)
     size = np.array([255, 255], dtype=np.uint8)
