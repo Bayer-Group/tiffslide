@@ -125,12 +125,16 @@ class TiffSlide:
         self.close()
 
     def close(self) -> None:
-        ts_zarr_grp = self.__dict__.pop("ts_zarr_grp", None)
-        if ts_zarr_grp is not None:
+        try:
+            grp = self.__dict__.pop("zarr_group")
+        except KeyError:
+            pass
+        else:
             try:
-                self.ts_zarr_grp.close()
+                grp.close()
             except AttributeError:
-                pass  # Arrays don't need to be closed
+                pass
+            del grp
         self.ts_tifffile.close()
 
     def __repr__(self) -> str:
@@ -315,14 +319,21 @@ class TiffSlide:
         return self.level_count - 1
 
     @cached_property
-    def ts_zarr_grp(self) -> zarr.core.Array | zarr.hierarchy.Group:
-        """return the tiff image as a zarr array or group
+    def zarr_group(self) -> zarr.hierarchy.Group:
+        """return the tiff image as a zarr-like group
 
         NOTE: this is extra functionality and not part of the drop-in behaviour
         """
         idx = self.properties["tiffslide.series-index"]
         store = self.ts_tifffile.series[idx].aszarr()
-        return zarr.open(store, mode="r")
+        if ".zarray" in store:
+            store = _PrefixedStore(store, prefix="0")
+        return zarr.open_group(store, mode="r")
+
+    @property
+    def ts_zarr_grp(self) -> zarr.hierarchy.Group:
+        """use .zarr_group instead"""
+        return self.zarr_group
 
     @overload
     def read_region(
@@ -398,11 +409,7 @@ class TiffSlide:
                 stacklevel=2,
             )
 
-            zarray: zarr.core.Array
-            if isinstance(self.ts_zarr_grp, zarr.core.Array):
-                zarray = self.ts_zarr_grp
-            else:
-                zarray = self.ts_zarr_grp["0"]
+            zarray: zarr.core.Array = self.zarr_group["0"]
 
             if axes == "YXS":
                 depth = zarray.shape[2]
@@ -442,11 +449,7 @@ class TiffSlide:
         else:
             raise NotImplementedError(f"axes={axes!r}")
 
-        arr: npt.NDArray[np.int_]
-        if isinstance(self.ts_zarr_grp, zarr.core.Array):
-            arr = self.ts_zarr_grp[selection]
-        else:
-            arr = self.ts_zarr_grp[str(level)][selection]
+        arr: npt.NDArray[np.int_] = self.zarr_group[str(level)][selection]
 
         if axes == "CYX":
             arr = arr.transpose((1, 2, 0))
@@ -604,6 +607,35 @@ class _LazyAssociatedImagesDict(Mapping[str, Image.Image]):
 
     def __iter__(self) -> Iterator[str]:
         yield from self.series_map
+
+
+class _PrefixedStore(Mapping[str, Any]):
+    """prefix a zarr store to allow mounting a zarr array as a group"""
+
+    def __init__(self, store: Mapping[str, Any], prefix: str):
+        self._base = zarr.group({}).store
+        self._store = store
+        assert not prefix.endswith("/")
+        self._prefix = f"{prefix}/"
+
+    def __len__(self) -> int:
+        return len(self._store) + len(self._base)
+
+    def __contains__(self, item: object) -> bool:
+        if isinstance(item, str) and item.startswith(self._prefix):
+            return item[len(self._prefix) :] in self._store
+        else:
+            return item in self._base
+
+    def __iter__(self) -> Iterator[str]:
+        yield from (f"{self._prefix}{key}" for key in self._store.keys())
+        yield from self._base.keys()
+
+    def __getitem__(self, item: str) -> Any:
+        if item.startswith(self._prefix):
+            return self._store[item[len(self._prefix) :]]
+        else:
+            return self._base[item]
 
 
 TF = TypeVar("TF", TiffFile, NotTiffFile)
