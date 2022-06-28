@@ -85,4 +85,8 @@ def test_level_dimensions(ts_slide, os_slide):
 
 
 def test_level_downsamples(ts_slide, os_slide):
-    np.testing.assert_allclose(ts_slide.level_downsamples, os_slide.level_downsamples)
+    np.testing.assert_allclose(
+        ts_slide.level_downsamples,
+        os_slide.level_downsamples,
+        rtol=1e-5,
+    )
