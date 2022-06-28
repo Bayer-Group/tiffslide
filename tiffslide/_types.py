@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import sys
 from types import TracebackType
@@ -10,9 +12,11 @@ from typing import Union
 
 if sys.version_info >= (3, 8):
     from typing import Protocol
+    from typing import TypedDict
     from typing import runtime_checkable
 else:
     from typing_extensions import Protocol
+    from typing_extensions import TypedDict
     from typing_extensions import runtime_checkable
 
 from fsspec import AbstractFileSystem
@@ -21,6 +25,7 @@ __all__ = [
     "PathOrFileOrBufferLike",
     "OpenFileLike",
     "TiffFileIO",
+    "SeriesCompositionInfo",
 ]
 
 if sys.version_info >= (3, 9):
@@ -66,3 +71,14 @@ class TiffFileIO(Protocol):
 
 
 PathOrFileOrBufferLike = Union[AnyStr, PathLikeAnyStr, OpenFileLike, TiffFileIO]
+
+
+Slice3D = "tuple[slice, slice, slice]"
+Point3D = "tuple[int, int, int]"
+Size3D = "tuple[int, int, int]"
+
+
+class SeriesCompositionInfo(TypedDict):
+    """composition information for combining tifffile series"""
+    shape: Size3D
+    located_series: dict[Point3D, int]

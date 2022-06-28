@@ -4,6 +4,7 @@ import math
 import os.path
 import re
 import sys
+from collections import defaultdict
 from fractions import Fraction
 from itertools import count
 from types import TracebackType
@@ -40,6 +41,7 @@ from tifffile.tifffile import svs_description_metadata
 from tiffslide._compat import NotTiffFile
 from tiffslide._types import OpenFileLike
 from tiffslide._types import PathOrFileOrBufferLike
+from tiffslide._types import SeriesCompositionInfo
 from tiffslide._types import TiffFileIO
 
 if TYPE_CHECKING:
@@ -716,19 +718,9 @@ class _PropertyParser:
         desc = self._tf.scn_metadata
         md["tiff.ImageDescription"] = desc
 
-        # get first relevant series
-        series_idx = _auto_select_series_scn(desc)
-        series0 = self._tf.series[series_idx]
-        md["tiffslide.series-index"] = series_idx
+        # get all leica info
+        md.update(_parse_metadata_leica(desc))
 
-        _md = _parse_metadata_scn(desc, series_idx)
-
-        # in case mpp wasn't available recover from tags
-        if not _has_mpp(md):
-            md.update(self.recover_mpp(series0))
-
-        # collect level info
-        md.update(self.collect_level_info(series0))
         return md
 
     def parse_ventana(self) -> dict[str, Any]:
@@ -846,69 +838,102 @@ def _parse_metadata_aperio(desc: str) -> dict[str, Any]:
     return md
 
 
-def _auto_select_series_scn(desc: str) -> int:
-    """selects the first non-macro series of an SCN file"""
-    tree = _xml_to_dict(desc)
+def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
+    """return the leica SCN properties"""
+    # todo: clean up. this is pretty convoluted
+    md = {
+        PROPERTY_NAME_COMMENT: image_description
+    }
 
-    marco_sizeX = int(tree["scn"]["collection"]["@sizeX"])
-    marco_sizeY = int(tree["scn"]["collection"]["@sizeY"])
+    dct = _xml_to_dict(image_description)
+    collection = dct["scn"]["collection"]
 
-    for idx, image in enumerate(tree["scn"]["collection"]["image"]):
-        offsetX = int(image["view"]["@offsetX"])
-        offsetY = int(image["view"]["@offsetY"])
-        sizeX = int(image["view"]["@sizeX"])
-        sizeY = int(image["view"]["@sizeY"])
+    slide_x_nm = int(collection["@sizeX"])
+    slide_y_nm = int(collection["@sizeY"])
+
+    mpps = []
+    located_series = {}
+    first_non_macro_idx: int | None = None
+
+    lvl_resolutions = defaultdict(list)
+
+    for idx, image in enumerate(collection["image"]):
+        image_x_px = int(image['pixels']['@sizeX'])
+        image_y_px = int(image['pixels']['@sizeY'])
+        image_x_nm = int(image['view']['@sizeX'])
+        image_y_nm = int(image['view']['@sizeY'])
+        offset_x_nm = int(image['view']['@offsetX'])
+        offset_y_nm = int(image['view']['@offsetY'])
 
         is_macro_image = (
-            offsetX == 0
-            and offsetY == 0
-            and sizeX == marco_sizeX
-            and sizeY == marco_sizeY
+            offset_x_nm == 0
+            and offset_y_nm == 0
+            and image_x_nm == slide_x_nm
+            and image_y_nm == slide_y_nm
         )
-        if not is_macro_image:
-            break
-    else:
-        raise ValueError("SCN: no main image found")
+        if is_macro_image:
+            continue
 
-    return idx
+        if first_non_macro_idx is None:
+            first_non_macro_idx = idx
 
+            _scan = image["scanSettings"]
+            obj_pow = float(_scan["objectiveSettings"]["objective"])
+            aperture = float(_scan["illuminationSettings"]["numericalAperture"])
+            isource = str(_scan["illuminationSettings"]["illuminationSource"])
 
-def _parse_metadata_scn(desc: str, series_idx: int) -> dict[str, Any]:
-    """Leica metadata"""
-    tree = _xml_to_dict(desc)
+            md.update({
+                PROPERTY_NAME_VENDOR: "leica",
+                PROPERTY_NAME_OBJECTIVE_POWER: obj_pow,
+                "leica.aperture": aperture,
+                "leica.creation-date": str(image["creationDate"]),
+                "leica.device-model": str(image["device"]["@model"]),
+                "leica.device-version": str(image["device"]["@version"]),
+                "leica.illumination-source": isource,
+            })
 
-    image = tree["scn"]["collection"]["image"][series_idx]
+        for lvl, info in enumerate(image["pixels"]["dimension"]):
+            lvl_resolutions[lvl].append(
+                min(image_x_nm / int(info["@sizeX"]), image_y_nm / int(info["@sizeY"]))
+            )
 
-    # use auto recovery
-    # mpp_x = float(image['pixels']['@sizeX']) / float(image['view']['@sizeX']) / 1000
-    # mpp_y = float(image['pixels']['@sizeY']) / float(image['view']['@sizeY']) / 1000
-    mpp_x = None
-    mpp_y = None
+        image_mpp_x = image_x_nm / image_x_px / 1000.0
+        image_mpp_y = image_y_nm / image_y_px / 1000.0
+        offset_x_px = round(offset_x_nm * image_x_px / image_x_nm)
+        offset_y_px = round(offset_y_nm * image_y_px / image_y_nm)
 
-    obj_pow = float(image["scanSettings"]["objectiveSettings"]["objective"])
+        mpps.append((image_mpp_x, image_mpp_y))
+        # implicitly assuming axes="YXS" ... (might be wrong?)
+        located_series[(offset_y_px, offset_x_px, 0)] = idx
 
-    md = {
-        PROPERTY_NAME_COMMENT: desc,
-        PROPERTY_NAME_VENDOR: "leica",
-        PROPERTY_NAME_QUICKHASH1: None,
-        PROPERTY_NAME_BACKGROUND_COLOR: None,
-        PROPERTY_NAME_OBJECTIVE_POWER: obj_pow,
-        PROPERTY_NAME_MPP_X: mpp_x,
-        PROPERTY_NAME_MPP_Y: mpp_y,
-        PROPERTY_NAME_BOUNDS_X: None,
-        PROPERTY_NAME_BOUNDS_Y: None,
-        PROPERTY_NAME_BOUNDS_WIDTH: None,
-        PROPERTY_NAME_BOUNDS_HEIGHT: None,
-        "leica.aperture": float(
-            image["scanSettings"]["illuminationSettings"]["numericalAperture"]
-        ),
-        "leica.creation-date": str(image["creationDate"]),
-        "leica.device-model": str(image["device"]["@model"]),
-        "leica.device-version": str(image["device"]["@version"]),
-        "leica.illumination-source": str(
-            image["scanSettings"]["illuminationSettings"]["illuminationSource"]
-        ),
-    }
+    if not located_series:
+        raise ValueError("no non-macro images in file")
+
+    mpps_x, mpps_y = np.array(mpps).T
+    mpp_x, mpp_y = np.mean(mpps_x), np.mean(mpps_y)
+    if not np.allclose(mpps_x, mpp_x) or not np.allclose(mpps_y, mpp_y):
+        raise ValueError("non-macro images have different mpps")
+
+    slide_x_px = math.ceil(slide_x_nm / mpp_x / 1000.0)
+    slide_y_px = math.ceil(slide_y_nm / mpp_y / 1000.0)
+
+    for lvl, resolutions in sorted(lvl_resolutions.items()):
+        lvl_size_x = math.ceil(slide_x_nm / min(resolutions))
+        lvl_size_y = math.ceil(slide_y_nm / min(resolutions))
+        md[f"tiffslide.level[{lvl}].height"] = lvl_size_y
+        md[f"tiffslide.level[{lvl}].width"] = lvl_size_x
+        md[f"tiffslide.level[{lvl}].downsample"] = math.sqrt(
+            slide_x_px / lvl_size_x * slide_y_px / lvl_size_y
+        )
+
+    md[PROPERTY_NAME_MPP_X] = mpp_x
+    md[PROPERTY_NAME_MPP_Y] = mpp_y
+    md["tiffslide.series-index"] = first_non_macro_idx
+    md["tiffslide.series-axes"] = "YXS"  # todo: verify
+    md["tiffslide.series-composition"] = SeriesCompositionInfo(
+        shape=(slide_y_px, slide_x_px, 3),
+        located_series=located_series,
+    )
 
     return md
 
