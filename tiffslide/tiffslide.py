@@ -106,12 +106,20 @@ class TiffSlide:
             a dictionary with keyword arguments passed to fsspec
         """
         # tifffile instance, can raise TiffFileError
-        self.ts_tifffile = _prepare_tifffile(
+        self._tifffile = _prepare_tifffile(
             filename,
             storage_options=storage_options,
             tifffile_options=tifffile_options,
             _cls=TiffFile,
         )
+
+    @property
+    def ts_tifffile(self) -> TiffFile:
+        """get the underlying tifffile instance"""
+        # backwards compatibility
+        if not self._tifffile:
+            raise RuntimeError("TiffSlide is not backed by TiffFile instance")
+        return self._tifffile
 
     def __enter__(self) -> TiffSlide:
         return self
@@ -333,6 +341,7 @@ class TiffSlide:
     @property
     def ts_zarr_grp(self) -> zarr.hierarchy.Group:
         """use .zarr_group instead"""
+        # backwards compatibility
         return self.zarr_group
 
     @overload
@@ -535,7 +544,7 @@ class NotTiffSlide(TiffSlide):
         storage_options: dict[str, Any] | None = None,
     ) -> None:
         # tifffile instance, can raise TiffFileError
-        self.ts_tifffile = _prepare_tifffile(
+        self._tifffile = _prepare_tifffile(
             filename,
             storage_options=storage_options,
             tifffile_options=tifffile_options,
