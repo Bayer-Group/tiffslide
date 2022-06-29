@@ -43,9 +43,8 @@ from tiffslide._types import OpenFileLike
 from tiffslide._types import PathOrFileOrBufferLike
 from tiffslide._types import SeriesCompositionInfo
 from tiffslide._types import TiffFileIO
-from tiffslide._zarr import get_zarr_store
 from tiffslide._zarr import get_zarr_depth_and_dtype
-
+from tiffslide._zarr import get_zarr_store
 
 if TYPE_CHECKING:
     import numpy.typing as npt
@@ -718,11 +717,16 @@ class _PropertyParser:
         return md
 
     def parse_ventana(self) -> dict[str, Any]:
-        warn(f"no special ventana-format metadata parsing implemented yet!", stacklevel=2)
+        warn(
+            f"no special ventana-format metadata parsing implemented yet!", stacklevel=2
+        )
         return self.parse_generic_tiff()
 
     def parse_hamamatsu(self) -> dict[str, Any]:
-        warn(f"no special hamamatsu-format metadata parsing implemented yet!", stacklevel=2)
+        warn(
+            f"no special hamamatsu-format metadata parsing implemented yet!",
+            stacklevel=2,
+        )
         return self.parse_generic_tiff()
 
     def parse_generic_tiff(self) -> dict[str, Any]:
@@ -747,10 +751,7 @@ class _PropertyParser:
 
 def _has_mpp(md: dict[str, Any]) -> bool:
     """check if metadata has MPP defined"""
-    return (
-        md[PROPERTY_NAME_MPP_X] is not None
-        and md[PROPERTY_NAME_MPP_Y] is not None
-    )
+    return md[PROPERTY_NAME_MPP_X] is not None and md[PROPERTY_NAME_MPP_Y] is not None
 
 
 def _parse_metadata_aperio(desc: str) -> dict[str, Any]:
@@ -797,9 +798,7 @@ def _parse_metadata_aperio(desc: str) -> dict[str, Any]:
 def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
     """return the leica SCN properties"""
     # todo: clean up. this is pretty convoluted
-    md = {
-        PROPERTY_NAME_COMMENT: image_description
-    }
+    md = {PROPERTY_NAME_COMMENT: image_description}
 
     dct = _xml_to_dict(image_description)
     collection = dct["scn"]["collection"]
@@ -814,12 +813,12 @@ def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
     lvl_resolutions = defaultdict(list)
 
     for idx, image in enumerate(collection["image"]):
-        image_x_px = int(image['pixels']['@sizeX'])
-        image_y_px = int(image['pixels']['@sizeY'])
-        image_x_nm = int(image['view']['@sizeX'])
-        image_y_nm = int(image['view']['@sizeY'])
-        offset_x_nm = int(image['view']['@offsetX'])
-        offset_y_nm = int(image['view']['@offsetY'])
+        image_x_px = int(image["pixels"]["@sizeX"])
+        image_y_px = int(image["pixels"]["@sizeY"])
+        image_x_nm = int(image["view"]["@sizeX"])
+        image_y_nm = int(image["view"]["@sizeY"])
+        offset_x_nm = int(image["view"]["@offsetX"])
+        offset_y_nm = int(image["view"]["@offsetY"])
 
         is_macro_image = (
             offset_x_nm == 0
@@ -838,15 +837,17 @@ def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
             aperture = float(_scan["illuminationSettings"]["numericalAperture"])
             isource = str(_scan["illuminationSettings"]["illuminationSource"])
 
-            md.update({
-                PROPERTY_NAME_VENDOR: "leica",
-                PROPERTY_NAME_OBJECTIVE_POWER: obj_pow,
-                "leica.aperture": aperture,
-                "leica.creation-date": str(image["creationDate"]),
-                "leica.device-model": str(image["device"]["@model"]),
-                "leica.device-version": str(image["device"]["@version"]),
-                "leica.illumination-source": isource,
-            })
+            md.update(
+                {
+                    PROPERTY_NAME_VENDOR: "leica",
+                    PROPERTY_NAME_OBJECTIVE_POWER: obj_pow,
+                    "leica.aperture": aperture,
+                    "leica.creation-date": str(image["creationDate"]),
+                    "leica.device-model": str(image["device"]["@model"]),
+                    "leica.device-version": str(image["device"]["@version"]),
+                    "leica.illumination-source": isource,
+                }
+            )
 
         for lvl, info in enumerate(image["pixels"]["dimension"]):
             lvl_resolutions[lvl].append(
