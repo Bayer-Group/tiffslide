@@ -359,3 +359,23 @@ def verify_located_arrays(
         raise ValueError(f"arrays don't share the same dtype and fill_value, got: {dt_fv!r}")
     (dtype, fill_value), = dt_fv
     return dtype, fill_value
+
+
+def get_zarr_depth_and_dtype(grp: zarr.Group, axes: str) -> tuple[int, np.dtype]:
+    """return the image depth from the zarr group"""
+    if "tiffslide.series-composition" in grp.attrs:
+        srs = next(iter(grp.attrs["series-compostion"]["located_series"]))
+        key = f"{srs}/0"
+    else:
+        key = "0"  # -> level
+
+    zarray: zarr.core.Array = grp[key]
+
+    if axes == "YXS":
+        depth = zarray.shape[2]
+    elif axes == "CYX":
+        depth = zarray.shape[0]
+    else:
+        raise NotImplementedError(f"axes={axes!r}")
+
+    return depth, zarray.dtype

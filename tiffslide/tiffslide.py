@@ -44,6 +44,8 @@ from tiffslide._types import PathOrFileOrBufferLike
 from tiffslide._types import SeriesCompositionInfo
 from tiffslide._types import TiffFileIO
 from tiffslide._zarr import get_zarr_store
+from tiffslide._zarr import get_zarr_depth_and_dtype
+
 
 if TYPE_CHECKING:
     import numpy.typing as npt
@@ -323,16 +325,8 @@ class TiffSlide:
                 stacklevel=2,
             )
 
-            zarray: zarr.core.Array = self.zarr_group["0"]
-
-            if axes == "YXS":
-                depth = zarray.shape[2]
-            elif axes == "CYX":
-                depth = zarray.shape[0]
-            else:
-                raise NotImplementedError(f"axes={axes!r}")
-
-            return np.zeros((_rh, _rw, depth), dtype=zarray.dtype)
+            depth, dtype = get_zarr_depth_and_dtype(self.zarr_group, axes)
+            return np.zeros((_rh, _rw, depth), dtype=dtype)
 
         rx0 = (base_x * level_w) // base_w
         ry0 = (base_y * level_h) // base_h
