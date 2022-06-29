@@ -84,4 +84,4 @@ Size3D = "tuple[int, int, int]"
 class SeriesCompositionInfo(TypedDict):
     """composition information for combining tifffile series"""
     shape: Size3D
-    located_series: dict[Point3D, int]
+    located_series: dict[int, Point3D]

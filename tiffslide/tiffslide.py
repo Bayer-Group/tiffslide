@@ -866,7 +866,7 @@ def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
 
         mpps.append((image_mpp_x, image_mpp_y))
         # implicitly assuming axes="YXS" ... (might be wrong?)
-        located_series[(offset_y_px, offset_x_px, 0)] = idx
+        located_series[idx] = (offset_y_px, offset_x_px, 0)
 
     if not located_series:
         raise ValueError("no non-macro images in file")

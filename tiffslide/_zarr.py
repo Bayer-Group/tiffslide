@@ -23,50 +23,95 @@ if TYPE_CHECKING:
     from tifffile import TiffFile
 
 __all__ = [
-    "composite",
-    "CompositedArray",
-    "CompositedGroup",
     "get_zarr_store",
+    "get_zarr_depth_and_dtype",
 ]
 
 
 # --- zarr storage classes --------------------------------------------
 
-class _PrefixedStore(Mapping[str, Any]):
+class _CompositedStore(Mapping[str, Any]):
     """prefix a zarr store to allow mounting a zarr array as a group"""
 
-    def __init__(self, store: Mapping[str, Any], prefix: str):
-        self._base = zarr.group({}).store
-        self._store = store
-        assert not prefix.endswith("/")
-        self._prefix = f"{prefix}/"
+    def __init__(
+        self,
+        prefixed_stores: Mapping[str, Mapping[str, Any]],
+        *,
+        zattrs: Mapping[str, Any] | None = None,
+    ) -> None:
+        grp = zarr.group({})
+        if zattrs:
+            grp.attrs["tiffslide.series-composition"] = zattrs
+        self._base = grp.store
+        self._stores = {}
+        for prefix, store in prefixed_stores.items():
+            assert not prefix.endswith("/")
+            self._stores[prefix] = store
 
     def __len__(self) -> int:
-        return len(self._store) + len(self._base)
+        return sum(map(len, self._stores.values())) + len(self._base)
 
     def __contains__(self, item: object) -> bool:
-        if isinstance(item, str) and item.startswith(self._prefix):
-            return item[len(self._prefix) :] in self._store
-        else:
-            return item in self._base
+        if not isinstance(item, str):
+            return False
+
+        prefix, _, key = item.partition("/")
+        if key:
+            try:
+                store = self._stores[prefix]
+            except KeyError:
+                pass
+            else:
+                return key in store
+
+        return item in self._base or prefix in self._stores
 
     def __iter__(self) -> Iterator[str]:
-        yield from (f"{self._prefix}{key}" for key in self._store.keys())
+        for prefix, store in self._stores.items():
+            yield from (f"{prefix}/{key}" for key in store.keys())
         yield from self._base.keys()
 
     def __getitem__(self, item: str) -> Any:
-        if item.startswith(self._prefix):
-            return self._store[item[len(self._prefix) :]]
-        else:
-            return self._base[item]
+        prefix, _, key = item.partition("/")
+
+        if key:
+            try:
+                store = self._stores[prefix]
+            except KeyError:
+                pass
+            else:
+                return store[key]
+
+        return self._base[item]
 
 
 def get_zarr_store(properties: Mapping[str, Any], tf: TiffFile | None) -> Mapping[str, Any]:
-    """return a zarr store"""
+    """return a zarr store
+
+    Parameters
+    ----------
+    properties:
+        the TiffSlide().properties mapping
+    tf:
+        the corresponding TiffFile instance
+
+    Returns
+    -------
+    store:
+        a zarr store of the tiff
+    """
     # the tiff might contain multiple series that require composition
-    composition = properties.get("tiffslide.series-composition")
+    composition: SeriesCompositionInfo | None = properties.get("tiffslide.series-composition")
     if composition:
-        raise NotImplementedError("todo")
+        prefixed_stores = {}
+        for series_idx in composition["located_series"].keys():
+            _store = tf.series[series_idx].aszarr()
+            # encapsulate store as group if tifffile returns a zarr array
+            if ".zarray" in _store:
+                _store = _CompositedStore({"0": _store})
+            prefixed_stores[str(series_idx)] = _store
+
+        store = _CompositedStore(prefixed_stores, zattrs=composition)
 
     else:
         series_idx = properties.get("tiffslide.series-index", 0)
@@ -74,7 +119,7 @@ def get_zarr_store(properties: Mapping[str, Any], tf: TiffFile | None) -> Mappin
 
         # encapsulate store as group if tifffile returns a zarr array
         if ".zarray" in store:
-            store = _PrefixedStore(store, prefix="0")
+            store = _CompositedStore({"0": store})
 
     return store
 
@@ -184,7 +229,7 @@ def composite(tf: TiffFile, info: SeriesCompositionInfo) -> CompositedGroup | Co
         located_arrays: dict[Point3D, zarr.Array] = {}
 
         area_0 = None
-        for offset, series_idx in located_series.items():
+        for series_idx, offset in located_series.items():
             series = tf.series[series_idx]
             try:
                 zstore = series.aszarr(lvl)
