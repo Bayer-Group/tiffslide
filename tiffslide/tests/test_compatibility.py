@@ -1,4 +1,8 @@
+import itertools
+import math
 import os
+import warnings
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -53,6 +57,17 @@ else:
 MODULES = ["tiffslide", "openslide"]
 
 
+def matches(fn, vendor=None, filename=None, ext=None):
+    if vendor is not None:
+        return any(Path(x).name == Path(fn).name for x in _FILES[vendor])
+    elif filename is not None:
+        return fn == file_name
+    elif ext is not None:
+        return Path(fn).suffix == f".{ext}"
+    else:
+        raise ValueError("all none")
+
+
 @pytest.fixture(params=list(FILES))
 def file_name(request):
     yield FILES[request.param]
@@ -76,17 +91,67 @@ def test_dimensions(ts_slide, os_slide):
     assert ts_slide.dimensions == os_slide.dimensions
 
 
-def test_level_count(ts_slide, os_slide):
+def test_level_count(ts_slide, os_slide, file_name):
+    if matches(file_name, vendor="hamamatsu"):
+        pytest.xfail("'ndpi' no computed levels")
+
     assert ts_slide.level_count == os_slide.level_count
 
 
-def test_level_dimensions(ts_slide, os_slide):
+def test_level_dimensions(ts_slide, os_slide, file_name):
+    if matches(file_name, vendor="hamamatsu"):
+        pytest.xfail("'ndpi' no computed levels")
+
     assert ts_slide.level_dimensions == os_slide.level_dimensions
 
 
-def test_level_downsamples(ts_slide, os_slide):
+def test_level_downsamples(ts_slide, os_slide, file_name):
+    if matches(file_name, vendor="hamamatsu"):
+        pytest.xfail("'ndpi' no computed levels")
+
     np.testing.assert_allclose(
         ts_slide.level_downsamples,
         os_slide.level_downsamples,
         rtol=1e-5,
     )
+
+
+def test_strict_subset_level_dimensions(ts_slide, os_slide):
+    # test that all available tiffslide levels are in os_slide
+    assert set(ts_slide.level_dimensions).issubset(os_slide.level_dimensions)
+
+
+def test_strict_subset_level_downsamples(ts_slide, os_slide):
+    # test that all available tiffslide levels are in os_slide
+    for ds in ts_slide.level_downsamples:
+        assert any(
+            math.isclose(ds, x, rel_tol=1e-5) for x in os_slide.level_downsamples
+        )
+
+
+def test_read_region_equality(ts_slide, os_slide, file_name):
+    exact = True
+    if "JP2K-33003" in file_name:
+        warnings.warn(
+            f"JP2K file {file_name} is tested to be almost equal (not exactly equal)!",
+            stacklevel=2,
+        )
+        exact = False
+
+    width, height = ts_slide.dimensions
+
+    ws = range(0, width, width // 5)
+    hs = range(0, height, height // 5)
+    for loc in itertools.product(ws[:-1], hs[:-1]):
+        ts_img = ts_slide.read_region(loc, 0, (128, 128))
+        os_img = os_slide.read_region(loc, 0, (128, 128))
+
+        ts_arr = np.array(ts_img)
+        os_arr = np.array(os_img)
+        # np.testing.assert_equal(os_arr[:, :, 3], 255)
+        os_arr = os_arr[:, :, :3]
+
+        if exact:
+            np.testing.assert_equal(ts_arr, os_arr)
+        else:
+            np.testing.assert_allclose(ts_arr, os_arr, atol=1, rtol=0)
