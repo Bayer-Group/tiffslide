@@ -49,9 +49,9 @@ class OpenFileLike(Protocol):
 
     def __exit__(
         self,
-        exc_type: Optional[Type[BaseException]],
-        exc: Optional[BaseException],
-        traceback: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
     ) -> None:
         ...
 
@@ -69,7 +69,7 @@ class TiffFileIO(Protocol):
     def read(self, n: int = -1) -> AnyStr:
         ...
 
-    def readinto(self, __buffer: Any) -> Optional[int]:
+    def readinto(self, __buffer: Any) -> int | None:
         ...
 
 
@@ -83,5 +83,6 @@ Size3D = "tuple[int, int, int]"
 
 class SeriesCompositionInfo(TypedDict):
     """composition information for combining tifffile series"""
+
     shape: Size3D
     located_series: dict[int, Point3D]
