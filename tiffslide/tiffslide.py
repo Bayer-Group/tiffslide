@@ -756,11 +756,6 @@ class _PropertyParser:
         return md
 
 
-def _has_mpp(md: dict[str, Any]) -> bool:
-    """check if metadata has MPP defined"""
-    return md[PROPERTY_NAME_MPP_X] is not None and md[PROPERTY_NAME_MPP_Y] is not None
-
-
 def _parse_metadata_aperio(desc: str) -> dict[str, Any]:
     """Aperio SVS metadata"""
     if _TIFFFILE_VERSION >= (2021, 6, 14):
@@ -904,6 +899,9 @@ def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
     return md
 
 
+# --- helper functions --------------------------------------------------------
+
+
 def _xml_to_dict(xml: str) -> dict[str, Any]:
     """helper function to convert xml string to a dictionary"""
     x = ElementTree.fromstring(xml)
@@ -932,6 +930,11 @@ def _xml_to_dict(xml: str) -> dict[str, Any]:
 def _label_series_axes(axes: str) -> tuple[str, ...]:
     """helper to make series shapes more understandable"""
     return tuple(tifffile.TIFF.AXES_LABELS[c] for c in axes)
+
+
+def _has_mpp(md: dict[str, Any]) -> bool:
+    """check if metadata has MPP defined"""
+    return md[PROPERTY_NAME_MPP_X] is not None and md[PROPERTY_NAME_MPP_Y] is not None
 
 
 def _clip(x: int, min_: int, max_: int) -> int:
