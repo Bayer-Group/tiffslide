@@ -8,7 +8,7 @@ from typing import Any
 from typing import AnyStr
 from typing import Union
 
-if sys.version_info >= (3, 8):
+if sys.version_info >= (3, 10):
     from typing import Protocol
     from typing import TypeAlias
     from typing import TypedDict
