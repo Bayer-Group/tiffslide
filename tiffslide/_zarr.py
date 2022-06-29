@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 __all__ = [
     "get_zarr_store",
     "get_zarr_depth_and_dtype",
+    "get_zarr_selection",
 ]
 
 
@@ -230,7 +231,7 @@ def composite(
     """composite series or arrays into a virtual array"""
     composited_arrays: list[CompositedArray] = []
 
-    shape = info["shape"]
+    shapes = info["level_shapes"]
     located_series = info["located_series"]
     for lvl in itertools.count():
         located_arrays: dict[Point3D, zarr.Array] = {}
@@ -260,6 +261,7 @@ def composite(
             )
             located_arrays[lvl_offset] = zarray
 
+        shape = shapes[lvl]
         composited_arrays.append(CompositedArray(shape, located_arrays))
 
     if len(composited_arrays) == 1:
@@ -267,6 +269,66 @@ def composite(
     else:
         return CompositedGroup(composited_arrays)
 
+
+def get_zarr_selection(
+    grp: zarr.Group,
+    level: int,
+    selection: Slice3D,
+) -> NDArray[np.int_]:
+    """retrieve the selection of the zarr Group"""
+    composition: SeriesCompositionInfo = grp.attrs.get("tiffslide.series-composition")
+
+    if composition is None:
+        # no composition required, simply retrieve the array
+        return grp[str(level)][selection]
+
+    else:
+        # we need to composite the array
+        # todo: getting these overlaps should be done via an RTree...
+        overlaps = {}
+        dtype = None
+        fill_value = None
+        shape = composition["level_shapes"][0]
+        level_shape = composition["level_shapes"][level]
+
+        for series_idx, offset in composition["located_series"].items():
+            arr = grp[f"{series_idx}/{level}"]
+
+            if dtype is None:
+                dtype = arr.dtype
+            if fill_value is None:
+                fill_value = arr.fill_value
+
+            offset = (
+                int(offset[0] * level_shape[0] / shape[0]),
+                int(offset[1] * level_shape[1] / shape[1]),
+                int(offset[2] * level_shape[2] / shape[2]),
+            )
+
+            overlap = get_overlap(selection, level_shape, offset, arr.shape)
+            if overlap is None:
+                continue
+
+            # todo: could take a shortcut here...
+            # target, source = overlap
+            # if target == item:  # < this check is incorrect [:, :] != [0:10, 0:10]
+            #     return arr[source]
+
+            overlaps[series_idx] = overlap
+
+        s0, s1, s2 = selection
+        r0 = range(level_shape[0])[s0]
+        r1 = range(level_shape[1])[s1]
+        r2 = range(level_shape[2])[s2]
+        shape = (r0.stop - r0.start, r1.stop - r1.start, r2.stop - r2.start)
+        # todo: optimize! In the most common case this should be filled entirely
+        out = np.full(shape, fill_value=fill_value, dtype=dtype)
+
+        for series_idx, (target, source) in overlaps.items():
+            arr = grp[f"{series_idx}/{level}"]
+            out[target] = arr[source]
+
+    return out
 
 # --- helper functions ------------------------------------------------
 

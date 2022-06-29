@@ -45,6 +45,8 @@ from tiffslide._types import SeriesCompositionInfo
 from tiffslide._types import TiffFileIO
 from tiffslide._zarr import get_zarr_depth_and_dtype
 from tiffslide._zarr import get_zarr_store
+from tiffslide._zarr import get_zarr_selection
+
 
 if TYPE_CHECKING:
     import numpy.typing as npt
@@ -349,7 +351,11 @@ class TiffSlide:
         else:
             raise NotImplementedError(f"axes={axes!r}")
 
-        arr: npt.NDArray[np.int_] = self.zarr_group[str(level)][selection]
+        arr: npt.NDArray[np.int_] = get_zarr_selection(
+            self.zarr_group,
+            selection=selection,
+            level=level,
+        )
 
         if axes == "CYX":
             arr = arr.transpose((1, 2, 0))
@@ -874,6 +880,7 @@ def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
     slide_x_px = math.ceil(slide_x_nm / mpp_x / 1000.0)
     slide_y_px = math.ceil(slide_y_nm / mpp_y / 1000.0)
 
+    level_shapes = []
     for lvl, resolutions in sorted(lvl_resolutions.items()):
         lvl_size_x = math.ceil(slide_x_nm / min(resolutions))
         lvl_size_y = math.ceil(slide_y_nm / min(resolutions))
@@ -882,13 +889,14 @@ def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
         md[f"tiffslide.level[{lvl}].downsample"] = math.sqrt(
             slide_x_px / lvl_size_x * slide_y_px / lvl_size_y
         )
+        level_shapes.append((lvl_size_y, lvl_size_x, 3))
 
     md[PROPERTY_NAME_MPP_X] = mpp_x
     md[PROPERTY_NAME_MPP_Y] = mpp_y
     md["tiffslide.series-index"] = first_non_macro_idx
     md["tiffslide.series-axes"] = "YXS"  # todo: verify
     md["tiffslide.series-composition"] = SeriesCompositionInfo(
-        shape=(slide_y_px, slide_x_px, 3),
+        level_shapes=level_shapes,
         located_series=located_series,
     )
 
