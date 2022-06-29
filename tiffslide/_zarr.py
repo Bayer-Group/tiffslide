@@ -1,5 +1,5 @@
 """
-provides helpers for compositing arrays and zarr-like groups
+provides helpers for handling and compositing arrays and zarr-like groups
 """
 from __future__ import annotations
 
@@ -8,10 +8,14 @@ import math
 from typing import Any
 from typing import Iterator
 from typing import TYPE_CHECKING
-from typing import TypedDict
 
 import numpy as np
 import zarr
+
+from tiffslide._types import Size3D
+from tiffslide._types import Point3D
+from tiffslide._types import Slice3D
+from tiffslide._types import SeriesCompositionInfo
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -21,21 +25,7 @@ __all__ = [
     "composite",
     "CompositedArray",
     "CompositedGroup",
-    "SeriesCompositionInfo",
 ]
-
-
-# --- types -----------------------------------------------------------
-
-Slice3D = "tuple[slice, slice, slice]"
-Point3D = "tuple[int, int, int]"
-Size3D = "tuple[int, int, int]"
-
-
-class SeriesCompositionInfo(TypedDict):
-    """composition information for combining tifffile series"""
-    shape: Size3D
-    located_series: dict[Point3D, int]
 
 
 # --- composition classes ---------------------------------------------

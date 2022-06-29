@@ -25,6 +25,9 @@ __all__ = [
     "PathOrFileOrBufferLike",
     "OpenFileLike",
     "TiffFileIO",
+    "Size3D",
+    "Point3D",
+    "Slice3D",
     "SeriesCompositionInfo",
 ]
 
