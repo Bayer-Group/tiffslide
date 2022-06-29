@@ -15,7 +15,7 @@ _FILES = {
         "Aperio/JP2K-33003-2.svs",
     ],
     "generic": [
-        "Generic-TIFF/CMU-1.tiff"
+        "Generic-TIFF/CMU-1.tiff",
     ],
     "hamamatsu": [
         "Hamamatsu/CMU-1.ndpi",

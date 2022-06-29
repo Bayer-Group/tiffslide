@@ -44,9 +44,8 @@ from tiffslide._types import PathOrFileOrBufferLike
 from tiffslide._types import SeriesCompositionInfo
 from tiffslide._types import TiffFileIO
 from tiffslide._zarr import get_zarr_depth_and_dtype
-from tiffslide._zarr import get_zarr_store
 from tiffslide._zarr import get_zarr_selection
-
+from tiffslide._zarr import get_zarr_store
 
 if TYPE_CHECKING:
     import numpy.typing as npt
