@@ -5,18 +5,18 @@ from __future__ import annotations
 
 import itertools
 import math
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Iterator
 from typing import Mapping
-from typing import TYPE_CHECKING
 
 import numpy as np
 import zarr
 
-from tiffslide._types import Size3D
 from tiffslide._types import Point3D
-from tiffslide._types import Slice3D
 from tiffslide._types import SeriesCompositionInfo
+from tiffslide._types import Size3D
+from tiffslide._types import Slice3D
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -29,6 +29,7 @@ __all__ = [
 
 
 # --- zarr storage classes --------------------------------------------
+
 
 class _CompositedStore(Mapping[str, Any]):
     """prefix a zarr store to allow mounting a zarr array as a group"""
@@ -85,7 +86,9 @@ class _CompositedStore(Mapping[str, Any]):
         return self._base[item]
 
 
-def get_zarr_store(properties: Mapping[str, Any], tf: TiffFile | None) -> Mapping[str, Any]:
+def get_zarr_store(
+    properties: Mapping[str, Any], tf: TiffFile | None
+) -> Mapping[str, Any]:
     """return a zarr store
 
     Parameters
@@ -101,7 +104,9 @@ def get_zarr_store(properties: Mapping[str, Any], tf: TiffFile | None) -> Mappin
         a zarr store of the tiff
     """
     # the tiff might contain multiple series that require composition
-    composition: SeriesCompositionInfo | None = properties.get("tiffslide.series-composition")
+    composition: SeriesCompositionInfo | None = properties.get(
+        "tiffslide.series-composition"
+    )
     if composition:
         prefixed_stores = {}
         for series_idx in composition["located_series"].keys():
@@ -126,17 +131,19 @@ def get_zarr_store(properties: Mapping[str, Any], tf: TiffFile | None) -> Mappin
 
 # --- composition classes ---------------------------------------------
 
+
 class CompositedArray:
     """composite zarr.Arrays with offsets
 
     Combine into a 3D array object with array slice indexing
     """
+
     def __init__(
         self,
         shape: Size3D,
         located_arrays: dict[Point3D, zarr.Array],
         *,
-        fill_value: Any | None = None
+        fill_value: Any | None = None,
     ) -> None:
         """instantiate a CompositedArray
 
@@ -203,11 +210,9 @@ class CompositedGroup:
 
     use to group CompositedArrays into a zarr.hierarchy.Group like object
     """
+
     def __init__(self, arrays: list[CompositedArray]):
-        self._groups = {
-            str(lvl): array
-            for lvl, array in enumerate(arrays)
-        }
+        self._groups = {str(lvl): array for lvl, array in enumerate(arrays)}
 
     def __getitem__(self, item: str) -> CompositedArray:
         return self._groups[item]
@@ -219,7 +224,9 @@ class CompositedGroup:
         return iter(self._groups)
 
 
-def composite(tf: TiffFile, info: SeriesCompositionInfo) -> CompositedGroup | CompositedArray:
+def composite(
+    tf: TiffFile, info: SeriesCompositionInfo
+) -> CompositedGroup | CompositedArray:
     """composite series or arrays into a virtual array"""
     composited_arrays: list[CompositedArray] = []
 
@@ -246,7 +253,11 @@ def composite(tf: TiffFile, info: SeriesCompositionInfo) -> CompositedGroup | Co
                 area_0 = area_i
             ds = math.sqrt(area_0 / area_i)
 
-            lvl_offset = (math.ceil(offset[0] / ds), math.ceil(offset[1] / ds), offset[2])
+            lvl_offset = (
+                math.ceil(offset[0] / ds),
+                math.ceil(offset[1] / ds),
+                offset[2],
+            )
             located_arrays[lvl_offset] = zarray
 
         composited_arrays.append(CompositedArray(shape, located_arrays))
@@ -258,6 +269,7 @@ def composite(tf: TiffFile, info: SeriesCompositionInfo) -> CompositedGroup | Co
 
 
 # --- helper functions ------------------------------------------------
+
 
 def get_overlap(
     selection: Slice3D,
@@ -333,8 +345,7 @@ def get_overlap(
 
 
 def verify_located_arrays(
-    shape: Size3D,
-    located_arrays: dict[Point3D, zarr.Array]
+    shape: Size3D, located_arrays: dict[Point3D, zarr.Array]
 ) -> tuple[str, Any]:
     """verify located arrays
 
@@ -356,8 +367,10 @@ def verify_located_arrays(
             raise ValueError(f"array at location {loc!r} is out of bounds")
 
     if not len(dt_fv) == 1:
-        raise ValueError(f"arrays don't share the same dtype and fill_value, got: {dt_fv!r}")
-    (dtype, fill_value), = dt_fv
+        raise ValueError(
+            f"arrays don't share the same dtype and fill_value, got: {dt_fv!r}"
+        )
+    ((dtype, fill_value),) = dt_fv
     return dtype, fill_value
 
 
