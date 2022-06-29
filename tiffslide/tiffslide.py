@@ -582,6 +582,9 @@ def _prepare_tifffile(
         return _cls(fb, **tf_kw)
 
 
+# --- property / metadata related functionality -------------------------------
+
+
 class _PropertyParser:
     """parse tiffslide properties for different slide types"""
 
@@ -598,19 +601,21 @@ class _PropertyParser:
 
     @staticmethod
     def new_metadata() -> dict[str, Any]:
-        return {
-            PROPERTY_NAME_COMMENT: None,
-            PROPERTY_NAME_VENDOR: None,
-            PROPERTY_NAME_QUICKHASH1: None,
-            PROPERTY_NAME_BACKGROUND_COLOR: None,
-            PROPERTY_NAME_OBJECTIVE_POWER: None,
-            PROPERTY_NAME_MPP_X: None,
-            PROPERTY_NAME_MPP_Y: None,
-            PROPERTY_NAME_BOUNDS_X: None,
-            PROPERTY_NAME_BOUNDS_Y: None,
-            PROPERTY_NAME_BOUNDS_WIDTH: None,
-            PROPERTY_NAME_BOUNDS_HEIGHT: None,
-        }
+        return dict.fromkeys(
+            [
+                PROPERTY_NAME_COMMENT,
+                PROPERTY_NAME_VENDOR,
+                PROPERTY_NAME_QUICKHASH1,
+                PROPERTY_NAME_BACKGROUND_COLOR,
+                PROPERTY_NAME_OBJECTIVE_POWER,
+                PROPERTY_NAME_MPP_X,
+                PROPERTY_NAME_MPP_Y,
+                PROPERTY_NAME_BOUNDS_X,
+                PROPERTY_NAME_BOUNDS_Y,
+                PROPERTY_NAME_BOUNDS_WIDTH,
+                PROPERTY_NAME_BOUNDS_HEIGHT,
+            ]
+        )
 
     @classmethod
     def detect_format(cls, tf: TiffFile) -> str:
@@ -686,7 +691,7 @@ class _PropertyParser:
     def parse(self) -> dict[str, Any]:
         fmt = self.detect_format(self._tf)
         fmt = fmt.replace("-", "_")  # generic-tiff
-        return getattr(self, f"parse_{fmt}")()
+        return getattr(self, f"parse_{fmt}")()  # type: ignore
 
     def parse_aperio(self) -> dict[str, Any]:
         """parse Aperio SVS properties"""
@@ -724,13 +729,14 @@ class _PropertyParser:
 
     def parse_ventana(self) -> dict[str, Any]:
         warn(
-            f"no special ventana-format metadata parsing implemented yet!", stacklevel=2
+            "no special ventana-format metadata parsing implemented yet!",
+            stacklevel=2,
         )
         return self.parse_generic_tiff()
 
     def parse_hamamatsu(self) -> dict[str, Any]:
         warn(
-            f"no special hamamatsu-format metadata parsing implemented yet!",
+            "no special hamamatsu-format metadata parsing implemented yet!",
             stacklevel=2,
         )
         return self.parse_generic_tiff()
@@ -799,7 +805,7 @@ def _parse_metadata_aperio(desc: str) -> dict[str, Any]:
 def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
     """return the leica SCN properties"""
     # todo: clean up. this is pretty convoluted
-    md = {PROPERTY_NAME_COMMENT: image_description}
+    md: dict[str, Any] = {PROPERTY_NAME_COMMENT: image_description}
 
     dct = _xml_to_dict(image_description)
     collection = dct["scn"]["collection"]

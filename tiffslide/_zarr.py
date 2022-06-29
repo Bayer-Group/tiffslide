@@ -17,6 +17,7 @@ from tiffslide._types import Size3D
 from tiffslide._types import Slice3D
 
 if TYPE_CHECKING:
+    from numpy.typing import DTypeLike
     from numpy.typing import NDArray
     from tifffile import TiffFile
 
@@ -102,6 +103,9 @@ def get_zarr_store(
     store:
         a zarr store of the tiff
     """
+    if tf is None:
+        raise NotImplementedError("support in future versions")
+
     # the tiff might contain multiple series that require composition
     composition: SeriesCompositionInfo | None = properties.get(
         "tiffslide.series-composition"
@@ -295,7 +299,7 @@ def verify_located_arrays(
     return dtype, fill_value
 
 
-def get_zarr_depth_and_dtype(grp: zarr.Group, axes: str) -> tuple[int, np.dtype]:
+def get_zarr_depth_and_dtype(grp: zarr.Group, axes: str) -> tuple[int, DTypeLike]:
     """return the image depth from the zarr group"""
     if "tiffslide.series-composition" in grp.attrs:
         srs = next(iter(grp.attrs["series-compostion"]["located_series"]))
