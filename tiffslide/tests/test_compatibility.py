@@ -129,7 +129,7 @@ def test_strict_subset_level_downsamples(ts_slide, os_slide):
         )
 
 
-def test_read_region_equality(ts_slide, os_slide, file_name):
+def test_read_region_equality_level_min(ts_slide, os_slide, file_name):
     exact = True
     if "JP2K-33003" in file_name:
         warnings.warn(
@@ -155,3 +155,30 @@ def test_read_region_equality(ts_slide, os_slide, file_name):
             np.testing.assert_equal(ts_arr, os_arr)
         else:
             np.testing.assert_allclose(ts_arr, os_arr, atol=1, rtol=0)
+
+
+def test_read_region_equality_level_common_max(ts_slide, os_slide, file_name):
+    exact = True
+    if "JP2K-33003" in file_name:
+        warnings.warn(
+            f"JP2K file {file_name} is tested to be almost equal (not exactly equal)!",
+            stacklevel=2,
+        )
+        exact = False
+
+    ts_lvl = ts_slide.level_count - 1
+    os_lvl = os_slide.level_dimensions.index(ts_slide.level_dimensions[ts_lvl])
+    size = ts_slide.level_dimensions[ts_lvl]
+
+    if size[0] >= 5000 or size[1] >= 5000:
+        pytest.skip("smallest common level is too big...")
+
+    ts_img = ts_slide.read_region((0, 0), ts_lvl, size)
+    os_img = os_slide.read_region((0, 0), os_lvl, size)
+
+    ts_arr = np.array(ts_img)
+    os_arr = np.array(os_img)
+    os_arr = os_arr[:, :, :3]
+
+    max_difference = np.max(np.abs(ts_arr.astype(int) - os_arr.astype(int)))
+    assert max_difference <= (0 if exact else 1)
