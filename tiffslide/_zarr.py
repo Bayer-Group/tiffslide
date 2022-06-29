@@ -7,6 +7,7 @@ import itertools
 import math
 from typing import Any
 from typing import Iterator
+from typing import Mapping
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -25,7 +26,57 @@ __all__ = [
     "composite",
     "CompositedArray",
     "CompositedGroup",
+    "get_zarr_store",
 ]
+
+
+# --- zarr storage classes --------------------------------------------
+
+class _PrefixedStore(Mapping[str, Any]):
+    """prefix a zarr store to allow mounting a zarr array as a group"""
+
+    def __init__(self, store: Mapping[str, Any], prefix: str):
+        self._base = zarr.group({}).store
+        self._store = store
+        assert not prefix.endswith("/")
+        self._prefix = f"{prefix}/"
+
+    def __len__(self) -> int:
+        return len(self._store) + len(self._base)
+
+    def __contains__(self, item: object) -> bool:
+        if isinstance(item, str) and item.startswith(self._prefix):
+            return item[len(self._prefix) :] in self._store
+        else:
+            return item in self._base
+
+    def __iter__(self) -> Iterator[str]:
+        yield from (f"{self._prefix}{key}" for key in self._store.keys())
+        yield from self._base.keys()
+
+    def __getitem__(self, item: str) -> Any:
+        if item.startswith(self._prefix):
+            return self._store[item[len(self._prefix) :]]
+        else:
+            return self._base[item]
+
+
+def get_zarr_store(properties: Mapping[str, Any], tf: TiffFile | None) -> Mapping[str, Any]:
+    """return a zarr store"""
+    # the tiff might contain multiple series that require composition
+    composition = properties.get("tiffslide.series-composition")
+    if composition:
+        raise NotImplementedError("todo")
+
+    else:
+        series_idx = properties.get("tiffslide.series-index", 0)
+        store = tf.series[series_idx].aszarr()
+
+        # encapsulate store as group if tifffile returns a zarr array
+        if ".zarray" in store:
+            store = _PrefixedStore(store, prefix="0")
+
+    return store
 
 
 # --- composition classes ---------------------------------------------

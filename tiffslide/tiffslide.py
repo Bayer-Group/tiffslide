@@ -43,6 +43,7 @@ from tiffslide._types import OpenFileLike
 from tiffslide._types import PathOrFileOrBufferLike
 from tiffslide._types import SeriesCompositionInfo
 from tiffslide._types import TiffFileIO
+from tiffslide._zarr import get_zarr_store
 
 if TYPE_CHECKING:
     import numpy.typing as npt
@@ -239,7 +240,7 @@ class TiffSlide:
 
         NOTE: this is extra functionality and not part of the drop-in behaviour
         """
-        store = _get_zarr_store(self.properties, self._tifffile)
+        store = get_zarr_store(self.properties, self._tifffile)
         return zarr.open_group(store, mode="r")
 
     @property
@@ -757,44 +758,6 @@ def _has_mpp(md: dict[str, Any]) -> bool:
         md[PROPERTY_NAME_MPP_X] is not None
         and md[PROPERTY_NAME_MPP_Y] is not None
     )
-
-
-class _PrefixedStore(Mapping[str, Any]):
-    """prefix a zarr store to allow mounting a zarr array as a group"""
-
-    def __init__(self, store: Mapping[str, Any], prefix: str):
-        self._base = zarr.group({}).store
-        self._store = store
-        assert not prefix.endswith("/")
-        self._prefix = f"{prefix}/"
-
-    def __len__(self) -> int:
-        return len(self._store) + len(self._base)
-
-    def __contains__(self, item: object) -> bool:
-        if isinstance(item, str) and item.startswith(self._prefix):
-            return item[len(self._prefix) :] in self._store
-        else:
-            return item in self._base
-
-    def __iter__(self) -> Iterator[str]:
-        yield from (f"{self._prefix}{key}" for key in self._store.keys())
-        yield from self._base.keys()
-
-    def __getitem__(self, item: str) -> Any:
-        if item.startswith(self._prefix):
-            return self._store[item[len(self._prefix) :]]
-        else:
-            return self._base[item]
-
-
-def _get_zarr_store(properties: Mapping[str, Any], tf: TiffFile | None) -> Mapping[str, Any]:
-    """return a zarr store"""
-    idx = properties["tiffslide.series-index"]
-    store = tf.series[idx].aszarr()
-    if ".zarray" in store:
-        store = _PrefixedStore(store, prefix="0")
-    return store
 
 
 def _parse_metadata_aperio(desc: str) -> dict[str, Any]:
