@@ -337,6 +337,13 @@ class TiffSlide:
         in_bound = 0 <= rx0 and rx1 <= level_w and 0 <= ry0 and ry1 <= level_h
         requires_padding = padding and not in_bound
 
+        if requires_padding:
+            # compute padding
+            pad_x0 = _clip(-rx0, 0, _rw)
+            pad_x1 = _clip(rx1 - level_w, 0, _rw)
+            pad_y0 = _clip(-ry0, 0, _rh)
+            pad_y1 = _clip(ry1 - level_h, 0, _rh)
+
         if not in_bound:
             # crop coord to valid zone
             rx0 = _clip(rx0, 0, level_w)
@@ -366,12 +373,6 @@ class TiffSlide:
                     f"location={location!r}, level={level}, size={size!r} is out-of-bounds, but padding is requested",
                     stacklevel=2,
                 )
-
-            # compute padding
-            pad_x0 = _clip(-rx0, 0, _rw)
-            pad_x1 = _clip(rx1 - level_w, 0, _rw)
-            pad_y0 = _clip(-ry0, 0, _rh)
-            pad_y1 = _clip(ry1 - level_h, 0, _rh)
 
             # noinspection PyUnboundLocalVariable
             arr = np.pad(
