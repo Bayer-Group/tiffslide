@@ -46,7 +46,7 @@ if OPENSLIDE_TESTDATA_DIR is None:
     pytestmark = pytest.mark.skip
 
 else:
-    pytestmark = pytest.mark.compat
+    pytestmark = pytest.mark.compat  # type: ignore
 
     for key, fns in _FILES.items():
         for fn in fns:

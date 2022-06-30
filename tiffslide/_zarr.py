@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 try:
     from zarr.storage import KVStore
 except ImportError:
-    KVStore = lambda x: x  # type: ignore
+    KVStore = lambda x: x  # noqa
 
 
 __all__ = [
