@@ -725,6 +725,12 @@ class _PropertyParser:
         # get all leica info
         md.update(_parse_metadata_leica(desc))
 
+        # fill tile-width / tile-height
+        idx = md["tiffslide.series-index"]
+        for lvl, page in enumerate(self._tf.series[idx]):
+            md[f"tiffslide.level[{lvl}].tile-width"] = page.tilewidth
+            md[f"tiffslide.level[{lvl}].tile-height"] = page.tilelength
+
         return md
 
     def parse_ventana(self) -> dict[str, Any]:
