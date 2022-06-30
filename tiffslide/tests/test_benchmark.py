@@ -148,7 +148,7 @@ def get_locations(slide, order, tsize):
 def test_read_tiles_as_pil(order, slide_with_tile_size, benchmark):
     slide, tsize = slide_with_tile_size
     locations = get_locations(slide, order, tsize)
-    lociter = iter(locations)
+    lociter = iter(locations[len(locations) // 2 :])
 
     def setup():
         return (next(lociter), 0, tsize), {}
@@ -162,7 +162,7 @@ def test_read_tiles_as_pil(order, slide_with_tile_size, benchmark):
 def test_read_tiles_as_numpy(order, slide_with_tile_size, benchmark):
     slide, tsize = slide_with_tile_size
     locations = get_locations(slide, order, tsize)
-    lociter = iter(locations)
+    lociter = iter(locations[len(locations) // 2 :])
 
     def setup():
         return (next(lociter), 0, tsize), {}
