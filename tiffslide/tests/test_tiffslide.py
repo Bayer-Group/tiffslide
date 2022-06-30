@@ -3,7 +3,6 @@ import os
 import subprocess
 import sys
 import warnings
-from functools import partial
 from textwrap import dedent
 
 import fsspec

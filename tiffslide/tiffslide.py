@@ -4,6 +4,7 @@ import math
 import os.path
 import re
 import sys
+from collections import defaultdict
 from fractions import Fraction
 from itertools import count
 from types import TracebackType
@@ -40,7 +41,11 @@ from tifffile.tifffile import svs_description_metadata
 from tiffslide._compat import NotTiffFile
 from tiffslide._types import OpenFileLike
 from tiffslide._types import PathOrFileOrBufferLike
+from tiffslide._types import SeriesCompositionInfo
 from tiffslide._types import TiffFileIO
+from tiffslide._zarr import get_zarr_depth_and_dtype
+from tiffslide._zarr import get_zarr_selection
+from tiffslide._zarr import get_zarr_store
 
 if TYPE_CHECKING:
     import numpy.typing as npt
@@ -106,12 +111,20 @@ class TiffSlide:
             a dictionary with keyword arguments passed to fsspec
         """
         # tifffile instance, can raise TiffFileError
-        self.ts_tifffile = _prepare_tifffile(
+        self._tifffile = _prepare_tifffile(
             filename,
             storage_options=storage_options,
             tifffile_options=tifffile_options,
             _cls=TiffFile,
         )
+
+    @property
+    def ts_tifffile(self) -> TiffFile:
+        """get the underlying tifffile instance"""
+        # backwards compatibility
+        if not self._tifffile:
+            raise RuntimeError("TiffSlide is not backed by TiffFile instance")
+        return self._tifffile
 
     def __enter__(self) -> TiffSlide:
         return self
@@ -125,12 +138,16 @@ class TiffSlide:
         self.close()
 
     def close(self) -> None:
-        ts_zarr_grp = self.__dict__.pop("ts_zarr_grp", None)
-        if ts_zarr_grp is not None:
+        try:
+            grp = self.__dict__.pop("zarr_group")
+        except KeyError:
+            pass
+        else:
             try:
-                self.ts_zarr_grp.close()
+                grp.close()
             except AttributeError:
-                pass  # Arrays don't need to be closed
+                pass
+            del grp
         self.ts_tifffile.close()
 
     def __repr__(self) -> str:
@@ -155,7 +172,7 @@ class TiffSlide:
         except TiffFileError:
             return None
         with tf as t:
-            return _detect_format(t)
+            return _PropertyParser.detect_format(t)
 
     @cached_property
     def dimensions(self) -> tuple[int, int]:
@@ -201,102 +218,7 @@ class TiffSlide:
     @cached_property
     def properties(self) -> dict[str, Any]:
         """image properties / metadata as a dict"""
-        md: dict[str, Any] = {
-            PROPERTY_NAME_COMMENT: None,
-            PROPERTY_NAME_VENDOR: None,
-            PROPERTY_NAME_QUICKHASH1: None,
-            PROPERTY_NAME_BACKGROUND_COLOR: None,
-            PROPERTY_NAME_OBJECTIVE_POWER: None,
-            PROPERTY_NAME_MPP_X: None,
-            PROPERTY_NAME_MPP_Y: None,
-            PROPERTY_NAME_BOUNDS_X: None,
-            PROPERTY_NAME_BOUNDS_Y: None,
-            PROPERTY_NAME_BOUNDS_WIDTH: None,
-            PROPERTY_NAME_BOUNDS_HEIGHT: None,
-        }
-        tf = self.ts_tifffile
-
-        if tf.is_svs:
-            desc = tf.pages[0].description
-            series_idx = 0
-            _md = _parse_metadata_aperio(desc)
-
-        elif tf.is_scn:
-            desc = tf.scn_metadata
-            series_idx = _auto_select_series_scn(desc)
-            _md = _parse_metadata_scn(desc, series_idx)
-
-        else:
-            # todo: need to handle more supported formats in the future
-            if tf.is_bif or tf.is_ndpi:
-                vendor = _detect_format(tf)
-                warn(f"no special {vendor!r}-format metadata parsing implemented yet!")
-            desc = tf.pages[0].description
-            series_idx = 0
-            _md = {
-                PROPERTY_NAME_COMMENT: desc,
-                PROPERTY_NAME_VENDOR: "generic-tiff",
-            }
-
-        md.update(_md)
-        md["tiff.ImageDescription"] = desc
-        md["tiffslide.series-index"] = series_idx
-
-        # calculate level info
-        series0 = tf.series[series_idx]
-        assert series0.ndim == 3, "loosen restrictions in future versions"
-        axes0 = md["tiffslide.series-axes"] = series0.axes
-
-        if axes0 == "YXS":
-            h0, w0, _ = map(int, series0.shape)
-            level_dimensions = ((lvl.shape[1], lvl.shape[0]) for lvl in series0.levels)
-        elif axes0 == "CYX":
-            _, h0, w0 = map(int, series0.shape)
-            level_dimensions = ((lvl.shape[2], lvl.shape[1]) for lvl in series0.levels)
-        else:
-            raise NotImplementedError(f"series with axes={axes0!r} not supported yet")
-
-        for lvl, (width, height) in enumerate(level_dimensions):
-            downsample = math.sqrt((w0 * h0) / (width * height))
-            page = series0.levels[lvl][0]
-            md[f"tiffslide.level[{lvl}].downsample"] = downsample
-            md[f"tiffslide.level[{lvl}].height"] = int(height)
-            md[f"tiffslide.level[{lvl}].width"] = int(width)
-            md[f"tiffslide.level[{lvl}].tile-height"] = page.tilelength
-            md[f"tiffslide.level[{lvl}].tile-width"] = page.tilewidth
-
-        if md[PROPERTY_NAME_MPP_X] is None or md[PROPERTY_NAME_MPP_Y] is None:
-            # recover mpp from tiff tags
-            page0 = series0[0]
-            try:
-                resolution_unit = page0.tags["ResolutionUnit"].value
-                x_resolution = Fraction(*page0.tags["XResolution"].value)
-                y_resolution = Fraction(*page0.tags["YResolution"].value)
-            except KeyError:
-                pass
-            else:
-                md["tiff.ResolutionUnit"] = resolution_unit.name
-                md["tiff.XResolution"] = float(x_resolution)
-                md["tiff.YResolution"] = float(y_resolution)
-
-                RESUNIT = tifffile.TIFF.RESUNIT
-                scale = {
-                    RESUNIT.INCH: 25400.0,
-                    RESUNIT.CENTIMETER: 10000.0,
-                    RESUNIT.MILLIMETER: 1000.0,
-                    RESUNIT.MICROMETER: 1.0,
-                    RESUNIT.NONE: None,
-                }.get(resolution_unit, None)
-                if scale is not None:
-                    try:
-                        mpp_x = scale / x_resolution
-                        mpp_y = scale / y_resolution
-                    except ArithmeticError:
-                        pass
-                    else:
-                        md[PROPERTY_NAME_MPP_X] = mpp_x
-                        md[PROPERTY_NAME_MPP_Y] = mpp_y
-        return md
+        return _PropertyParser(self._tifffile).parse()
 
     @cached_property
     def associated_images(self) -> _LazyAssociatedImagesDict:
@@ -315,14 +237,19 @@ class TiffSlide:
         return self.level_count - 1
 
     @cached_property
-    def ts_zarr_grp(self) -> zarr.core.Array | zarr.hierarchy.Group:
-        """return the tiff image as a zarr array or group
+    def zarr_group(self) -> zarr.hierarchy.Group:
+        """return the tiff image as a zarr-like group
 
         NOTE: this is extra functionality and not part of the drop-in behaviour
         """
-        idx = self.properties["tiffslide.series-index"]
-        store = self.ts_tifffile.series[idx].aszarr()
-        return zarr.open(store, mode="r")
+        store = get_zarr_store(self.properties, self._tifffile)
+        return zarr.open_group(store, mode="r")
+
+    @property
+    def ts_zarr_grp(self) -> zarr.hierarchy.Group:
+        """use .zarr_group instead"""
+        # backwards compatibility
+        return self.zarr_group
 
     @overload
     def read_region(
@@ -398,20 +325,8 @@ class TiffSlide:
                 stacklevel=2,
             )
 
-            zarray: zarr.core.Array
-            if isinstance(self.ts_zarr_grp, zarr.core.Array):
-                zarray = self.ts_zarr_grp
-            else:
-                zarray = self.ts_zarr_grp["0"]
-
-            if axes == "YXS":
-                depth = zarray.shape[2]
-            elif axes == "CYX":
-                depth = zarray.shape[0]
-            else:
-                raise NotImplementedError(f"axes={axes!r}")
-
-            return np.zeros((_rh, _rw, depth), dtype=zarray.dtype)
+            depth, dtype = get_zarr_depth_and_dtype(self.zarr_group, axes)
+            return np.zeros((_rh, _rw, depth), dtype=dtype)
 
         rx0 = (base_x * level_w) // base_w
         ry0 = (base_y * level_h) // base_h
@@ -442,11 +357,11 @@ class TiffSlide:
         else:
             raise NotImplementedError(f"axes={axes!r}")
 
-        arr: npt.NDArray[np.int_]
-        if isinstance(self.ts_zarr_grp, zarr.core.Array):
-            arr = self.ts_zarr_grp[selection]
-        else:
-            arr = self.ts_zarr_grp[str(level)][selection]
+        arr: npt.NDArray[np.int_] = get_zarr_selection(
+            self.zarr_group,
+            selection=selection,
+            level=level,
+        )
 
         if axes == "CYX":
             arr = arr.transpose((1, 2, 0))
@@ -532,7 +447,7 @@ class NotTiffSlide(TiffSlide):
         storage_options: dict[str, Any] | None = None,
     ) -> None:
         # tifffile instance, can raise TiffFileError
-        self.ts_tifffile = _prepare_tifffile(
+        self._tifffile = _prepare_tifffile(
             filename,
             storage_options=storage_options,
             tifffile_options=tifffile_options,
@@ -560,20 +475,6 @@ class NotTiffSlide(TiffSlide):
         with tf as t:
             # noinspection PyProtectedMember
             return t.pages[0]._codec
-
-
-def _detect_format(tf: TiffFile) -> str:
-    _vendor_compat_map = dict(
-        svs="aperio",
-        scn="leica",
-        bif="ventana",
-        ndpi="hamamatsu",
-        # add more when needed
-    )
-    for prop, vendor in _vendor_compat_map.items():
-        if getattr(tf, f"is_{prop}"):
-            return vendor
-    return "generic-tiff"
 
 
 class _LazyAssociatedImagesDict(Mapping[str, Image.Image]):
@@ -681,6 +582,191 @@ def _prepare_tifffile(
         return _cls(fb, **tf_kw)
 
 
+# --- property / metadata related functionality -------------------------------
+
+
+class _PropertyParser:
+    """parse tiffslide properties for different slide types"""
+
+    vendor_map = dict(
+        svs="aperio",
+        scn="leica",
+        bif="ventana",
+        ndpi="hamamatsu",
+        # add more when needed
+    )
+
+    def __init__(self, tf: TiffFile) -> None:
+        self._tf = tf
+
+    @staticmethod
+    def new_metadata() -> dict[str, Any]:
+        return dict.fromkeys(
+            [
+                PROPERTY_NAME_COMMENT,
+                PROPERTY_NAME_VENDOR,
+                PROPERTY_NAME_QUICKHASH1,
+                PROPERTY_NAME_BACKGROUND_COLOR,
+                PROPERTY_NAME_OBJECTIVE_POWER,
+                PROPERTY_NAME_MPP_X,
+                PROPERTY_NAME_MPP_Y,
+                PROPERTY_NAME_BOUNDS_X,
+                PROPERTY_NAME_BOUNDS_Y,
+                PROPERTY_NAME_BOUNDS_WIDTH,
+                PROPERTY_NAME_BOUNDS_HEIGHT,
+            ]
+        )
+
+    @classmethod
+    def detect_format(cls, tf: TiffFile) -> str:
+        for prop, vendor in cls.vendor_map.items():
+            if getattr(tf, f"is_{prop}"):
+                return vendor
+        return "generic-tiff"
+
+    @classmethod
+    def collect_level_info(cls, series: TiffPageSeries) -> dict[str, Any]:
+        # calculate level info
+        md = {}
+        if series.ndim != 3:
+            raise NotImplementedError("currently no support for series.ndim != 3")
+
+        axes = md["tiffslide.series-axes"] = series.axes
+
+        if axes == "YXS":
+            h0, w0, _ = map(int, series.shape)
+            level_dimensions = ((lvl.shape[1], lvl.shape[0]) for lvl in series.levels)
+        elif axes == "CYX":
+            _, h0, w0 = map(int, series.shape)
+            level_dimensions = ((lvl.shape[2], lvl.shape[1]) for lvl in series.levels)
+        else:
+            raise NotImplementedError(f"series with axes={axes!r} not supported yet")
+
+        for lvl, (width, height) in enumerate(level_dimensions):
+            downsample = math.sqrt((w0 * h0) / (width * height))
+            page = series.levels[lvl][0]
+            md[f"tiffslide.level[{lvl}].downsample"] = downsample
+            md[f"tiffslide.level[{lvl}].height"] = int(height)
+            md[f"tiffslide.level[{lvl}].width"] = int(width)
+            md[f"tiffslide.level[{lvl}].tile-height"] = page.tilelength
+            md[f"tiffslide.level[{lvl}].tile-width"] = page.tilewidth
+        return md
+
+    @classmethod
+    def recover_mpp(cls, series: TiffPageSeries) -> dict[str, Any]:
+        """recover mpp from tiff tags"""
+        page0 = series[0]
+        md: dict[str, Any] = {}
+
+        try:
+            resolution_unit = page0.tags["ResolutionUnit"].value
+            x_resolution = Fraction(*page0.tags["XResolution"].value)
+            y_resolution = Fraction(*page0.tags["YResolution"].value)
+        except KeyError:
+            pass
+        else:
+            md["tiff.ResolutionUnit"] = resolution_unit.name
+            md["tiff.XResolution"] = float(x_resolution)
+            md["tiff.YResolution"] = float(y_resolution)
+
+            RESUNIT = tifffile.TIFF.RESUNIT
+            scale = {
+                RESUNIT.INCH: 25400.0,
+                RESUNIT.CENTIMETER: 10000.0,
+                RESUNIT.MILLIMETER: 1000.0,
+                RESUNIT.MICROMETER: 1.0,
+                RESUNIT.NONE: None,
+            }.get(resolution_unit, None)
+            if scale is not None:
+                try:
+                    mpp_x = scale / x_resolution
+                    mpp_y = scale / y_resolution
+                except ArithmeticError:
+                    pass
+                else:
+                    md[PROPERTY_NAME_MPP_X] = mpp_x
+                    md[PROPERTY_NAME_MPP_Y] = mpp_y
+        return md
+
+    def parse(self) -> dict[str, Any]:
+        fmt = self.detect_format(self._tf)
+        fmt = fmt.replace("-", "_")  # generic-tiff
+        return getattr(self, f"parse_{fmt}")()  # type: ignore
+
+    def parse_aperio(self) -> dict[str, Any]:
+        """parse Aperio SVS properties"""
+        md = self.new_metadata()
+
+        # parse metadata from description
+        desc = self._tf.pages[0].description
+        md.update(_parse_metadata_aperio(desc))
+        md["tiff.ImageDescription"] = desc
+
+        # get series 0
+        series0 = self._tf.series[0]
+        md["tiffslide.series-index"] = 0  # svs standard
+
+        # in case mpp wasn't available recover from tags
+        if not _has_mpp(md):
+            md.update(self.recover_mpp(series0))
+
+        # collect level info
+        md.update(self.collect_level_info(series0))
+        return md
+
+    def parse_leica(self) -> dict[str, Any]:
+        """parse leica SCN properties"""
+        md = self.new_metadata()
+
+        # parse metadata from scn xml
+        desc = self._tf.scn_metadata
+        md["tiff.ImageDescription"] = desc
+
+        # get all leica info
+        md.update(_parse_metadata_leica(desc))
+
+        # fill tile-width / tile-height
+        idx = md["tiffslide.series-index"]
+        for lvl, page in enumerate(self._tf.series[idx]):
+            md[f"tiffslide.level[{lvl}].tile-width"] = page.tilewidth
+            md[f"tiffslide.level[{lvl}].tile-height"] = page.tilelength
+
+        return md
+
+    def parse_ventana(self) -> dict[str, Any]:
+        warn(
+            "no special ventana-format metadata parsing implemented yet!",
+            stacklevel=2,
+        )
+        return self.parse_generic_tiff()
+
+    def parse_hamamatsu(self) -> dict[str, Any]:
+        warn(
+            "no special hamamatsu-format metadata parsing implemented yet!",
+            stacklevel=2,
+        )
+        return self.parse_generic_tiff()
+
+    def parse_generic_tiff(self) -> dict[str, Any]:
+        # todo: need to handle more supported formats in the future
+        md = self.new_metadata()
+
+        # store the description
+        desc = self._tf.pages[0].description
+        md["tiff.ImageDescription"] = desc
+
+        md["tiffslide.series-index"] = 0  # use series 0
+        series0 = self._tf.series[0]
+
+        # in case mpp wasn't available recover from tags
+        if not _has_mpp(md):
+            md.update(self.recover_mpp(series0))
+
+        # collect level info
+        md.update(self.collect_level_info(series0))
+        return md
+
+
 def _parse_metadata_aperio(desc: str) -> dict[str, Any]:
     """Aperio SVS metadata"""
     if _TIFFFILE_VERSION >= (2021, 6, 14):
@@ -722,71 +808,116 @@ def _parse_metadata_aperio(desc: str) -> dict[str, Any]:
     return md
 
 
-def _auto_select_series_scn(desc: str) -> int:
-    """selects the first non-macro series of an SCN file"""
-    tree = _xml_to_dict(desc)
+def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
+    """return the leica SCN properties"""
+    # todo: clean up. this is pretty convoluted
+    md: dict[str, Any] = {PROPERTY_NAME_COMMENT: image_description}
 
-    marco_sizeX = int(tree["scn"]["collection"]["@sizeX"])
-    marco_sizeY = int(tree["scn"]["collection"]["@sizeY"])
+    dct = _xml_to_dict(image_description)
+    collection = dct["scn"]["collection"]
 
-    for idx, image in enumerate(tree["scn"]["collection"]["image"]):
-        offsetX = int(image["view"]["@offsetX"])
-        offsetY = int(image["view"]["@offsetY"])
-        sizeX = int(image["view"]["@sizeX"])
-        sizeY = int(image["view"]["@sizeY"])
+    slide_x_nm = int(collection["@sizeX"])
+    slide_y_nm = int(collection["@sizeY"])
+
+    first_non_macro_idx: int | None = None
+    lvl_resolutions = defaultdict(list)
+    series_offsets_nm = {}
+
+    for idx, image in enumerate(collection["image"]):
+        image_x_nm = int(image["view"]["@sizeX"])
+        image_y_nm = int(image["view"]["@sizeY"])
+        offset_x_nm = int(image["view"]["@offsetX"])
+        offset_y_nm = int(image["view"]["@offsetY"])
 
         is_macro_image = (
-            offsetX == 0
-            and offsetY == 0
-            and sizeX == marco_sizeX
-            and sizeY == marco_sizeY
+            offset_x_nm == 0
+            and offset_y_nm == 0
+            and image_x_nm == slide_x_nm
+            and image_y_nm == slide_y_nm
         )
-        if not is_macro_image:
-            break
-    else:
-        raise ValueError("SCN: no main image found")
+        if is_macro_image:
+            continue
 
-    return idx
+        if first_non_macro_idx is None:
+            first_non_macro_idx = idx
 
+            _scan = image["scanSettings"]
+            obj_pow = float(_scan["objectiveSettings"]["objective"])
+            aperture = float(_scan["illuminationSettings"]["numericalAperture"])
+            isource = str(_scan["illuminationSettings"]["illuminationSource"])
 
-def _parse_metadata_scn(desc: str, series_idx: int) -> dict[str, Any]:
-    """Leica metadata"""
-    tree = _xml_to_dict(desc)
+            md.update(
+                {
+                    PROPERTY_NAME_VENDOR: "leica",
+                    PROPERTY_NAME_OBJECTIVE_POWER: obj_pow,
+                    "leica.aperture": aperture,
+                    "leica.creation-date": str(image["creationDate"]),
+                    "leica.device-model": str(image["device"]["@model"]),
+                    "leica.device-version": str(image["device"]["@version"]),
+                    "leica.illumination-source": isource,
+                }
+            )
 
-    image = tree["scn"]["collection"]["image"][series_idx]
+        for lvl, info in enumerate(image["pixels"]["dimension"]):
+            resolution = image_x_nm / int(info["@sizeX"])
+            # image_y_nm / int(info["@sizeY"])  <-- openslide just uses X
+            lvl_resolutions[lvl].append(resolution)
 
-    # use auto recovery
-    # mpp_x = float(image['pixels']['@sizeX']) / float(image['view']['@sizeX']) / 1000
-    # mpp_y = float(image['pixels']['@sizeY']) / float(image['view']['@sizeY']) / 1000
-    mpp_x = None
-    mpp_y = None
+        series_offsets_nm[idx] = offset_y_nm, offset_x_nm
 
-    obj_pow = float(image["scanSettings"]["objectiveSettings"]["objective"])
+    if not lvl_resolutions:
+        raise ValueError("no non-macro images in file")
+    resolutions0 = np.array(lvl_resolutions[0])
+    # allow some threshold
+    _r_avg = resolutions0.mean()
+    if np.any(np.abs((resolutions0 - _r_avg) / _r_avg) > 0.02):
+        raise ValueError(
+            f"non-macro images vary too much in resolution: {lvl_resolutions[0]!r}"
+        )
 
-    md = {
-        PROPERTY_NAME_COMMENT: desc,
-        PROPERTY_NAME_VENDOR: "leica",
-        PROPERTY_NAME_QUICKHASH1: None,
-        PROPERTY_NAME_BACKGROUND_COLOR: None,
-        PROPERTY_NAME_OBJECTIVE_POWER: obj_pow,
-        PROPERTY_NAME_MPP_X: mpp_x,
-        PROPERTY_NAME_MPP_Y: mpp_y,
-        PROPERTY_NAME_BOUNDS_X: None,
-        PROPERTY_NAME_BOUNDS_Y: None,
-        PROPERTY_NAME_BOUNDS_WIDTH: None,
-        PROPERTY_NAME_BOUNDS_HEIGHT: None,
-        "leica.aperture": float(
-            image["scanSettings"]["illuminationSettings"]["numericalAperture"]
-        ),
-        "leica.creation-date": str(image["creationDate"]),
-        "leica.device-model": str(image["device"]["@model"]),
-        "leica.device-version": str(image["device"]["@version"]),
-        "leica.illumination-source": str(
-            image["scanSettings"]["illuminationSettings"]["illuminationSource"]
-        ),
-    }
+    nm_per_px = min(lvl_resolutions[0])
+    mpp = nm_per_px / 1000.0
+    md[PROPERTY_NAME_MPP_X] = mpp
+    md[PROPERTY_NAME_MPP_Y] = mpp
+
+    slide_x_px = math.ceil(slide_x_nm / nm_per_px)
+    slide_y_px = math.ceil(slide_y_nm / nm_per_px)
+
+    level_shapes = []
+    located_series = defaultdict(list)
+    for lvl, resolutions in sorted(lvl_resolutions.items()):
+        lvl_nm_per_px = min(resolutions)
+
+        for srs, offset_nm in series_offsets_nm.items():
+            # implicitly assuming axes="YXS" ... (might be wrong?)
+            offset_px = (
+                int(offset_nm[0] / lvl_nm_per_px),
+                int(offset_nm[1] / lvl_nm_per_px),
+                0,
+            )
+            located_series[srs].append(offset_px)
+        assert len(set(map(len, located_series.values()))) == 1
+
+        lvl_size_x = math.ceil(slide_x_nm / lvl_nm_per_px)
+        lvl_size_y = math.ceil(slide_y_nm / lvl_nm_per_px)
+        md[f"tiffslide.level[{lvl}].height"] = lvl_size_y
+        md[f"tiffslide.level[{lvl}].width"] = lvl_size_x
+        md[f"tiffslide.level[{lvl}].downsample"] = math.sqrt(
+            slide_x_px / lvl_size_x * slide_y_px / lvl_size_y
+        )
+        level_shapes.append((lvl_size_y, lvl_size_x, 3))
+
+    md["tiffslide.series-index"] = first_non_macro_idx
+    md["tiffslide.series-axes"] = "YXS"  # todo: verify
+    md["tiffslide.series-composition"] = SeriesCompositionInfo(
+        level_shapes=level_shapes,
+        located_series=located_series,
+    )
 
     return md
+
+
+# --- helper functions --------------------------------------------------------
 
 
 def _xml_to_dict(xml: str) -> dict[str, Any]:
@@ -817,6 +948,11 @@ def _xml_to_dict(xml: str) -> dict[str, Any]:
 def _label_series_axes(axes: str) -> tuple[str, ...]:
     """helper to make series shapes more understandable"""
     return tuple(tifffile.TIFF.AXES_LABELS[c] for c in axes)
+
+
+def _has_mpp(md: dict[str, Any]) -> bool:
+    """check if metadata has MPP defined"""
+    return md[PROPERTY_NAME_MPP_X] is not None and md[PROPERTY_NAME_MPP_Y] is not None
 
 
 def _clip(x: int, min_: int, max_: int) -> int:
