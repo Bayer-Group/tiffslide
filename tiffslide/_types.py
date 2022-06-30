@@ -30,8 +30,8 @@ __all__ = [
     "PathOrFileOrBufferLike",
     "OpenFileLike",
     "TiffFileIO",
-    "Size3D",
     "Point3D",
+    "Size3D",
     "Slice3D",
     "SeriesCompositionInfo",
 ]
@@ -81,13 +81,23 @@ class TiffFileIO(Protocol):
 PathOrFileOrBufferLike = Union[AnyStr, PathLikeAnyStr, OpenFileLike, TiffFileIO]
 
 
-Slice3D: TypeAlias = "tuple[slice, slice, slice]"
 Point3D: TypeAlias = "tuple[int, int, int]"
 Size3D: TypeAlias = "tuple[int, int, int]"
+Slice3D: TypeAlias = "tuple[slice, slice, slice]"
 
 
 class SeriesCompositionInfo(TypedDict):
-    """composition information for combining tifffile series"""
+    """composition information for combining tifffile series
+
+    Notes
+    -----
+    level_shapes:
+        A list of 3D sizes for each composited level
+    located_series:
+        A dict mapping the TiffFile series index to a list of
+        3D offsets for each level for compositing
+
+    """
 
     level_shapes: list[Size3D]
-    located_series: dict[int, Point3D]
+    located_series: dict[int, list[Point3D]]

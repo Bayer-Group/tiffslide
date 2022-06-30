@@ -150,22 +150,17 @@ def get_zarr_selection(
         overlaps = {}
         dtype = None
         fill_value = None
-        shape = composition["level_shapes"][0]
         level_shape = composition["level_shapes"][level]
+        located_series = composition["located_series"]
 
-        for series_idx, offset in composition["located_series"].items():
+        for series_idx, level_offsets in located_series.items():
             arr = grp[f"{series_idx}/{level}"]
+            offset = level_offsets[level]
 
             if dtype is None:
                 dtype = arr.dtype
             if fill_value is None:
                 fill_value = arr.fill_value
-
-            offset = (
-                int(offset[0] * level_shape[0] / shape[0]),
-                int(offset[1] * level_shape[1] / shape[1]),
-                int(offset[2] * level_shape[2] / shape[2]),
-            )
 
             overlap = get_overlap(selection, level_shape, offset, arr.shape)
             if overlap is None:
@@ -302,7 +297,7 @@ def verify_located_arrays(
 def get_zarr_depth_and_dtype(grp: zarr.Group, axes: str) -> tuple[int, DTypeLike]:
     """return the image depth from the zarr group"""
     if "tiffslide.series-composition" in grp.attrs:
-        srs = next(iter(grp.attrs["series-compostion"]["located_series"]))
+        srs = next(iter(grp.attrs["series-composition"]["located_series"]))
         key = f"{srs}/0"
     else:
         key = "0"  # -> level

@@ -813,15 +813,11 @@ def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
     slide_x_nm = int(collection["@sizeX"])
     slide_y_nm = int(collection["@sizeY"])
 
-    mpps = []
-    located_series = {}
     first_non_macro_idx: int | None = None
-
     lvl_resolutions = defaultdict(list)
+    series_offsets_nm = {}
 
     for idx, image in enumerate(collection["image"]):
-        image_x_px = int(image["pixels"]["@sizeX"])
-        image_y_px = int(image["pixels"]["@sizeY"])
         image_x_nm = int(image["view"]["@sizeX"])
         image_y_nm = int(image["view"]["@sizeY"])
         offset_x_nm = int(image["view"]["@offsetX"])
@@ -858,33 +854,47 @@ def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
 
         for lvl, info in enumerate(image["pixels"]["dimension"]):
             lvl_resolutions[lvl].append(
-                min(image_x_nm / int(info["@sizeX"]), image_y_nm / int(info["@sizeY"]))
+                image_x_nm / int(info["@sizeX"])
+                # image_y_nm / int(info["@sizeY"])  <-- openslide just uses X
             )
 
-        image_mpp_x = image_x_nm / image_x_px / 1000.0
-        image_mpp_y = image_y_nm / image_y_px / 1000.0
-        offset_x_px = round(offset_x_nm * image_x_px / image_x_nm)
-        offset_y_px = round(offset_y_nm * image_y_px / image_y_nm)
+        series_offsets_nm[idx] = offset_y_nm, offset_x_nm
 
-        mpps.append((image_mpp_x, image_mpp_y))
-        # implicitly assuming axes="YXS" ... (might be wrong?)
-        located_series[idx] = (offset_y_px, offset_x_px, 0)
-
-    if not located_series:
+    if not lvl_resolutions:
         raise ValueError("no non-macro images in file")
+    resolutions0 = np.array(lvl_resolutions[0])
+    # allow some threshold
+    _r_avg = resolutions0.mean()
+    if np.any(np.abs((resolutions0 - _r_avg) / _r_avg) > 0.02):
+        raise ValueError(
+            f"non-macro images vary too much in resolution: {lvl_resolutions[0]!r}"
+        )
 
-    mpps_x, mpps_y = np.array(mpps).T
-    mpp_x, mpp_y = np.mean(mpps_x), np.mean(mpps_y)
-    if not np.allclose(mpps_x, mpp_x) or not np.allclose(mpps_y, mpp_y):
-        raise ValueError("non-macro images have different mpps")
+    nm_per_px = min(lvl_resolutions[0])
+    mpp = nm_per_px / 1000.0
+    md[PROPERTY_NAME_MPP_X] = mpp
+    md[PROPERTY_NAME_MPP_Y] = mpp
 
-    slide_x_px = math.ceil(slide_x_nm / mpp_x / 1000.0)
-    slide_y_px = math.ceil(slide_y_nm / mpp_y / 1000.0)
+    slide_x_px = math.ceil(slide_x_nm / nm_per_px)
+    slide_y_px = math.ceil(slide_y_nm / nm_per_px)
 
     level_shapes = []
+    located_series = defaultdict(list)
     for lvl, resolutions in sorted(lvl_resolutions.items()):
-        lvl_size_x = math.ceil(slide_x_nm / min(resolutions))
-        lvl_size_y = math.ceil(slide_y_nm / min(resolutions))
+        lvl_nm_per_px = min(resolutions)
+
+        for srs, offset_nm in series_offsets_nm.items():
+            # implicitly assuming axes="YXS" ... (might be wrong?)
+            offset_px = (
+                int(offset_nm[0] / lvl_nm_per_px),
+                int(offset_nm[1] / lvl_nm_per_px),
+                0,
+            )
+            located_series[srs].append(offset_px)
+        assert len(set(map(len, located_series.values()))) == 1
+
+        lvl_size_x = math.ceil(slide_x_nm / lvl_nm_per_px)
+        lvl_size_y = math.ceil(slide_y_nm / lvl_nm_per_px)
         md[f"tiffslide.level[{lvl}].height"] = lvl_size_y
         md[f"tiffslide.level[{lvl}].width"] = lvl_size_x
         md[f"tiffslide.level[{lvl}].downsample"] = math.sqrt(
@@ -892,8 +902,6 @@ def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
         )
         level_shapes.append((lvl_size_y, lvl_size_x, 3))
 
-    md[PROPERTY_NAME_MPP_X] = mpp_x
-    md[PROPERTY_NAME_MPP_Y] = mpp_y
     md["tiffslide.series-index"] = first_non_macro_idx
     md["tiffslide.series-axes"] = "YXS"  # todo: verify
     md["tiffslide.series-composition"] = SeriesCompositionInfo(
