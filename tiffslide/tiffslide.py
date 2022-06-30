@@ -853,10 +853,9 @@ def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
             )
 
         for lvl, info in enumerate(image["pixels"]["dimension"]):
-            lvl_resolutions[lvl].append(
-                image_x_nm / int(info["@sizeX"])
-                # image_y_nm / int(info["@sizeY"])  <-- openslide just uses X
-            )
+            resolution = image_x_nm / int(info["@sizeX"])
+            # image_y_nm / int(info["@sizeY"])  <-- openslide just uses X
+            lvl_resolutions[lvl].append(resolution)
 
         series_offsets_nm[idx] = offset_y_nm, offset_x_nm
 
