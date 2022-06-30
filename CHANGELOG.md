@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ...
 
+## [1.3.0] - 2022-06-30
+## Fixed
+- compatibility: fixed scn compositing (#36)
+
+## Added
+- `TiffSlide().zarr_group` property to replace `.ts_zarr_grp` in a future version
+
 ## [1.2.1] - 2022-06-16
 ## Fixed
 - correct padding on nonzero levels (#38)
@@ -102,7 +109,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - initial release of tiffslide and
 
-[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.1.0...v1.1.1
