@@ -21,6 +21,12 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
     from tifffile import TiffFile
 
+try:
+    from zarr.storage import KVStore
+except ImportError:
+    KVStore = lambda x: x  # type: ignore
+
+
 __all__ = [
     "get_zarr_store",
     "get_zarr_depth_and_dtype",
@@ -120,6 +126,7 @@ def get_zarr_store(
             prefixed_stores[str(series_idx)] = _store
 
         store = _CompositedStore(prefixed_stores, zattrs=composition)
+        store = KVStore(store)
 
     else:
         series_idx = properties.get("tiffslide.series-index", 0)
@@ -128,6 +135,7 @@ def get_zarr_store(
         # encapsulate store as group if tifffile returns a zarr array
         if ".zarray" in store:
             store = _CompositedStore({"0": store})
+            store = KVStore(store)
 
     return store
 
