@@ -15,3 +15,4 @@ htmlcov/**
 tiffslide/_version.py
 
 environment.yml
+.tiffslide_docs_benchmark.json
