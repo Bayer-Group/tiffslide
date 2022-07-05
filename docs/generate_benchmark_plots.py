@@ -75,7 +75,7 @@ def run_pytest_benchmarks(force: bool) -> None:
         for ax in axes:
             ax.set_xlabel("time (ms)")
         handles, labels = axes[0].get_legend_handles_labels()
-        fig.legend(handles, labels, loc="upper right")
+        fig.legend(handles[::-1], labels[::-1], loc="upper right")
 
         fig.savefig(root.joinpath("docs", "images", f"benchmark_{test_name}.png"))
 
