@@ -32,6 +32,7 @@ import tifffile
 import zarr
 from fsspec.core import url_to_fs
 from fsspec.implementations.local import LocalFileSystem
+from fsspec.implementations.reference import ReferenceFileSystem
 from PIL import Image
 from tifffile import TiffFile
 from tifffile import TiffFileError as TiffFileError
@@ -122,8 +123,10 @@ class TiffSlide:
     def ts_tifffile(self) -> TiffFile:
         """get the underlying tifffile instance"""
         # backwards compatibility
-        if not self._tifffile:
-            raise RuntimeError("TiffSlide is not backed by TiffFile instance")
+        if isinstance(self._tifffile, ReferenceFileSystem):
+            raise RuntimeError("instance is backed by kerchunk: no ts_tifffile available")
+        elif not isinstance(self._tifffile, (TiffFile, NotTiffFile)):
+            raise NotImplementedError(f"instance backed by {type(self._tifffile).__name__}")
         return self._tifffile
 
     def __enter__(self) -> TiffSlide:
