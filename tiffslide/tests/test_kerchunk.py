@@ -1,4 +1,5 @@
 import os
+import platform
 
 import pytest
 
@@ -16,7 +17,8 @@ def test_to_kerchunk(slide, wsi_file):
     kc = to_kerchunk(slide, urlpath=wsi_file)
     assert kc["version"] == 1
     assert kc["gen"] == []
-    assert os.fspath(wsi_file) in set(kc["templates"].values())
+    if platform.system() != "Windows":
+        assert os.fspath(wsi_file) in set(kc["templates"].values())
     assert kc["refs"]
 
 
