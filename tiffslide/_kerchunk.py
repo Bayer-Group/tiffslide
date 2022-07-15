@@ -1,24 +1,25 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from collections import ChainMap
 from io import StringIO
 from typing import TYPE_CHECKING
 from typing import Any
 
-import fsspec
-from imagecodecs.numcodecs import register_codecs
-
 if sys.version_info >= (3, 8):
     from typing import TypedDict
 else:
     from typing_extensions import TypedDict
 
+import fsspec
+from imagecodecs.numcodecs import register_codecs
+
+from tiffslide.tiffslide import TiffSlide
+
 if TYPE_CHECKING:
     from fsspec.implementations.reference import ReferenceFileSystem
-
-    from tiffslide.tiffslide import TiffSlide
 
 
 __all__ = [
@@ -53,6 +54,11 @@ def to_kerchunk(
     kw = {}
     if templatename is not None:
         kw["templatename"] = templatename
+
+    if not isinstance(urlpath, str):
+        urlpath = os.fspath(urlpath)
+    if urlpath.endswith(slide.ts_tifffile.filename):
+        urlpath = urlpath[: -len(slide.ts_tifffile.filename)]
 
     combined = KerchunkSpec(
         version=KERCHUNK_SPEC_VERSION,
