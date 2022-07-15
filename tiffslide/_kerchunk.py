@@ -115,6 +115,7 @@ def from_kerchunk(
     kc: KerchunkSpec,
     *,
     urlpath: str | None = None,
+    storage_options: dict[str, Any] | None = None,
 ) -> TiffSlide:
     """deserialize a TiffSlide from a kerchunk specification"""
     if urlpath:
@@ -127,9 +128,13 @@ def from_kerchunk(
         templates = {key: urlpath for key in templates}
         kc = ChainMap({"templates": templates}, kc)  # type: ignore
 
+    if storage_options is None:
+        storage_options = {}
+
     fs: ReferenceFileSystem = fsspec.filesystem(
         "reference",
         fo=kc,
+        **storage_options,
     )
     zattrs = json.loads(fs.cat_file(".zattrs"))
 
