@@ -177,7 +177,5 @@ if __name__ == "__main__":
     # open slide, serialize and reopen
     _slide = TiffSlide(args.urlpath, storage_options=args.storage_options)
     k = to_kerchunk(_slide, urlpath=args.urlpath)
-    kc_slide = from_kerchunk(k)
-
-    print(kc_slide.level_dimensions)
-    print(kc_slide.read_region((0, 0), 0, (100, 100), as_array=True).sum())
+    # kc_slide = from_kerchunk(k)
+    print(json.dumps(k, separators=(',', ':')))
