@@ -39,7 +39,7 @@ __all__ = [
 
 
 class _CompositedStore(Mapping[str, Any]):
-    """prefix a zarr store to allow mounting a zarr array as a group"""
+    """prefix zarr stores to allow mounting them in groups"""
 
     def __init__(
         self,
