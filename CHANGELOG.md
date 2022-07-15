@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ...
 
+## [1.4.0] - 2022-07-15
+## Added
+- `tiffslide._kerchunk`: added experimental support for kerchunk serialization
+
 ## [1.3.0] - 2022-06-30
 ## Fixed
 - compatibility: fixed scn compositing (#36)
@@ -109,7 +113,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - initial release of tiffslide and
 
-[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.4.0...HEAD
+[1.3.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.1.1...v1.2.0
