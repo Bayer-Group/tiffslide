@@ -13,6 +13,7 @@ import zarr
 from fsspec.implementations.reference import ReferenceFileSystem
 from tifffile import TiffFile
 
+from tiffslide._compat import NotTiffFile
 from tiffslide._types import Point3D
 from tiffslide._types import SeriesCompositionInfo
 from tiffslide._types import Size3D
@@ -97,7 +98,7 @@ def _get_series_zarr(
     obj: TiffFile | ReferenceFileSystem, series_idx: int
 ) -> Mapping[str, Any]:
     """return a zarr store from the object"""
-    if isinstance(obj, TiffFile):
+    if isinstance(obj, (TiffFile, NotTiffFile)):
         return obj.series[series_idx].aszarr()  # type: ignore
     elif isinstance(obj, ReferenceFileSystem):
         return obj.get_mapper(root=f"s{series_idx}")  # type: ignore
