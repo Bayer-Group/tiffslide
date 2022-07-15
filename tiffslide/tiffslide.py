@@ -124,9 +124,13 @@ class TiffSlide:
         """get the underlying tifffile instance"""
         # backwards compatibility
         if isinstance(self._tifffile, ReferenceFileSystem):
-            raise RuntimeError("instance is backed by kerchunk: no ts_tifffile available")
+            raise RuntimeError(
+                "instance is backed by kerchunk: no ts_tifffile available"
+            )
         elif not isinstance(self._tifffile, (TiffFile, NotTiffFile)):
-            raise NotImplementedError(f"instance backed by {type(self._tifffile).__name__}")
+            raise NotImplementedError(
+                f"instance backed by {type(self._tifffile).__name__}"
+            )
         return self._tifffile
 
     def __enter__(self) -> TiffSlide:

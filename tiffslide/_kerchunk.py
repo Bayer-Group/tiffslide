@@ -178,4 +178,4 @@ if __name__ == "__main__":
     _slide = TiffSlide(args.urlpath, storage_options=args.storage_options)
     k = to_kerchunk(_slide, urlpath=args.urlpath)
     # kc_slide = from_kerchunk(k)
-    print(json.dumps(k, separators=(',', ':')))
+    print(json.dumps(k, separators=(",", ":")))
