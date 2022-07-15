@@ -1,3 +1,9 @@
+"""tiffslide._kerchunk
+
+Test implementation of serialization and deserialization code to and from kerchunk
+Don't rely on this API until it's public.
+
+"""
 from __future__ import annotations
 
 import json
