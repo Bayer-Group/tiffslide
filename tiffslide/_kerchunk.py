@@ -2,9 +2,13 @@ from __future__ import annotations
 
 import json
 import sys
+from collections import ChainMap
 from io import StringIO
-from typing import Any
 from typing import TYPE_CHECKING
+from typing import Any
+
+import fsspec
+from imagecodecs.numcodecs import register_codecs
 
 if sys.version_info >= (3, 8):
     from typing import TypedDict
@@ -12,11 +16,14 @@ else:
     from typing_extensions import TypedDict
 
 if TYPE_CHECKING:
+    from fsspec.implementations.reference import ReferenceFileSystem
+
     from tiffslide.tiffslide import TiffSlide
 
 
 __all__ = [
-    "get_kerchunk_specification",
+    "to_kerchunk",
+    "from_kerchunk",
 ]
 
 
@@ -26,13 +33,14 @@ KERCHUNK_SPEC_VERSION = 1
 
 class KerchunkSpec(TypedDict):
     """simple kerchunk version 1 spec"""
+
     version: int
     templates: dict[str, str]
     gen: list[Any]
     refs: dict[str, Any]
 
 
-def get_kerchunk_specification(
+def to_kerchunk(
     slide: TiffSlide,
     *,
     urlpath: str,
@@ -83,10 +91,12 @@ def get_kerchunk_specification(
 
         # insert .zattrs
         if ".zattrs" not in combined_refs:
-            combined_refs[".zattrs"] = json.dumps({
-                "tiffslide.spec_version": TIFFSLIDE_SPEC_VERSION,
-                "tiffslide.properties": slide.properties,
-            })
+            combined_refs[".zattrs"] = json.dumps(
+                {
+                    "tiffslide.spec_version": TIFFSLIDE_SPEC_VERSION,
+                    "tiffslide.properties": slide.properties,
+                }
+            )
         assert ".zattrs" not in refs
 
         # insert refs
@@ -95,23 +105,62 @@ def get_kerchunk_specification(
     return combined
 
 
+def from_kerchunk(
+    kc: KerchunkSpec,
+    *,
+    urlpath: str | None = None,
+) -> TiffSlide:
+    """deserialize a TiffSlide from a kerchunk specification"""
+    if urlpath:
+        # replace urlpath in kerchunk spec
+        templates = kc.get("templates", {}).copy()
+        if len(set(templates.values())) != 1:
+            raise NotImplementedError(
+                "urlpath replacement support only for length 1 templates"
+            )
+        templates = {key: urlpath for key in templates}
+        kc = ChainMap({"templates": templates}, kc)  # type: ignore
+
+    fs: ReferenceFileSystem = fsspec.filesystem(
+        "reference",
+        fo=kc,
+    )
+    zattrs = json.loads(fs.cat_file(".zattrs"))
+
+    if "tiffslide.spec_version" not in zattrs or "tiffslide.properties" not in zattrs:
+        raise ValueError("")
+
+    if zattrs["tiffslide.spec_version"] != 1:
+        raise NotImplementedError("TiffSlide spec version unsupported")
+    properties = zattrs["tiffslide.properties"]
+
+    # register codecs now...
+    register_codecs(verbose=False)
+
+    # prepare the TiffSlide instance
+    inst = object.__new__(TiffSlide)
+    inst.__dict__["properties"] = properties
+    inst._tifffile = fs  # fixme: ...
+    return inst
+
+
 if __name__ == "__main__":
     import argparse
-    import sys
-
-    from tiffslide.tiffslide import TiffSlide
-
-    if sys.version_info >= (3, 8):
-        from pprint import pp
-    else:
-        from pprint import pprint as pp
 
     parser = argparse.ArgumentParser("tiffslide._kerchunk")
     parser.add_argument("urlpath", help="fsspec compatible urlpath to image")
-    parser.add_argument("--storage-options", type=json.loads, help="json encoded storage options", default=None)
+    parser.add_argument(
+        "--storage-options",
+        type=json.loads,
+        help="json encoded storage options",
+        default=None,
+    )
     args = parser.parse_args()
 
+    # open slide, serialize and reopen
     _slide = TiffSlide(args.urlpath, storage_options=args.storage_options)
-    k = get_kerchunk_specification(_slide, urlpath=args.urlpath)
+    k = to_kerchunk(_slide, urlpath=args.urlpath)
+    kc_slide = from_kerchunk(k)
 
-    pp(k, compact=True, indent=2)
+    print(kc_slide.level_dimensions)
+    print(kc_slide.read_region((0, 0), 0, (100, 100), as_array=True).sum())

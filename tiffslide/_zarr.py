@@ -10,6 +10,8 @@ from typing import Mapping
 
 import numpy as np
 import zarr
+from fsspec.implementations.reference import ReferenceFileSystem
+from tifffile import TiffFile
 
 from tiffslide._types import Point3D
 from tiffslide._types import SeriesCompositionInfo
@@ -19,7 +21,6 @@ from tiffslide._types import Slice3D
 if TYPE_CHECKING:
     from numpy.typing import DTypeLike
     from numpy.typing import NDArray
-    from tifffile import TiffFile
 
 try:
     from zarr.storage import KVStore
@@ -92,8 +93,20 @@ class _CompositedStore(Mapping[str, Any]):
         return self._base[item]
 
 
+def _get_series_zarr(
+    obj: TiffFile | ReferenceFileSystem, series_idx: int
+) -> Mapping[str, Any]:
+    """return a zarr store from the object"""
+    if isinstance(obj, TiffFile):
+        return obj.series[series_idx].aszarr()  # type: ignore
+    elif isinstance(obj, ReferenceFileSystem):
+        return obj.get_mapper(root=f"s{series_idx}")  # type: ignore
+    else:
+        raise NotImplementedError(f"{type(obj).__name__} unsupported")
+
+
 def get_zarr_store(
-    properties: Mapping[str, Any], tf: TiffFile | None
+    properties: Mapping[str, Any], tf: TiffFile | ReferenceFileSystem | None
 ) -> Mapping[str, Any]:
     """return a zarr store
 
@@ -116,10 +129,11 @@ def get_zarr_store(
     composition: SeriesCompositionInfo | None = properties.get(
         "tiffslide.series-composition"
     )
+    store: Mapping[str, Any]
     if composition:
         prefixed_stores = {}
         for series_idx in composition["located_series"].keys():
-            _store = tf.series[series_idx].aszarr()
+            _store = _get_series_zarr(tf, series_idx)
             # encapsulate store as group if tifffile returns a zarr array
             if ".zarray" in _store:
                 _store = _CompositedStore({"0": _store})
@@ -130,7 +144,7 @@ def get_zarr_store(
 
     else:
         series_idx = properties.get("tiffslide.series-index", 0)
-        store = tf.series[series_idx].aszarr()
+        store = _get_series_zarr(tf, series_idx)
 
         # encapsulate store as group if tifffile returns a zarr array
         if ".zarray" in store:
