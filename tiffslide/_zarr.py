@@ -43,10 +43,9 @@ __all__ = [
 #
 # note: we can drop this once we drop python 3.7
 
-REQUIRES_INCOMPATIBLE_STORE_FIX = (
-    Version(zarr.__version__) >= Version("2.11.0")
-    and  Version(tifffile_version) < Version("2022.3.29")
-)
+_new_zarr = Version(zarr.__version__) >= Version("2.11.0")
+_old_tifffile = Version(tifffile_version) < Version("2022.3.29")
+REQUIRES_STORE_FIX = _new_zarr and _old_tifffile
 
 
 class _IncompatibleStoreShim(Mapping[str, Any]):
@@ -59,10 +58,7 @@ class _IncompatibleStoreShim(Mapping[str, Any]):
         self._m = mapping
 
     def __getitem__(self, key: str) -> Any:
-        if (
-            key.endswith((".zarray", ".zgroup"))
-            and key not in self._m
-        ):
+        if key.endswith((".zarray", ".zgroup")) and key not in self._m:
             raise KeyError(key)
         try:
             return self._m[key]
@@ -79,7 +75,7 @@ class _IncompatibleStoreShim(Mapping[str, Any]):
         return getattr(self._m, item)
 
 
-if REQUIRES_INCOMPATIBLE_STORE_FIX and sys.version_info >= (3, 8):
+if REQUIRES_STORE_FIX and sys.version_info >= (3, 8):
     warn(
         "detected outdated tifffile version on `python>=3.8` with `zarr>=2.11.0`: "
         "updating tifffile is recommended!"
@@ -154,9 +150,9 @@ def _get_series_zarr(
         zstore = obj.get_mapper(root=f"s{series_idx}")  # type: ignore
     else:
         raise NotImplementedError(f"{type(obj).__name__} unsupported")
-    if REQUIRES_INCOMPATIBLE_STORE_FIX:
+    if REQUIRES_STORE_FIX:
         zstore = _IncompatibleStoreShim(zstore)
-    return zstore
+    return zstore  # type: ignore
 
 
 def get_zarr_store(
