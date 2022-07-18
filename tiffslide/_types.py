@@ -8,17 +8,20 @@ from typing import Any
 from typing import AnyStr
 from typing import Union
 
-if sys.version_info >= (3, 10):
+if sys.version_info >= (3, 8):
     from typing import Protocol
-    from typing import TypeAlias
     from typing import TypedDict
     from typing import runtime_checkable
 
 else:
     from typing_extensions import Protocol
-    from typing_extensions import TypeAlias
     from typing_extensions import TypedDict
     from typing_extensions import runtime_checkable
+
+if sys.version_info >= (3, 10):
+    from typing import TypeAlias
+else:
+    from typing_extensions import TypeAlias
 
 if TYPE_CHECKING:
     from types import TracebackType
