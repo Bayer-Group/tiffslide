@@ -1,0 +1,5 @@
+[bandit]
+exclude = tiffslide/tests,examples,.eggs,build,docs
+severity = High
+skips = B101,B314,B405
+quiet = True
