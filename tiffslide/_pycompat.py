@@ -5,6 +5,8 @@ This will be removed as soon as we drop python 3.7
 """
 from __future__ import annotations
 
+import operator
+import re
 import sys
 from threading import RLock
 from typing import Any
@@ -15,7 +17,6 @@ from typing import Mapping
 from typing import TypeVar
 
 import zarr
-from packaging.version import Version
 from tifffile import __version__ as tifffile_version
 
 __all__ = [
@@ -25,9 +26,24 @@ __all__ = [
 ]
 
 
-_new_zarr = Version(zarr.__version__) >= Version("2.11.0")
-_old_tifffile = Version(tifffile_version) < Version("2022.3.29")
-REQUIRES_STORE_FIX = _new_zarr and _old_tifffile
+def _requires_store_fix(ver_zarr: str, ver_tifffile: str) -> bool:
+    _v_regex = re.compile(r"^([0-9]+)[.]([0-9]+)[.]([0-9]+)(a|b|rc)?([0-9]+)?$")
+    _v_map = {'a': 0, 'b': 1, 'rc': 2, None: 99}
+
+    ver_zarr = [
+        int(x) if x and x.isdigit() else _v_map[x]
+        for x in _v_regex.match(ver_zarr).groups()
+    ]
+    ver_tifffile = [
+        int(x) if x and x.isdigit() else _v_map[x]
+        for x in _v_regex.match(ver_tifffile).groups()
+    ]
+
+    _new_zarr = ver_zarr >= [2, 11, 0, 99, 99]
+    _old_tifffile = ver_tifffile < [2022, 3, 29, 99, 99]
+    return _new_zarr and _old_tifffile
+
+REQUIRES_STORE_FIX = _requires_store_fix(zarr.__version__, tifffile_version)
 
 
 # --- zarr - tifffile compatibility patches ---------------------------
