@@ -22,7 +22,7 @@ if sys.version_info[:2] >= (3, 8):
     from functools import cached_property
     from typing import Literal
 else:
-    from backports.cached_property import cached_property
+    from tiffslide._pycompat import cached_property
     from typing_extensions import Literal
 
 import numpy as np

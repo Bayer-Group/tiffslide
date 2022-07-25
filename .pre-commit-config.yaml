@@ -23,7 +23,7 @@ repos:
   rev: 'v0.971'
   hooks:
   - id: mypy
-    additional_dependencies: ["numpy", "backports.cached_property"]
+    additional_dependencies: ["numpy"]
     exclude: ^examples/
 -   repo: https://github.com/PyCQA/flake8
     rev: '4.0.1'

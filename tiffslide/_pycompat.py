@@ -8,8 +8,11 @@ from __future__ import annotations
 import sys
 from threading import RLock
 from typing import Any
+from typing import Callable
+from typing import Generic
 from typing import Iterator
 from typing import Mapping
+from typing import TypeVar
 
 import zarr
 from packaging.version import Version
@@ -68,12 +71,13 @@ def py37_fix_store(zstore: Mapping[str, Any]) -> Mapping[str, Any]:
 
 
 if sys.version_info < (3, 8):
-    # --- vendored cached_property from CPython ---------------------------
+    # --- vendored cached_property from CPython with added type information ---
 
+    _T = TypeVar("_T")
     _NOT_FOUND = object()
 
-    class cached_property:
-        def __init__(self, func):  # type: ignore
+    class cached_property(Generic[_T]):
+        def __init__(self, func: Callable[..., _T]) -> None:
             self.func = func
             self.attrname = None
             self.__doc__ = func.__doc__
@@ -88,9 +92,9 @@ if sys.version_info < (3, 8):
                     f"({self.attrname!r} and {name!r})."
                 )
 
-        def __get__(self, instance, owner=None):  # type: ignore
+        def __get__(self, instance: Any, owner: type[Any] | None = None) -> _T:
             if instance is None:
-                return self
+                return self  # type: ignore
             if self.attrname is None:
                 raise TypeError(
                     "Cannot use cached_property instance without calling __set_name__ on it."
