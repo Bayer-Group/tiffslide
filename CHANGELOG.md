@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ...
 
+## [1.5.0] - 2022-07-25
+## Fixed
+- `tiffslide`: prevent deprecation warning with `ANTIALIAS` for `pillow>=9.1.0`
+
+## Changed
+- `tiffslide`: don't require `backports.cached_property` on python3.7 anymore
+
 ## [1.4.0] - 2022-07-15
 ## Added
 - `tiffslide._kerchunk`: added experimental support for kerchunk serialization
@@ -113,8 +120,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - initial release of tiffslide and
 
-[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.4.0...HEAD
-[1.3.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.3.0...v1.4.0
+[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.4.0...v1.5.0
+[1.4.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.1.1...v1.2.0
