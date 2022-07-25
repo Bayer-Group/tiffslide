@@ -5,7 +5,6 @@ This will be removed as soon as we drop python 3.7
 """
 from __future__ import annotations
 
-import operator
 import re
 import sys
 from threading import RLock
