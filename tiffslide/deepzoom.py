@@ -29,6 +29,12 @@ from tifffile import TiffPage
 # improve robustness when encountering corrupted tiles
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
+# prevent pillow>=9.1.0 deprecation warning
+try:
+    _ANTIALIAS = Image.Resampling.LANCZOS
+except AttributeError:
+    _ANTIALIAS = Image.ANTIALIAS
+
 
 def __getattr__(name):  # type: ignore
     if name == "DeepZoomGenerator":
@@ -247,7 +253,7 @@ class MinimalComputeAperioDZGenerator:
             else:
                 thumb_size = (self._tile_size, self._tile_size)
 
-            dst.thumbnail(thumb_size, Image.ANTIALIAS)
+            dst.thumbnail(thumb_size, _ANTIALIAS)
             with BytesIO() as buffer:
                 dst.save(buffer, format="JPEG")
                 return buffer.getvalue()

@@ -85,6 +85,12 @@ PROPERTY_NAME_BOUNDS_Y = "tiffslide.bounds-y"
 PROPERTY_NAME_BOUNDS_WIDTH = "tiffslide.bounds-width"
 PROPERTY_NAME_BOUNDS_HEIGHT = "tiffslide.bounds-height"
 
+# prevent pillow>=9.1.0 deprecation warning
+try:
+    _ANTIALIAS = Image.Resampling.LANCZOS
+except AttributeError:
+    _ANTIALIAS = Image.ANTIALIAS
+
 
 class TiffSlide:
     """
@@ -438,7 +444,7 @@ class TiffSlide:
             color=f"#{self.properties[PROPERTY_NAME_BACKGROUND_COLOR] or 'ffffff'}",
         )
         thumb.paste(img, box=None, mask=None)
-        thumb.thumbnail(size, Image.ANTIALIAS)
+        thumb.thumbnail(size, _ANTIALIAS)
         return thumb
 
 
