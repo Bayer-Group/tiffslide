@@ -28,20 +28,24 @@ __all__ = [
 
 def _requires_store_fix(ver_zarr: str, ver_tifffile: str) -> bool:
     _v_regex = re.compile(r"^([0-9]+)[.]([0-9]+)[.]([0-9]+)(a|b|rc)?([0-9]+)?$")
-    _v_map = {'a': 0, 'b': 1, 'rc': 2, None: 99}
+    _v_map = {"a": 0, "b": 1, "rc": 2, None: 99}
 
-    ver_zarr = [
-        int(x) if x and x.isdigit() else _v_map[x]
-        for x in _v_regex.match(ver_zarr).groups()
+    mz = _v_regex.match(ver_zarr)
+    mt = _v_regex.match(ver_tifffile)
+    if mz is None or mt is None:
+        return True
+
+    _ver_zarr: list[int] = [
+        int(x) if x and x.isdigit() else _v_map[x] for x in mz.groups()
     ]
-    ver_tifffile = [
-        int(x) if x and x.isdigit() else _v_map[x]
-        for x in _v_regex.match(ver_tifffile).groups()
+    _ver_tifffile: list[int] = [
+        int(x) if x and x.isdigit() else _v_map[x] for x in mt.groups()
     ]
 
-    _new_zarr = ver_zarr >= [2, 11, 0, 99, 99]
-    _old_tifffile = ver_tifffile < [2022, 3, 29, 99, 99]
+    _new_zarr = _ver_zarr >= [2, 11, 0, 99, 99]
+    _old_tifffile = _ver_tifffile < [2022, 3, 29, 99, 99]
     return _new_zarr and _old_tifffile
+
 
 REQUIRES_STORE_FIX = _requires_store_fix(zarr.__version__, tifffile_version)
 
