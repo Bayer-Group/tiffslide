@@ -20,11 +20,9 @@ from xml.etree import ElementTree
 
 if sys.version_info[:2] >= (3, 8):
     from functools import cached_property
-    from importlib.metadata import version
     from typing import Literal
 else:
-    from backports.cached_property import cached_property
-    from importlib_metadata import version
+    from tiffslide._pycompat import cached_property
     from typing_extensions import Literal
 
 import numpy as np
@@ -71,7 +69,7 @@ __all__ = [
 
 # all relevant tifffile version numbers work with this.
 _TIFFFILE_VERSION = tuple(
-    int(x) if x.isdigit() else x for x in version("tifffile").split(".")
+    int(x) if x.isdigit() else x for x in tifffile.__version__.split(".")
 )
 
 # === Constants to support drop-in ===

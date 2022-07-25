@@ -3,10 +3,12 @@ provides helpers for handling and compositing arrays and zarr-like groups
 """
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Iterator
 from typing import Mapping
+from warnings import warn
 
 import numpy as np
 import zarr
@@ -14,6 +16,8 @@ from fsspec.implementations.reference import ReferenceFileSystem
 from tifffile import TiffFile
 
 from tiffslide._compat import NotTiffFile
+from tiffslide._pycompat import REQUIRES_STORE_FIX
+from tiffslide._pycompat import py37_fix_store
 from tiffslide._types import Point3D
 from tiffslide._types import SeriesCompositionInfo
 from tiffslide._types import Size3D
@@ -34,6 +38,12 @@ __all__ = [
     "get_zarr_depth_and_dtype",
     "get_zarr_selection",
 ]
+
+if REQUIRES_STORE_FIX and sys.version_info >= (3, 8):
+    warn(
+        "detected outdated tifffile version on `python>=3.8` with `zarr>=2.11.0`: "
+        "updating tifffile is recommended!"
+    )
 
 
 # --- zarr storage classes --------------------------------------------
@@ -99,11 +109,14 @@ def _get_series_zarr(
 ) -> Mapping[str, Any]:
     """return a zarr store from the object"""
     if isinstance(obj, (TiffFile, NotTiffFile)):
-        return obj.series[series_idx].aszarr()  # type: ignore
+        zstore = obj.series[series_idx].aszarr()  # type: ignore
     elif isinstance(obj, ReferenceFileSystem):
-        return obj.get_mapper(root=f"s{series_idx}")  # type: ignore
+        zstore = obj.get_mapper(root=f"s{series_idx}")  # type: ignore
     else:
         raise NotImplementedError(f"{type(obj).__name__} unsupported")
+    if REQUIRES_STORE_FIX:
+        zstore = py37_fix_store(zstore)
+    return zstore  # type: ignore
 
 
 def get_zarr_store(
