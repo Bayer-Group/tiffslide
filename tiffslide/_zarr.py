@@ -13,11 +13,11 @@ from warnings import warn
 import numpy as np
 import zarr
 from fsspec.implementations.reference import ReferenceFileSystem
-from packaging.version import Version
 from tifffile import TiffFile
-from tifffile import __version__ as tifffile_version
 
 from tiffslide._compat import NotTiffFile
+from tiffslide._pycompat import REQUIRES_STORE_FIX
+from tiffslide._pycompat import py37_fix_store
 from tiffslide._types import Point3D
 from tiffslide._types import SeriesCompositionInfo
 from tiffslide._types import Size3D
@@ -38,42 +38,6 @@ __all__ = [
     "get_zarr_depth_and_dtype",
     "get_zarr_selection",
 ]
-
-# --- zarr - tifffile compatibility patches ---------------------------
-#
-# note: we can drop this once we drop python 3.7
-
-_new_zarr = Version(zarr.__version__) >= Version("2.11.0")
-_old_tifffile = Version(tifffile_version) < Version("2022.3.29")
-REQUIRES_STORE_FIX = _new_zarr and _old_tifffile
-
-
-class _IncompatibleStoreShim(Mapping[str, Any]):
-    """
-    A compatibility shim, for python=3.7
-    with zarr>=2.11.0 with tifffile<2022.3.29
-    """
-
-    def __init__(self, mapping: Mapping[str, Any]) -> None:
-        self._m = mapping
-
-    def __getitem__(self, key: str) -> Any:
-        if key.endswith((".zarray", ".zgroup")) and key not in self._m:
-            raise KeyError(key)
-        try:
-            return self._m[key]
-        except ValueError:
-            raise KeyError(key)
-
-    def __iter__(self) -> Iterator[str]:
-        return iter(self._m)
-
-    def __len__(self) -> int:
-        return len(self._m)
-
-    def __getattr__(self, item: str) -> Any:
-        return getattr(self._m, item)
-
 
 if REQUIRES_STORE_FIX and sys.version_info >= (3, 8):
     warn(
@@ -151,7 +115,7 @@ def _get_series_zarr(
     else:
         raise NotImplementedError(f"{type(obj).__name__} unsupported")
     if REQUIRES_STORE_FIX:
-        zstore = _IncompatibleStoreShim(zstore)
+        zstore = py37_fix_store(zstore)
     return zstore  # type: ignore
 
 
