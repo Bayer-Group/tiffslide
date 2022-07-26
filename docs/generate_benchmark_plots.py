@@ -51,8 +51,8 @@ def run_pytest_benchmarks(force: bool) -> None:
             "svs",
             "generic",
             "hamamatsu",
-            "ventana",
             "leica",
+            "ventana",
         ]
         assert set(ptdf["file_type"].unique()) == set(ft_ax_order)
         fig, axes = plt.subplots(1, len(ft_ax_order), figsize=(10, 4))
