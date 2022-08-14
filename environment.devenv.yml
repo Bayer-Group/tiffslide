@@ -20,7 +20,7 @@ dependencies:
   - fsspec
   - imagecodecs
   - pillow
-  - tifffile>=2020.9.22
+  - tifffile>=2021.6.14
   - zarr
 
   # development dependencies

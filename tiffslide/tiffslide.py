@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import math
 import os.path
-import re
 import sys
 from collections import defaultdict
 from fractions import Fraction
@@ -780,31 +779,12 @@ class _PropertyParser:
 
 def _parse_metadata_aperio(desc: str) -> dict[str, Any]:
     """Aperio SVS metadata"""
-    if _TIFFFILE_VERSION >= (2021, 6, 14):
-        # tifffile 2021.6.14 fixed the svs parsing.
-        _aperio_desc = desc
-        _aperio_recovered_header = None  # no need to recover
-
-    else:
-        # this emulates the new description parsing for older versions
-        _aperio_desc = re.sub(r";Aperio [^;|]*(?=[|])", "", desc, 1)
-        _aperio_recovered_header = desc.split("|", 1)[0]
-
-    try:
-        aperio_meta = svs_description_metadata(_aperio_desc)
-    except ValueError:
-        raise
-    else:
-        # Normalize the aperio metadata
-        aperio_meta.pop("", None)
-        aperio_meta.pop("Aperio Image Library", None)
-        if aperio_meta and "Header" not in aperio_meta:
-            aperio_meta["Header"] = _aperio_recovered_header
-        vendor = "aperio"
+    aperio_meta = svs_description_metadata(desc)
+    assert "Header" in aperio_meta
 
     md = {
         PROPERTY_NAME_COMMENT: desc,
-        PROPERTY_NAME_VENDOR: vendor,
+        PROPERTY_NAME_VENDOR: "aperio",
         PROPERTY_NAME_QUICKHASH1: None,
         PROPERTY_NAME_BACKGROUND_COLOR: None,
         PROPERTY_NAME_OBJECTIVE_POWER: aperio_meta.get("AppMag", None),
