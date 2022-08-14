@@ -22,39 +22,30 @@ jobs:
           - os: ubuntu-latest
             python-version: 3.7
     steps:
-    - uses: actions/checkout@v1
-    - name: Cache conda
-      uses: actions/cache@v1
-      env:
-        # Increase this value to reset cache if etc/example-environment.yml has not changed
-        CACHE_NUMBER: 0
-      with:
-        path: ~/conda_pkgs_dir
-        key: ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{ hashFiles('environment.devenv.yml') }}
-    - name: Setup conda
-      uses: conda-incubator/setup-miniconda@v2
-      with:
-        environment-file: environment.devenv.yml
-        python-version: ${{ matrix.python-version }}
-        auto-update-conda: true
-        activate-environment: tiffslide
-        use-only-tar-bz2: true
-        auto-activate-base: false
-    - shell: bash -l {0}
-      name: Test with pytest
-      run: |
-        conda info
-        conda list
-        pytest
+      - name: Checkout TiffSlide
+        uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install TiffSlide
+        run: python -m pip install -e .[dev]
+      - name: Cache tiffslide/tests/data
+        uses: actions/cache@v3
+        with:
+          path: tiffslide/tests/data
+          key: downloaded-slides
+      - name: Run Tests
+        run: pytest --cov=./tiffslide tiffslide
 
   # RUN MYPY STATIC TYPE ANALYSIS ON TIFFSLIDE SOURCE
   typing:
     name: mypy type analysis
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v3
       - name: Set up Python
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v4
         with:
           python-version: 3.8
       - name: Install dependencies
@@ -73,9 +64,9 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v1
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v1
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: 3.8
       - name: Install dependencies
@@ -110,9 +101,9 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
     steps:
-      - uses: actions/checkout@v1
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v1
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: 3.8
       - name: Install dependencies
