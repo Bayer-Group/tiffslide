@@ -24,6 +24,7 @@ dependencies:
   - zarr
 
   # development dependencies
+  - pre-commit        # [ TIFFSLIDE_DEVEL ]
   - black             # [ TIFFSLIDE_DEVEL ]
   - mypy              # [ TIFFSLIDE_DEVEL ]
   - pytest>=6         # [ TIFFSLIDE_DEVEL ]
