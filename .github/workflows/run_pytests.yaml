@@ -60,7 +60,6 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install "setuptools>=6.2"
           python -m pip install -e .[dev]
       - name: Run mypy
         run: |
@@ -73,7 +72,9 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
@@ -81,10 +82,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install "setuptools_scm>=6.2"
-      - name: Install pep517
-        run: |
-          python -m pip install --user build
+          python -m pip install wheel "setuptools_scm>=6.2" build
       # we'll have to remove local_scheme for pushes to test.pypi pep440
       - name: Get version without local_scheme
         id: non_local_version
@@ -111,7 +109,9 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
@@ -119,9 +119,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-      - name: Install pep517
-        run: |
-          python -m pip install --user build
+          python -m pip install build
       - name: Build a binary wheel and a source tarball
         run: |
           python -m build .
