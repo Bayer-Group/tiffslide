@@ -51,8 +51,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install --upgrade setuptools
-          pip install -e .[dev]
+          python -m pip install -e .[dev]
       - name: Run mypy
         run: |
           mypy --install-types --non-interactive --python-version=3.8 tiffslide
@@ -74,14 +73,12 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-      - name: Install pep517
-        run: |
-          python -m pip install --user build
+          python -m pip install wheel "setuptools_scm>=6.2" build
       # we'll have to remove local_scheme for pushes to test.pypi pep440
       - name: Get version without local_scheme
         id: non_local_version
         run: |
-          python setup.py --version | awk -F+ '{print "::set-output name=version::"$1}'
+          python -m setuptools_scm | awk -F+ '{print "::set-output name=version::"$1}'
       - name: Build a binary wheel and a source tarball
         env:
           SETUPTOOLS_SCM_PRETEND_VERSION: ${{ steps.non_local_version.outputs.version }}
@@ -113,9 +110,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-      - name: Install pep517
-        run: |
-          python -m pip install --user build
+          python -m pip install build
       - name: Build a binary wheel and a source tarball
         run: |
           python -m build .
