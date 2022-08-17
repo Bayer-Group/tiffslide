@@ -1,17 +1,16 @@
+"""Mirax support via zarr
+
+__author__: Andreas Poehlmann
+"""
 from __future__ import annotations
 
-import base64
 import colorsys
 import json
 import os
 import struct
+from collections import defaultdict
 from itertools import cycle
 
-import PIL.Image
-from fsspec.implementations.reference import ReferenceFileSystem
-import zarr
-import xarray
-from collections import defaultdict
 from configparser import ConfigParser
 from functools import cached_property
 from io import BytesIO
@@ -25,15 +24,19 @@ from typing import TYPE_CHECKING
 from typing import TextIO
 
 import numpy as np
-import zarr as zarr
 from fsspec.core import url_to_fs
 from imagecodecs import imread
+from imagecodecs.numcodecs import register_codecs
 
 from tiffslide._types import OpenFileLike
+from tiffslide._types import SeriesCompositionInfo
 from tiffslide._types import TiffFileIO
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
+
+
+register_codecs()
 
 
 def read_int(fp: BinaryIO) -> int:
@@ -333,7 +336,10 @@ class Mirax:
         raw = self.get_tile_raw(idx, level)
         return imread(raw, **_kw)
 
+    # noinspection DuplicatedCode
     def _debug_image(self):
+        import PIL.Image
+
         w, h = self.slide_data.image_size
         w //= 16
         h //= 16
@@ -343,7 +349,7 @@ class Mirax:
         idiv = self.slide_data.image_divisions
         iw = self.slide_data.image_number_x
         # ih = self.slide_data.image_number_y
-        tw, th = self.slide_data.tile_size
+        # tw, th = self.slide_data.tile_size
 
         _colors = [
             np.round(
@@ -376,145 +382,146 @@ class Mirax:
 
         PIL.Image.fromarray(arr).save("output.png")
 
-    def build_reference(self, level: int):
-        """write a kerchunk reference loadable via xarray"""
-        import imagecodecs.numcodecs
-        imagecodecs.numcodecs.register_codecs()
-
+    def build_reference(self):
+        """write a kerchunk reference loadable via zarr"""
         idiv = self.slide_data.image_divisions
         iw = self.slide_data.image_number_x
         # ih = self.slide_data.image_number_y
+        image_size = self.slide_data.image_size
         tw, th = self.slide_data.tile_size
 
         # query the codec, ... todo improve
         _, codec = self.get_tile(0, 0, return_codec=True)
+        print("codec", codec.__name__, codec)
 
         # tiled image groups
-        tiled_images = defaultdict(lambda: {
-            "version": 1,
-            "templates": {},
-            "refs": {
-                ".zgroup": json.dumps({"zarr_format": 2})
-            },
-        })
-        _common_zarray = json.dumps({
-            'zarr_format': 2,
-            'shape': [th * idiv, tw * idiv, 3],
-            'chunks': [th, tw, 3],
-            'dtype': "u1",
-            'compressor': {"id": "imagecodecs_jpeg"},
-            'fill_value': min(self.slide_data.fill_value),
-            'order': 'C',
-            'filters': None,
-        })
-
-        for tile in self.tile_data[level]:
-            # get indices
-            tx = tile.tile_index % iw
-            ty = tile.tile_index // iw
-            cx, dx = divmod(tx, idiv)
-            cy, dy = divmod(ty, idiv)
-            c_idx = cy * (iw // idiv) + cx
-            # subgroup = f"c{c_idx}"
-            subgroup = "image"
-
-            refs = tiled_images[c_idx]["refs"]
-            tmpl = tiled_images[c_idx]["templates"]
-
-            # add chunks
-            rec = tile.record
-            templatename = f"u{rec.file_number}"
-            tmpl[templatename] = f"file://{self.data_dir}/{self.slide_data.file_map[rec.file_number]}"
-            refs[f"{subgroup}/{cy}.{cx}.{dy}.{dx}.0"] = ["{{%s}}" % templatename, rec.offset, rec.length]
-
-        sel = []
-        for c_idx, tiled_image in tiled_images.items():
-            subgroup = f"c{c_idx}"
-            # subgroup = "image"
-            refs = tiled_images[c_idx]["refs"]
-
-            # build zarr
-            refs[f"{subgroup}/.zarray"] = _common_zarray
-            grp = zarr.open_group(refs)
-            arr = grp[subgroup]
-            arr.attrs["_ARRAY_DIMENSIONS"] = ["y", "x", "channel"]
-            arr.attrs["_FillValue"] = min(self.slide_data.fill_value)
-            arr.attrs["coordinates"] = f"yc{c_idx} xc{c_idx} channel"
-
-            # get position coordinates
-            x0, y0 = self.tile_positions[c_idx]
-            xc = np.arange(x0, x0 + self.slide_data.tile_size[0] * idiv, dtype=np.int64)
-            yc = np.arange(y0, y0 + self.slide_data.tile_size[1] * idiv, dtype=np.int64)
-            grp.array(f"xc{c_idx}", xc).attrs["_ARRAY_DIMENSIONS"] = ["x"]
-            grp.array(f"yc{c_idx}", yc).attrs["_ARRAY_DIMENSIONS"] = ["y"]
-            grp.array("channel", [0, 1, 2]).attrs["_ARRAY_DIMENSIONS"] = ["channel"]
-            grp.array("y", np.arange(self.slide_data.image_size[1], dtype=np.int64)).attrs["_ARRAY_DIMENSIONS"] = ["y"]
-            grp.array("x", np.arange(self.slide_data.image_size[0], dtype=np.int64)).attrs["_ARRAY_DIMENSIONS"] = ["x"]
-
-            for k, v in refs.items():
-                if isinstance(v, bytes):
-                    try:
-                        refs[k] = v.decode()
-                    except UnicodeDecodeError:
-                        refs[k] = 'base64:' + base64.b64encode(v).decode()
-
-            # grab 4 tiles
-            Y = 89420
-            X = 9919
-            if (
-                    (X + 8 * 4 * 340 < x0 < X + 10 * 4 * 340)
-                    and (Y + 13 * 4 * 256 < y0 < Y + 15 * 4 * 256)
-            ):
-                sel.append(c_idx)
-
-                with open(f"subimage_{c_idx}.json", "w") as f:
-                    json.dump(tiled_image, f, indent=2)
-
-        kchunks = list(tiled_images[k] for k in sel)
-        print("got kerchunks")
-
-        combined = {
+        kc = {
             "version": 1,
             "templates": {},
             "refs": {},
         }
+        templates = kc["templates"]
+        refs = kc["refs"]
+        _common_zgroup = json.dumps({"zarr_format": 2})
 
-        for kc in kchunks:
-            combined["templates"].update(kc["templates"])
-            combined["refs"].update(kc["refs"])
+        def _common_zarray(max_idiv_x, max_idiv_y):
+            return json.dumps({
+                'zarr_format': 2,
+                'shape': [th * max_idiv_y, tw * max_idiv_x, 3],
+                'chunks': [th, tw, 3],
+                'dtype': "u1",
+                'compressor': {"id": "imagecodecs_jpeg"},  # fixme: set dependent on file info
+                'fill_value': min(self.slide_data.fill_value),
+                'order': 'C',
+                'filters': None,
+            })
 
-        # from kerchunk.combine import MultiZarrToZarr
-        # m2m = MultiZarrToZarr(kchunks, concat_dims=[], remote_protocol=self.fs.protocol)
-        # combined = m2m.translate()
-        print("combined kerchunks")
-        with open('combined.json', 'w') as f:
-            json.dump(combined, f, indent=2)
-        print("opening as xarr")
-        fs = ReferenceFileSystem(combined, fs=self.fs)
-        m = fs.get_mapper("")
-        return xarray.open_dataset(
-            m,
-            engine='zarr',
-            mask_and_scale=False,
-            backend_kwargs={'consolidated': False},
+        refs[".zgroup"] = _common_zgroup
+        # print("tile_data.keys():", list(self.tile_data))
+        level_series = defaultdict(set)
+        for level, tiles in self.tile_data.items():
+
+            sx, sy = image_size
+            sx //= 2**level
+            sy //= 2**level
+
+            dxdy_max = defaultdict(lambda: [0, 0])
+            for tile in tiles:
+                # get indices
+                tx = tile.tile_index % iw
+                ty = tile.tile_index // iw
+                cx, dx = divmod(tx, idiv)
+                cy, dy = divmod(ty, idiv)
+                c_idx = cy * (iw // idiv) + cx
+
+                level_series[level].add(c_idx)
+
+                # build key
+                key = f"s{c_idx}/{level}/{dy}.{dx}.0"
+                dxdy = dxdy_max[c_idx]
+                dxdy[0] = max(dxdy[0], dx)
+                dxdy[1] = max(dxdy[1], dx)
+
+                # add chunks
+                rec = tile.record
+                templatename = f"u{rec.file_number}"
+                templates[templatename] = f"file://{self.data_dir}/{self.slide_data.file_map[rec.file_number]}"
+
+                refs[key] = ["{{%s}}" % templatename, rec.offset, rec.length]
+
+            for c_idx, dxdy in dxdy_max.items():
+                # === set arrays
+                refs.setdefault(f"s{c_idx}/.zgroup", _common_zgroup)
+                refs[f"s{c_idx}/{level}/.zgroup"] = _common_zgroup
+                refs.setdefault(f"s{c_idx}/{level}/.zarray", _common_zarray(dxdy[0] + 1, dxdy[1] + 1))
+
+        series_indices = set.union(*level_series.values())
+        level_shapes = []
+        located_series = defaultdict(list)
+        for level, c_indices in level_series.items():
+            sx, sy = self.slide_data.image_size
+            sx //= 2**level
+            sy //= 2**level
+            level_shapes.append((int(sy), int(sx), 3))
+
+            for c_idx in series_indices - c_indices:
+                located_series[c_idx].append(None)
+            for c_idx in c_indices:
+                x0, y0 = self.tile_positions[c_idx]
+                x0 //= 2**level
+                y0 //= 2**level
+                located_series[c_idx].append((int(y0), int(x0), 0))
+
+        series_composition_info: SeriesCompositionInfo = dict(
+            level_shapes=level_shapes,
+            located_series=located_series,
         )
 
-        # return zarr.open(m)
-        #fss = [
-        #    ReferenceFileSystem(kc, fs=self.fs)
-        #    for kc in kchunks
-        #]
-        #import xarray
-        #dss = [
-        #    xarray.open_dataset(
-        #        fs.get_mapper(""),
-        #        engine='zarr',
-        #        mask_and_scale=False,
-        #        backend_kwargs={'consolidated': False},
-        #    )["image"]
-        #    for fs in fss
-        #]
-        #
-        #return xarray.combine_by_coords(
-        #    dss, join="outer", data_vars="minimal", coords="minimal"
-        #)
+        refs[".zattrs"] = json.dumps({
+            "series": sorted(level_series),
+            "tiffslide.series-composition": series_composition_info,
+        })
+
+        kc["refs"] = {
+            k: refs[k]
+            for k in sorted(
+                refs.keys(),
+                key=lambda x: f".{x}" if x.endswith((".zgroup", ".zarray")) else x
+            )
+        }
+        kc["templates"] = dict(sorted(templates.items()))
+
+        return kc
+
+
+def _debug_get_zarr(kc_dct):
+    from fsspec.implementations.reference import ReferenceFileSystem
+    from zarr import open_group
+
+    fs = ReferenceFileSystem(kc_dct)
+    return open_group(fs.get_mapper(""), mode="r")
+
+
+if __name__ == "__main__":
+    import sys
+    from itertools import islice
+
+    mm = Mirax(sys.argv[1])
+    _kc = mm.build_reference()
+    print('"templates": {')
+    for t, x in _kc["templates"].items():
+        print(" ", f'"{t}": {x!r},')
+    print("},")
+    print('"refs": {')
+    _N = len(_kc["refs"])
+    print("  ...")
+    for _k, r in islice(_kc["refs"].items(), _N//2, _N//2 + 10):
+        print(" ", f'"{_k}": {r!r},')
+    print("  ...")
+    print("}")
+
+    grp = _debug_get_zarr(_kc)
+    # todo:
+    #  > [ ] support None in series_composition
+    #  > [ ] gather minimal properties and add to zarr
+    #  > [ ] load via from_kerchunk

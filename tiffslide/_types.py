@@ -110,4 +110,4 @@ class SeriesCompositionInfo(TypedDict):
     """
 
     level_shapes: list[Size3D]
-    located_series: dict[int, list[Point3D]]
+    located_series: dict[int, list[Point3D | None]]
