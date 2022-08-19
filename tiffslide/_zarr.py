@@ -3,6 +3,7 @@ provides helpers for handling and compositing arrays and zarr-like groups
 """
 from __future__ import annotations
 
+import json
 import sys
 from typing import TYPE_CHECKING
 from typing import Any
@@ -14,6 +15,7 @@ import numpy as np
 import zarr
 from fsspec.implementations.reference import ReferenceFileSystem
 from tifffile import TiffFile
+from tifffile import ZarrTiffStore
 
 from tiffslide._compat import NotTiffFile
 from tiffslide._pycompat import REQUIRES_STORE_FIX
@@ -222,6 +224,84 @@ def get_zarr_selection(
             out[target] = arr[source]
 
     return out
+
+
+def _get_chunk_bytesize_array(grp: zarr.Group, level: int) -> NDArray[np.int]:
+    """return an array of the raw chunk byte sizes
+
+    EXPERIMENTAL --- do not rely on this
+
+    """
+    store = grp.store
+
+    if not isinstance(store, ZarrTiffStore):
+        if hasattr(store, "_mutable_mapping"):
+            # noinspection PyProtectedMember
+            store = store._mutable_mapping
+
+        # noinspection PyProtectedMember
+        if (
+            isinstance(store, _CompositedStore)
+            and {"0"} == set(store._stores)
+        ):
+            # noinspection PyProtectedMember
+            store = store._stores["0"]
+
+        if not isinstance(store, ZarrTiffStore):
+            raise NotImplementedError(f"store type: {type(store).__name__!r}")
+
+    for key, value in store.items():
+        if '.zarray' in key:
+
+            levelstr = (key.split('/')[0] + '/') if '/' in key else ''
+            # skip if not selected level
+            if levelstr == "" and level != 0:
+                continue
+            elif levelstr != f"{level}/":
+                continue
+            else:
+                break
+    else:
+        raise ValueError(f"no matching level: {level}")
+
+    value = json.loads(value)
+    shape = value['shape']
+    chunks = value['chunks']
+
+    assert len(shape) == len(chunks)
+    if len(shape) != 3:
+        raise NotImplementedError("todo")
+
+    chunked = tuple(
+        i // j + (1 if i % j else 0) for i, j in zip(shape, chunks)
+    )
+
+    # fixme:
+    #  relies on private functionality of ZarrTiffStore, might break at any time
+    try:
+        # noinspection PyProtectedMember
+        chunkmode = store._chunkmode
+        # noinspection PyProtectedMember
+        parse_key = store._parse_key
+    except AttributeError:
+        raise RuntimeError("probably not supported with your tifffile version")
+
+    mask = np.full(chunked, dtype=np.int, fill_value=-1)
+
+    _index = ""
+    for indices in np.ndindex(*chunked):
+        chunkindex = '.'.join(str(index) for index in indices)
+        key = levelstr + chunkindex
+        keyframe, page, _, offset, bytecount = parse_key(key)
+        # key = levelstr + _index + chunkindex
+        if page and chunkmode and offset is None:
+            # offset = page.dataoffsets[0]
+            bytecount = keyframe.nbytes
+        if offset and bytecount:
+            mask[indices] = bytecount
+
+    assert mask.ndim == 3
+    return mask.sum(axis=2)
 
 
 # --- helper functions ------------------------------------------------
