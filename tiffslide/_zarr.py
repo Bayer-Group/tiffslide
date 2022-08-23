@@ -226,7 +226,7 @@ def get_zarr_selection(
     return out
 
 
-def _get_chunk_bytesize_array(grp: zarr.Group, level: int) -> NDArray[np.int]:
+def _get_chunk_bytesize_array(grp: zarr.Group, level: int) -> NDArray[np.int64]:
     """return an array of the raw chunk byte sizes
 
     EXPERIMENTAL --- do not rely on this
@@ -303,7 +303,7 @@ def _get_chunk_bytesize_array(grp: zarr.Group, level: int) -> NDArray[np.int]:
             mask[indices] = bytecount
 
     assert mask.ndim == 3
-    return mask.sum(axis=2)
+    return mask.sum(axis=2)  # type: ignore
 
 
 # --- helper functions ------------------------------------------------
