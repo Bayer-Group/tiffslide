@@ -226,7 +226,12 @@ def get_zarr_selection(
     return out
 
 
-def _get_chunk_bytesize_array(grp: zarr.Group, level: int) -> NDArray[np.int64]:
+def get_zarr_chunk_sizes(
+    grp: zarr.Group,
+    *,
+    level: int = 0,
+    sum_axis: int | None = None,
+) -> NDArray[np.int64]:
     """return an array of the raw chunk byte sizes
 
     EXPERIMENTAL --- do not rely on this
@@ -272,7 +277,7 @@ def _get_chunk_bytesize_array(grp: zarr.Group, level: int) -> NDArray[np.int64]:
 
     assert len(shape) == len(chunks)
     if len(shape) != 3:
-        raise NotImplementedError("todo")
+        raise NotImplementedError("chunk dimensions != 3")
 
     chunked = tuple(
         i // j + (1 if i % j else 0) for i, j in zip(shape, chunks)
@@ -288,7 +293,7 @@ def _get_chunk_bytesize_array(grp: zarr.Group, level: int) -> NDArray[np.int64]:
     except AttributeError:
         raise RuntimeError("probably not supported with your tifffile version")
 
-    mask = np.full(chunked, dtype=np.int64, fill_value=-1)
+    chunk_sizes = np.full(chunked, dtype=np.int64, fill_value=-1)
 
     _index = ""
     for indices in np.ndindex(*chunked):
@@ -300,10 +305,15 @@ def _get_chunk_bytesize_array(grp: zarr.Group, level: int) -> NDArray[np.int64]:
             # offset = page.dataoffsets[0]
             bytecount = keyframe.nbytes
         if offset and bytecount:
-            mask[indices] = bytecount
+            chunk_sizes[indices] = bytecount
 
-    assert mask.ndim == 3
-    return mask.sum(axis=2)  # type: ignore
+    if chunk_sizes.ndim != 3:
+        raise NotImplementedError("chunk dimensions != 3")
+
+    if sum_axis is None:
+        return chunk_sizes  # type: ignore
+    else:
+        return chunk_sizes.sum(axis=sum_axis)  # type: ignore
 
 
 # --- helper functions ------------------------------------------------
