@@ -87,7 +87,7 @@ jobs:
       # push all versions on master to test.pypi.org
       - name: Publish package to TestPyPI
         continue-on-error: true
-        uses: pypa/gh-action-pypi-publish@master
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
           password: ${{ secrets.test_pypi_password }}
@@ -116,7 +116,7 @@ jobs:
           python -m build .
       # push all tagged versions to pypi.org
       - name: Publish package to PyPI
-        uses: pypa/gh-action-pypi-publish@master
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
           password: ${{ secrets.pypi_password }}
