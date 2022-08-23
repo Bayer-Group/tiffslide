@@ -286,7 +286,7 @@ def _get_chunk_bytesize_array(grp: zarr.Group, level: int) -> NDArray[np.int]:
     except AttributeError:
         raise RuntimeError("probably not supported with your tifffile version")
 
-    mask = np.full(chunked, dtype=np.int, fill_value=-1)
+    mask = np.full(chunked, dtype=np.int64, fill_value=-1)
 
     _index = ""
     for indices in np.ndindex(*chunked):
