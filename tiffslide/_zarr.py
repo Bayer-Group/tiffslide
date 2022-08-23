@@ -257,6 +257,8 @@ def _get_chunk_bytesize_array(grp: zarr.Group, level: int) -> NDArray[np.int]:
             # skip if not selected level
             if levelstr == "" and level != 0:
                 continue
+            elif levelstr == "" and level == 0:
+                break
             elif levelstr != f"{level}/":
                 continue
             else:
