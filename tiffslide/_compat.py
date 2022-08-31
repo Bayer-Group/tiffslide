@@ -112,7 +112,7 @@ class NotTiffPageSeries:
     def size(self) -> int:
         return self.pages[0].size
 
-    def aszarr(self, **_) -> zarr.storage.MemoryStore:
+    def aszarr(self, **_: Any) -> zarr.storage.MemoryStore:
         return self.pages[0].aszarr()
 
     def asarray(self) -> NDArray[np.uint8]:
