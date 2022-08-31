@@ -252,7 +252,16 @@ class TiffSlide:
 
         NOTE: this is extra functionality and not part of the drop-in behaviour
         """
-        store = get_zarr_store(self.properties, self._tifffile)
+        try:
+            _num_decode = os.environ["TIFFSLIDE_NUM_DECODE_THREADS"]
+        except KeyError:
+            num_decode_threads = None  # half of num CPU
+        else:
+            if _num_decode:
+                num_decode_threads = int(_num_decode)
+            else:
+                num_decode_threads = None
+        store = get_zarr_store(self.properties, self._tifffile, num_decode_threads=num_decode_threads)
         return zarr.open_group(store, mode="r")
 
     @property

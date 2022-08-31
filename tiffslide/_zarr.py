@@ -4,6 +4,7 @@ provides helpers for handling and compositing arrays and zarr-like groups
 from __future__ import annotations
 
 import json
+import os
 import sys
 from typing import TYPE_CHECKING
 from typing import Any
@@ -107,11 +108,12 @@ class _CompositedStore(Mapping[str, Any]):
 
 
 def _get_series_zarr(
-    obj: TiffFile | ReferenceFileSystem, series_idx: int
+    obj: TiffFile | ReferenceFileSystem, series_idx: int, *,
+    num_decode_threads: int | None = None
 ) -> Mapping[str, Any]:
     """return a zarr store from the object"""
     if isinstance(obj, (TiffFile, NotTiffFile)):
-        zstore = obj.series[series_idx].aszarr()  # type: ignore
+        zstore = obj.series[series_idx].aszarr(maxworkers=num_decode_threads)  # type: ignore
     elif isinstance(obj, ReferenceFileSystem):
         zstore = obj.get_mapper(root=f"s{series_idx}")  # type: ignore
     else:
@@ -122,7 +124,10 @@ def _get_series_zarr(
 
 
 def get_zarr_store(
-    properties: Mapping[str, Any], tf: TiffFile | ReferenceFileSystem | None
+    properties: Mapping[str, Any],
+    tf: TiffFile | ReferenceFileSystem | None,
+    *,
+    num_decode_threads: int | None = None,
 ) -> Mapping[str, Any]:
     """return a zarr store
 
@@ -132,6 +137,8 @@ def get_zarr_store(
         the TiffSlide().properties mapping
     tf:
         the corresponding TiffFile instance
+    num_decode_threads:
+        number of threads used for decoding (default num_cpu / 2)
 
     Returns
     -------
@@ -149,7 +156,7 @@ def get_zarr_store(
     if composition:
         prefixed_stores = {}
         for series_idx in composition["located_series"].keys():
-            _store = _get_series_zarr(tf, series_idx)
+            _store = _get_series_zarr(tf, series_idx, num_decode_threads=num_decode_threads)
             # encapsulate store as group if tifffile returns a zarr array
             if ".zarray" in _store:
                 _store = _CompositedStore({"0": _store})
@@ -160,7 +167,7 @@ def get_zarr_store(
 
     else:
         series_idx = properties.get("tiffslide.series-index", 0)
-        store = _get_series_zarr(tf, series_idx)
+        store = _get_series_zarr(tf, series_idx, num_decode_threads=num_decode_threads)
 
         # encapsulate store as group if tifffile returns a zarr array
         if ".zarray" in store:
