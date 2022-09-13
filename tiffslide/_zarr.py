@@ -259,6 +259,10 @@ def get_zarr_chunk_sizes(
             # noinspection PyProtectedMember
             store = store._stores["0"]
 
+        while hasattr(store, "_mutable_mapping"):
+            # noinspection PyProtectedMember
+            store = store._mutable_mapping
+
         if not isinstance(store, ZarrTiffStore):
             raise NotImplementedError(f"store type: {type(store).__name__!r}")
 
