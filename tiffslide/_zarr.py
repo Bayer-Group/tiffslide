@@ -247,7 +247,7 @@ def get_zarr_chunk_sizes(
     store = grp.store
 
     if not isinstance(store, ZarrTiffStore):
-        if hasattr(store, "_mutable_mapping"):
+        while hasattr(store, "_mutable_mapping"):
             # noinspection PyProtectedMember
             store = store._mutable_mapping
 

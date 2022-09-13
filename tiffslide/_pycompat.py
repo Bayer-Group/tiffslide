@@ -61,24 +61,27 @@ class _IncompatibleStoreShim(Mapping[str, Any]):
     """
 
     def __init__(self, mapping: Mapping[str, Any]) -> None:
-        self._m = mapping
+        self._mutable_mapping = mapping
 
     def __getitem__(self, key: str) -> Any:
-        if key.endswith((".zarray", ".zgroup")) and key not in self._m:
+        if (
+            key.endswith((".zarray", ".zgroup"))
+            and key not in self._mutable_mapping
+        ):
             raise KeyError(key)
         try:
-            return self._m[key]
+            return self._mutable_mapping[key]
         except ValueError:
             raise KeyError(key)
 
     def __iter__(self) -> Iterator[str]:
-        return iter(self._m)
+        return iter(self._mutable_mapping)
 
     def __len__(self) -> int:
-        return len(self._m)
+        return len(self._mutable_mapping)
 
     def __getattr__(self, item: str) -> Any:
-        return getattr(self._m, item)
+        return getattr(self._mutable_mapping, item)
 
 
 def py37_fix_store(zstore: Mapping[str, Any]) -> Mapping[str, Any]:
