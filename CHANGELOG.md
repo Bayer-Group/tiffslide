@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ...
 
+## [1.8.1] - 2022-09-13
+## Fixed
+- `tiffslide._zarr`: unwrap the compatibility shim correctly on py37
+
 ## [1.8.0] - 2022-08-31
 ## Added
 - `tiffslide`: allow limiting worker threads via env `TIFFSLIDE_NUM_DECODE_THREADS`
@@ -132,7 +136,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - initial release of tiffslide and
 
-[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.8.0...HEAD
+[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.8.1...HEAD
+[1.8.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.5.0...v1.6.0
