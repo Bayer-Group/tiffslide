@@ -373,6 +373,8 @@ class TiffSlide:
             selection = slice(ry0, ry1), slice(rx0, rx1), slice(None)
         elif axes == "CYX":
             selection = slice(None), slice(ry0, ry1), slice(rx0, rx1)
+        elif axes == "YX":
+            selection = slice(ry0, ry1), slice(rx0, rx1)
         else:
             raise NotImplementedError(f"axes={axes!r}")
 
@@ -447,12 +449,15 @@ class TiffSlide:
 
         # now composite the thumbnail
         thumb = Image.new(
-            mode="RGB",
+            mode=img.mode,
             size=img.size,
             color=f"#{self.properties[PROPERTY_NAME_BACKGROUND_COLOR] or 'ffffff'}",
         )
         thumb.paste(img, box=None, mask=None)
-        thumb.thumbnail(size, _ANTIALIAS)
+        try:
+            thumb.thumbnail(size, _ANTIALIAS)
+        except ValueError:
+            thumb.thumbnail(size, Image.NEAREST)
         return thumb
 
 
@@ -647,8 +652,8 @@ class _PropertyParser:
     def collect_level_info(cls, series: TiffPageSeries) -> dict[str, Any]:
         # calculate level info
         md = {}
-        if series.ndim != 3:
-            raise NotImplementedError("currently no support for series.ndim != 3")
+        if series.ndim not in (2, 3):
+            raise NotImplementedError("currently no support for series.ndim not in (2, 3)")
 
         axes = md["tiffslide.series-axes"] = series.axes
 
@@ -658,6 +663,9 @@ class _PropertyParser:
         elif axes == "CYX":
             _, h0, w0 = map(int, series.shape)
             level_dimensions = ((lvl.shape[2], lvl.shape[1]) for lvl in series.levels)
+        elif axes == "YX":
+            h0, w0 = map(int, series.shape)
+            level_dimensions = ((lvl.shape[1], lvl.shape[0]) for lvl in series.levels)
         else:
             raise NotImplementedError(f"series with axes={axes!r} not supported yet")
 
