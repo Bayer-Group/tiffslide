@@ -345,7 +345,8 @@ class TiffSlide:
             )
 
             depth, dtype = get_zarr_depth_and_dtype(self.zarr_group, axes)
-            return np.zeros((_rh, _rw, depth), dtype=dtype)
+            shape = (_rh, _rw) if depth == 1 else (_rh, _rw, depth)
+            return np.zeros(shape, dtype=dtype)
 
         rx0 = (base_x * level_w) // base_w
         ry0 = (base_y * level_h) // base_h
@@ -396,9 +397,12 @@ class TiffSlide:
                 )
 
             # noinspection PyUnboundLocalVariable
+            pad_param = ((pad_y0, pad_y1), (pad_x0, pad_x1))
+            if len(axes) == 3:
+                pad_param = pad_param + ((0, 0),)
             arr = np.pad(
                 arr,
-                ((pad_y0, pad_y1), (pad_x0, pad_x1), (0, 0)),
+                pad_param,
                 mode="constant",
                 constant_values=0,
             )

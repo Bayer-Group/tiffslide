@@ -287,8 +287,8 @@ def get_zarr_chunk_sizes(
     chunks = value['chunks']
 
     assert len(shape) == len(chunks)
-    if len(shape) != 3:
-        raise NotImplementedError("chunk dimensions != 3")
+    if len(shape) not in (2, 3):
+        raise NotImplementedError("chunk dimensions not in (2, 3)")
 
     chunked = tuple(
         i // j + (1 if i % j else 0) for i, j in zip(shape, chunks)
@@ -318,8 +318,8 @@ def get_zarr_chunk_sizes(
         if offset and bytecount:
             chunk_sizes[indices] = bytecount
 
-    if chunk_sizes.ndim != 3:
-        raise NotImplementedError("chunk dimensions != 3")
+    if chunk_sizes.ndim not in (2, 3):
+        raise NotImplementedError("chunk dimensions not in (2, 3)")
 
     if sum_axis is None:
         return chunk_sizes  # type: ignore
@@ -447,6 +447,8 @@ def get_zarr_depth_and_dtype(grp: zarr.Group, axes: str) -> tuple[int, DTypeLike
         depth = zarray.shape[2]
     elif axes == "CYX":
         depth = zarray.shape[0]
+    elif axes == "YX":
+        depth = 1
     else:
         raise NotImplementedError(f"axes={axes!r}")
 
