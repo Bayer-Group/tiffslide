@@ -164,7 +164,6 @@ def _write_test_svs_with_axes_YX_dtype_uint16(pth):
 
     # 尝试写入 svs 格式
     with tifffile.TiffWriter(pth, bigtiff=True) as tif:
-        thw = tile_hw.tolist()
         compression = 'JPEG'
         kwargs = dict(subifds=0, photometric='MINISBLACK', compression=compression, dtype=np.uint16, metadata=None)
         hw: tuple[int, int]
@@ -172,11 +171,11 @@ def _write_test_svs_with_axes_YX_dtype_uint16(pth):
             gen = gen_im(tile_hw)
             if i == 0:
                 desc = svs_desc.format(mag=mag, filename=filename, mpp=mpp)
-                tif.write(data=gen, shape=(*hw, 1), tile=thw[::-1], resolution=resolution, description=desc, **kwargs)
+                tif.write(data=gen, shape=(*hw, 1), tile=tile_hw[::-1], resolution=resolution, description=desc, **kwargs)
                 # write thumbnail image
                 tif.write(data=thumbnail_im, description='', **kwargs)
             else:
-                tif.write(data=gen, shape=(*hw, 1), tile=thw[::-1], resolution=resolution, description='', **kwargs)
+                tif.write(data=gen, shape=(*hw, 1), tile=tile_hw[::-1], resolution=resolution, description='', **kwargs)
 
         tif.write(data=label_im, subfiletype=1, description=label_desc.format(W=label_im.shape[1], H=label_im.shape[0]), **kwargs)
         tif.write(data=macro_im, subfiletype=9, description=macro_desc.format(W=macro_im.shape[1], H=macro_im.shape[0]), **kwargs)
