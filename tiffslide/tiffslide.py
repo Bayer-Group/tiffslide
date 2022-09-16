@@ -457,6 +457,7 @@ class TiffSlide:
         try:
             thumb.thumbnail(size, _ANTIALIAS)
         except ValueError:
+            # see: https://github.com/python-pillow/Pillow/blob/95cff6e959/src/libImaging/Resample.c#L559-L588
             thumb.thumbnail(size, Image.NEAREST)
         return thumb
 
