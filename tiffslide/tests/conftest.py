@@ -170,7 +170,6 @@ def _write_test_svs_with_axes_YX_dtype_uint16(pth):
         hw: tuple[int, int]
         for i, hw in enumerate(multi_hw):
             gen = gen_im(tile_hw)
-            hw = hw.tolist()
             if i == 0:
                 desc = svs_desc.format(mag=mag, filename=filename, mpp=mpp)
                 tif.write(data=gen, shape=(*hw, 1), tile=thw[::-1], resolution=resolution, description=desc, **kwargs)
