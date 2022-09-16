@@ -369,6 +369,7 @@ class TiffSlide:
             ry0 = _clip(ry0, 0, level_h)
             ry1 = _clip(ry1, 0, level_h)
 
+        selection: "tuple[slice, ...]"
         if axes == "YXS":
             selection = slice(ry0, ry1), slice(rx0, rx1), slice(None)
         elif axes == "CYX":
