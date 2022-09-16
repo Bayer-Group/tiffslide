@@ -397,6 +397,7 @@ class TiffSlide:
                 )
 
             # noinspection PyUnboundLocalVariable
+            pad_param: "tuple[tuple[int, int], ...]"
             pad_param = ((pad_y0, pad_y1), (pad_x0, pad_x1))
             if len(axes) == 3:
                 pad_param = pad_param + ((0, 0),)

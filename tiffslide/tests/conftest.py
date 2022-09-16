@@ -144,7 +144,7 @@ def _write_test_svs_with_axes_YX_dtype_uint16(pth):
 
     def gen_im(size_hw):
         while True:
-            im = np.full([*size_hw], 255, np.uint16)
+            im = np.full(size_hw, 255, np.uint16)
             yield im
 
     svs_desc = 'Aperio Image Library Fake\nABC |AppMag = {mag}|Filename = {filename}|MPP = {mpp}'
@@ -154,9 +154,9 @@ def _write_test_svs_with_axes_YX_dtype_uint16(pth):
     thumbnail_im = np.zeros([762, 762], dtype=np.uint16)
     label_im = np.zeros([762, 762], dtype=np.uint16)
     macro_im = np.zeros([762, 762], dtype=np.uint16)
-    tile_hw = np.int64([512, 512])
+    tile_hw = (512, 512)
     # mutli resolution
-    multi_hw = np.int64([(10240, 10240), (5120, 5120), (2560, 2560)])
+    multi_hw = [(10240, 10240), (5120, 5120), (2560, 2560)]
     mpp = 0.25
     mag = 40
     resolution = [10000 / mpp, 10000 / mpp, 'CENTIMETER']
@@ -167,6 +167,7 @@ def _write_test_svs_with_axes_YX_dtype_uint16(pth):
         thw = tile_hw.tolist()
         compression = 'JPEG'
         kwargs = dict(subifds=0, photometric='MINISBLACK', compression=compression, dtype=np.uint16, metadata=None)
+        hw: tuple[int, int]
         for i, hw in enumerate(multi_hw):
             gen = gen_im(tile_hw)
             hw = hw.tolist()
