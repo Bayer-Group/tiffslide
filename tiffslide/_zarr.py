@@ -107,8 +107,10 @@ class _CompositedStore(Mapping[str, Any]):
 
 
 def _get_series_zarr(
-    obj: TiffFile | ReferenceFileSystem, series_idx: int, *,
-    num_decode_threads: int | None = None
+    obj: TiffFile | ReferenceFileSystem,
+    series_idx: int,
+    *,
+    num_decode_threads: int | None = None,
 ) -> Mapping[str, Any]:
     """return a zarr store from the object"""
     if isinstance(obj, (TiffFile, NotTiffFile)):
@@ -155,7 +157,9 @@ def get_zarr_store(
     if composition:
         prefixed_stores = {}
         for series_idx in composition["located_series"].keys():
-            _store = _get_series_zarr(tf, series_idx, num_decode_threads=num_decode_threads)
+            _store = _get_series_zarr(
+                tf, series_idx, num_decode_threads=num_decode_threads
+            )
             # encapsulate store as group if tifffile returns a zarr array
             if ".zarray" in _store:
                 _store = _CompositedStore({"0": _store})
@@ -251,10 +255,7 @@ def get_zarr_chunk_sizes(
             store = store._mutable_mapping
 
         # noinspection PyProtectedMember
-        if (
-            isinstance(store, _CompositedStore)
-            and {"0"} == set(store._stores)
-        ):
+        if isinstance(store, _CompositedStore) and {"0"} == set(store._stores):
             # noinspection PyProtectedMember
             store = store._stores["0"]
 
@@ -266,9 +267,9 @@ def get_zarr_chunk_sizes(
             raise NotImplementedError(f"store type: {type(store).__name__!r}")
 
     for key, value in store.items():
-        if '.zarray' in key:
+        if ".zarray" in key:
 
-            levelstr = (key.split('/')[0] + '/') if '/' in key else ''
+            levelstr = (key.split("/")[0] + "/") if "/" in key else ""
             # skip if not selected level
             if levelstr == "" and level != 0:
                 continue
@@ -282,16 +283,14 @@ def get_zarr_chunk_sizes(
         raise ValueError(f"no matching level: {level}")
 
     value = json.loads(value)
-    shape = value['shape']
-    chunks = value['chunks']
+    shape = value["shape"]
+    chunks = value["chunks"]
 
     assert len(shape) == len(chunks)
     if len(shape) not in (2, 3):
         raise NotImplementedError("chunk dimensions not in (2, 3)")
 
-    chunked = tuple(
-        i // j + (1 if i % j else 0) for i, j in zip(shape, chunks)
-    )
+    chunked = tuple(i // j + (1 if i % j else 0) for i, j in zip(shape, chunks))
 
     # fixme:
     #  relies on private functionality of ZarrTiffStore, might break at any time
@@ -307,7 +306,7 @@ def get_zarr_chunk_sizes(
 
     _index = ""
     for indices in np.ndindex(*chunked):
-        chunkindex = '.'.join(str(index) for index in indices)
+        chunkindex = ".".join(str(index) for index in indices)
         key = levelstr + chunkindex
         keyframe, page, _, offset, bytecount = parse_key(key)
         # key = levelstr + _index + chunkindex

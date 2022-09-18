@@ -263,7 +263,9 @@ class TiffSlide:
                 num_decode_threads = int(_num_decode)
             else:
                 num_decode_threads = None
-        store = get_zarr_store(self.properties, self._tifffile, num_decode_threads=num_decode_threads)
+        store = get_zarr_store(
+            self.properties, self._tifffile, num_decode_threads=num_decode_threads
+        )
         return zarr.open_group(store, mode="r")
 
     @property
@@ -413,7 +415,6 @@ class TiffSlide:
             return Image.fromarray(arr[..., 0])
         else:
             return Image.fromarray(arr)
-
 
     def get_thumbnail(
         self, size: tuple[int, int], *, use_embedded: bool = False
@@ -662,7 +663,9 @@ class _PropertyParser:
         # calculate level info
         md = {}
         if series.ndim not in (2, 3):
-            raise NotImplementedError("currently no support for series.ndim not in (2, 3)")
+            raise NotImplementedError(
+                "currently no support for series.ndim not in (2, 3)"
+            )
 
         axes = md["tiffslide.series-axes"] = series.axes
 

@@ -1,7 +1,7 @@
 from tiffslide import TiffSlide
+
 # noinspection PyProtectedMember
 from tiffslide._zarr import get_zarr_chunk_sizes
-
 
 
 def test_get_chunk_sizes(wsi_file):

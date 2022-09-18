@@ -83,7 +83,8 @@ def _wsi_files():
                 TestImageType.GENERATE_PYRAMIDAL_IMG, id="generated-pyramidal"
             ),
             pytest.param(
-                TestImageType.GENERATE_PYRAMIDAL_1CH_16B_SVS, id="generated-pyramidal-1ch-16b-svs"
+                TestImageType.GENERATE_PYRAMIDAL_1CH_16B_SVS,
+                id="generated-pyramidal-1ch-16b-svs",
             ),
         ]
     return paths
@@ -158,9 +159,9 @@ def _write_test_svs_with_axes_YX_dtype_uint16(pth):
     macro_im = np.zeros([762, 762], dtype=np.uint16)
 
     # fake descriptions
-    svs_desc = 'Aperio Image Library Fake\nABC |AppMag = {mag}|Filename = {filename}|MPP = {mpp}'
-    label_desc = 'Aperio Image Library Fake\nlabel {W}x{H}'
-    macro_desc = 'Aperio Image Library Fake\nmacro {W}x{H}'
+    svs_desc = "Aperio Image Library Fake\nABC |AppMag = {mag}|Filename = {filename}|MPP = {mpp}"
+    label_desc = "Aperio Image Library Fake\nlabel {W}x{H}"
+    macro_desc = "Aperio Image Library Fake\nmacro {W}x{H}"
 
     tile_hw = (512, 512)
     # multi resolution
@@ -168,17 +169,17 @@ def _write_test_svs_with_axes_YX_dtype_uint16(pth):
     mpp = 0.25
     mag = 40
     resolution = (10000 / mpp, 10000 / mpp)
-    resolution_unit = 'CENTIMETER'
-    filename = 'ASD'
+    resolution_unit = "CENTIMETER"
+    filename = "ASD"
 
     # write to svs format
     with tifffile.TiffWriter(pth, bigtiff=True) as tif:
         kwargs = {
-            'subifds': 0,
-            'photometric': 'MINISBLACK',
-            'compression': 'JPEG',
-            'dtype': np.uint16,
-            'metadata': None
+            "subifds": 0,
+            "photometric": "MINISBLACK",
+            "compression": "JPEG",
+            "dtype": np.uint16,
+            "metadata": None,
         }
 
         # write level 0
@@ -192,7 +193,7 @@ def _write_test_svs_with_axes_YX_dtype_uint16(pth):
             **kwargs,
         )
         # write thumbnail image
-        tif.write(data=thumbnail_im, description='', **kwargs)
+        tif.write(data=thumbnail_im, description="", **kwargs)
 
         # write level 1 to N
         for hw in multi_hw[1:]:
@@ -265,7 +266,7 @@ def wsi_file(request, tmp_path_factory):
             "_small_pyramid.tiff"
         )
         _write_test_tiff(img_fn, (4096, 4096))
-    
+
     elif request.param == TestImageType.GENERATE_PYRAMIDAL_1CH_16B_SVS:
         img_fn = tmp_path_factory.mktemp("_generated_test_tiffs").joinpath(
             "_small_pyramid_2.svs"
