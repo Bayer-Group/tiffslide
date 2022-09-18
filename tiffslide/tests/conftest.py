@@ -17,6 +17,7 @@ import numpy as np
 import pytest
 import tifffile
 from imagecodecs import imwrite
+from tifffile import COMPRESSION
 
 # openslide aperio test images
 IMAGES_BASE_URL = "http://openslide.cs.cmu.edu/download/openslide-testdata/Aperio/"
@@ -183,7 +184,7 @@ def _write_test_svs_with_axes_YX_dtype_uint16(pth):
         kwargs = {
             "subifds": 0,
             "photometric": "MINISBLACK",
-            "compression": "JPEG",
+            "compression": COMPRESSION.APERIO_JP2000_RGB,
             "dtype": np.uint16,
             "metadata": None,
         }
