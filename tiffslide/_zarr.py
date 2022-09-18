@@ -218,16 +218,11 @@ def get_zarr_selection(
 
             overlaps[series_idx] = overlap
 
-        s0, s1 = selection[:2]
+        s0, s1, s2 = selection
         r0 = range(level_shape[0])[s0]
         r1 = range(level_shape[1])[s1]
-        shape = (r0.stop - r0.start, r1.stop - r1.start)
-        
-        if len(selection) > 2:
-            s2 = selection[2]
-            r2 = range(level_shape[2])[s2]
-            shape = shape + (r2.stop - r2.start,)
-
+        r2 = range(level_shape[2])[s2]
+        shape = (r0.stop - r0.start, r1.stop - r1.start, r2.stop - r2.start)
         # todo: optimize! In the most common case this should be filled entirely
         out = np.full(shape, fill_value=fill_value, dtype=dtype)
 
@@ -364,16 +359,10 @@ def get_overlap(
     can be used to assign the overlap correctly to the output array.
 
     """
-    s0, s1 = selection[:2]
-    d0, d1 = cshape[:2]
-    o0, o1 = offset[:2]
-    a0, a1 = ashape[:2]
-
-    if len(selection) == 3:
-        s2 = selection[2]
-        d2 = cshape[2]
-        o2 = offset[2]
-        a2 = ashape[2]
+    s0, s1, s2 = selection
+    d0, d1, d2 = cshape
+    o0, o1, o2 = offset
+    a0, a1, a2 = ashape
 
     # dim 0
     x0, x1, _ = s0.indices(d0)
@@ -387,36 +376,30 @@ def get_overlap(
     Y1 = o1 + a1
     if Y1 < y0 or y1 <= Y0:
         return None
-    
     # dim 2
-    if len(selection) == 3:
-        z0, z1, _ = s2.indices(d2)
-        Z0 = o2
-        Z1 = o2 + a2
-        if Z1 < z0 or z1 <= Z0:
-            return None
+    z0, z1, _ = s2.indices(d2)
+    Z0 = o2
+    Z1 = o2 + a2
+    if Z1 < z0 or z1 <= Z0:
+        return None
 
     ix0 = max(x0, X0)
     iy0 = max(y0, Y0)
+    iz0 = max(z0, Z0)
     ix1 = min(x1, X1)
     iy1 = min(y1, Y1)
-    if len(selection) == 3:
-        iz0 = max(z0, Z0)
-        iz1 = min(z1, Z1)
+    iz1 = min(z1, Z1)
 
     target = (
         slice(ix0 - x0, ix1 - x0, 1),
         slice(iy0 - y0, iy1 - y0, 1),
+        slice(iz0 - z0, iz1 - z0, 1),
     )
     source = (
         slice(ix0 - X0, ix1 - X0, 1),
         slice(iy0 - Y0, iy1 - Y0, 1),
+        slice(iz0 - Z0, iz1 - Z0, 1),
     )
-
-    if len(selection) == 3:
-        target = target + (slice(iz0 - z0, iz1 - z0, 1),)
-        source = source + (slice(iz0 - Z0, iz1 - Z0, 1),)
-
     return target, source
 
 
