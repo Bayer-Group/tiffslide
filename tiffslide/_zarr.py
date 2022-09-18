@@ -304,7 +304,7 @@ def get_zarr_chunk_sizes(
 
     chunk_sizes = np.full(chunked, dtype=np.int64, fill_value=-1)
 
-    _index = ""
+    # _index = ""
     for indices in np.ndindex(*chunked):
         chunkindex = ".".join(str(index) for index in indices)
         key = levelstr + chunkindex
