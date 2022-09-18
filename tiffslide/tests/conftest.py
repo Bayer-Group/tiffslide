@@ -32,7 +32,7 @@ def md5(fn):
 class TestImageType(enum.Enum):
     DOWNLOAD_SMALLEST_CMU = enum.auto()
     GENERATE_PYRAMIDAL_IMG = enum.auto()
-    GENERATE_PYRAMIDAL_IMG_2 = enum.auto()
+    GENERATE_PYRAMIDAL_1CH_16B_SVS = enum.auto()
 
 
 def _wsi_files():
@@ -83,7 +83,7 @@ def _wsi_files():
                 TestImageType.GENERATE_PYRAMIDAL_IMG, id="generated-pyramidal"
             ),
             pytest.param(
-                TestImageType.GENERATE_PYRAMIDAL_IMG_2, id="generated-pyramidal-2"
+                TestImageType.GENERATE_PYRAMIDAL_1CH_16B_SVS, id="generated-pyramidal-1ch-16b-svs"
             ),
         ]
     return paths
@@ -141,44 +141,85 @@ def _write_test_tiff(
 
 
 def _write_test_svs_with_axes_YX_dtype_uint16(pth):
+    """write a special tiff in svs format with single channel levels and dtype uint16
 
+    author: One-Sixth https://github.com/One-sixth
+    reported: https://github.com/bayer-science-for-a-better-life/tiffslide/issues/46
+    """
+
+    # fake data
     def gen_im(size_hw):
         while True:
             im = np.full(size_hw, 255, np.uint16)
             yield im
 
+    thumbnail_im = np.zeros([762, 762], dtype=np.uint16)
+    label_im = np.zeros([762, 762], dtype=np.uint16)
+    macro_im = np.zeros([762, 762], dtype=np.uint16)
+
+    # fake descriptions
     svs_desc = 'Aperio Image Library Fake\nABC |AppMag = {mag}|Filename = {filename}|MPP = {mpp}'
     label_desc = 'Aperio Image Library Fake\nlabel {W}x{H}'
     macro_desc = 'Aperio Image Library Fake\nmacro {W}x{H}'
 
-    thumbnail_im = np.zeros([762, 762], dtype=np.uint16)
-    label_im = np.zeros([762, 762], dtype=np.uint16)
-    macro_im = np.zeros([762, 762], dtype=np.uint16)
     tile_hw = (512, 512)
-    # mutli resolution
+    # multi resolution
     multi_hw = [(10240, 10240), (5120, 5120), (2560, 2560)]
     mpp = 0.25
     mag = 40
-    resolution = [10000 / mpp, 10000 / mpp, 'CENTIMETER']
+    resolution = (10000 / mpp, 10000 / mpp)
+    resolution_unit = 'CENTIMETER'
     filename = 'ASD'
 
-    # 尝试写入 svs 格式
+    # write to svs format
     with tifffile.TiffWriter(pth, bigtiff=True) as tif:
-        compression = 'JPEG'
-        kwargs = dict(subifds=0, photometric='MINISBLACK', compression=compression, dtype=np.uint16, metadata=None)
-        hw: tuple[int, int]
-        for i, hw in enumerate(multi_hw):
-            gen = gen_im(tile_hw)
-            if i == 0:
-                desc = svs_desc.format(mag=mag, filename=filename, mpp=mpp)
-                tif.write(data=gen, shape=(*hw, 1), tile=tile_hw[::-1], resolution=resolution, description=desc, **kwargs)
-                # write thumbnail image
-                tif.write(data=thumbnail_im, description='', **kwargs)
-            else:
-                tif.write(data=gen, shape=(*hw, 1), tile=tile_hw[::-1], resolution=resolution, description='', **kwargs)
+        kwargs = {
+            'subifds': 0,
+            'photometric': 'MINISBLACK',
+            'compression': 'JPEG',
+            'dtype': np.uint16,
+            'metadata': None
+        }
 
-        tif.write(data=label_im, subfiletype=1, description=label_desc.format(W=label_im.shape[1], H=label_im.shape[0]), **kwargs)
-        tif.write(data=macro_im, subfiletype=9, description=macro_desc.format(W=macro_im.shape[1], H=macro_im.shape[0]), **kwargs)
+        # write level 0
+        tif.write(
+            data=gen_im(tile_hw),
+            shape=(*multi_hw[0], 1),
+            tile=tile_hw[::-1],
+            resolution=resolution,
+            resolutionunit=resolution_unit,
+            description=svs_desc.format(mag=mag, filename=filename, mpp=mpp),
+            **kwargs,
+        )
+        # write thumbnail image
+        tif.write(data=thumbnail_im, description='', **kwargs)
+
+        # write level 1 to N
+        for hw in multi_hw[1:]:
+            tif.write(
+                data=gen_im(tile_hw),
+                shape=(*hw, 1),
+                tile=tile_hw[::-1],
+                resolution=resolution,
+                resolutionunit=resolution_unit,
+                description="",
+                **kwargs,
+            )
+
+        # write label
+        tif.write(
+            data=label_im,
+            subfiletype=1,
+            description=label_desc.format(W=label_im.shape[1], H=label_im.shape[0]),
+            **kwargs,
+        )
+        # write marco
+        tif.write(
+            data=macro_im,
+            subfiletype=9,
+            description=macro_desc.format(W=macro_im.shape[1], H=macro_im.shape[0]),
+            **kwargs,
+        )
 
 
 def _write_test_jpg(
@@ -225,7 +266,7 @@ def wsi_file(request, tmp_path_factory):
         )
         _write_test_tiff(img_fn, (4096, 4096))
     
-    elif request.param == TestImageType.GENERATE_PYRAMIDAL_IMG_2:
+    elif request.param == TestImageType.GENERATE_PYRAMIDAL_1CH_16B_SVS:
         img_fn = tmp_path_factory.mktemp("_generated_test_tiffs").joinpath(
             "_small_pyramid_2.svs"
         )

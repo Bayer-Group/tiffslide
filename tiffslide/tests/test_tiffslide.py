@@ -334,12 +334,10 @@ def test_padding_br_on_nonzero_level(slide):
     loc = size[0] - int(10 * ds_lvl1), size[1] - int(10 * ds_lvl1)
     arr = slide.read_region(loc, 1, (20, 20), as_array=True)
 
-    if arr.ndim == 2:
-        assert arr.shape == (20, 20)
-    elif arr.ndim == 3:
-        assert arr.shape == (20, 20, 3)
-    else:
-        raise NotImplementedError('only support arr.ndim in (2, 3)')
+    assert arr.ndim == 3
+    assert arr.shape[0] == 20
+    assert arr.shape[1] == 20
+    assert arr.shape[2] in (1, 3)
     padding_bottom = arr[10:, :]
     padding_right = arr[:, 10:]
     assert np.all(padding_bottom == 0)

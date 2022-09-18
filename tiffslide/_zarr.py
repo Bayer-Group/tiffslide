@@ -4,7 +4,6 @@ provides helpers for handling and compositing arrays and zarr-like groups
 from __future__ import annotations
 
 import json
-import os
 import sys
 from typing import TYPE_CHECKING
 from typing import Any
@@ -221,7 +220,7 @@ def get_zarr_selection(
         s0, s1, s2 = selection
         r0 = range(level_shape[0])[s0]
         r1 = range(level_shape[1])[s1]
-        r2 = range(level_shape[2])[s2]
+        r2 = range(level_shape[2])[s2 if s2 is not ... else slice(None)]
         shape = (r0.stop - r0.start, r1.stop - r1.start, r2.stop - r2.start)
         # todo: optimize! In the most common case this should be filled entirely
         out = np.full(shape, fill_value=fill_value, dtype=dtype)
@@ -377,7 +376,10 @@ def get_overlap(
     if Y1 < y0 or y1 <= Y0:
         return None
     # dim 2
-    z0, z1, _ = s2.indices(d2)
+    if s2 is Ellipsis:
+        z0, z1 = 0, 1
+    else:
+        z0, z1, _ = s2.indices(d2)
     Z0 = o2
     Z1 = o2 + a2
     if Z1 < z0 or z1 <= Z0:

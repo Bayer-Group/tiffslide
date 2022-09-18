@@ -17,6 +17,8 @@ from typing import overload
 from warnings import warn
 from xml.etree import ElementTree
 
+from tiffslide._types import Slice3D
+
 if sys.version_info[:2] >= (3, 8):
     from functools import cached_property
     from typing import Literal
@@ -345,8 +347,7 @@ class TiffSlide:
             )
 
             depth, dtype = get_zarr_depth_and_dtype(self.zarr_group, axes)
-            shape = (_rh, _rw) if depth == 1 else (_rh, _rw, depth)
-            return np.zeros(shape, dtype=dtype)
+            return np.zeros((_rh, _rw, depth), dtype=dtype)
 
         rx0 = (base_x * level_w) // base_w
         ry0 = (base_y * level_h) // base_h
@@ -370,13 +371,13 @@ class TiffSlide:
             ry0 = _clip(ry0, 0, level_h)
             ry1 = _clip(ry1, 0, level_h)
 
-        selection: "tuple[slice, ...]"
+        selection: Slice3D
         if axes == "YXS":
             selection = slice(ry0, ry1), slice(rx0, rx1), slice(None)
         elif axes == "CYX":
             selection = slice(None), slice(ry0, ry1), slice(rx0, rx1)
         elif axes == "YX":
-            selection = slice(ry0, ry1), slice(rx0, rx1)
+            selection = slice(ry0, ry1), slice(rx0, rx1), ...
         else:
             raise NotImplementedError(f"axes={axes!r}")
 
@@ -388,6 +389,8 @@ class TiffSlide:
 
         if axes == "CYX":
             arr = arr.transpose((1, 2, 0))
+        elif axes == "YX":
+            arr = arr[..., np.newaxis]
 
         if requires_padding:
             if arr.shape[0] == 0 or arr.shape[1] == 0:
@@ -397,21 +400,20 @@ class TiffSlide:
                 )
 
             # noinspection PyUnboundLocalVariable
-            pad_param: "tuple[tuple[int, int], ...]"
-            pad_param = ((pad_y0, pad_y1), (pad_x0, pad_x1))
-            if len(axes) == 3:
-                pad_param = pad_param + ((0, 0),)
             arr = np.pad(
                 arr,
-                pad_param,
+                ((pad_y0, pad_y1), (pad_x0, pad_x1), (0, 0)),
                 mode="constant",
                 constant_values=0,
             )
 
         if as_array:
             return arr
+        elif axes == "YX":
+            return Image.fromarray(arr[..., 0])
         else:
             return Image.fromarray(arr)
+
 
     def get_thumbnail(
         self, size: tuple[int, int], *, use_embedded: bool = False
