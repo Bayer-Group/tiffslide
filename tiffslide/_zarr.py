@@ -4,7 +4,6 @@ provides helpers for handling and compositing arrays and zarr-like groups
 from __future__ import annotations
 
 import json
-import os
 import sys
 from typing import TYPE_CHECKING
 from typing import Any
@@ -108,8 +107,10 @@ class _CompositedStore(Mapping[str, Any]):
 
 
 def _get_series_zarr(
-    obj: TiffFile | ReferenceFileSystem, series_idx: int, *,
-    num_decode_threads: int | None = None
+    obj: TiffFile | ReferenceFileSystem,
+    series_idx: int,
+    *,
+    num_decode_threads: int | None = None,
 ) -> Mapping[str, Any]:
     """return a zarr store from the object"""
     if isinstance(obj, (TiffFile, NotTiffFile)):
@@ -156,7 +157,9 @@ def get_zarr_store(
     if composition:
         prefixed_stores = {}
         for series_idx in composition["located_series"].keys():
-            _store = _get_series_zarr(tf, series_idx, num_decode_threads=num_decode_threads)
+            _store = _get_series_zarr(
+                tf, series_idx, num_decode_threads=num_decode_threads
+            )
             # encapsulate store as group if tifffile returns a zarr array
             if ".zarray" in _store:
                 _store = _CompositedStore({"0": _store})
@@ -221,7 +224,7 @@ def get_zarr_selection(
         s0, s1, s2 = selection
         r0 = range(level_shape[0])[s0]
         r1 = range(level_shape[1])[s1]
-        r2 = range(level_shape[2])[s2]
+        r2 = range(level_shape[2])[s2 if s2 is not ... else slice(None)]
         shape = (r0.stop - r0.start, r1.stop - r1.start, r2.stop - r2.start)
         # todo: optimize! In the most common case this should be filled entirely
         out = np.full(shape, fill_value=fill_value, dtype=dtype)
@@ -252,10 +255,7 @@ def get_zarr_chunk_sizes(
             store = store._mutable_mapping
 
         # noinspection PyProtectedMember
-        if (
-            isinstance(store, _CompositedStore)
-            and {"0"} == set(store._stores)
-        ):
+        if isinstance(store, _CompositedStore) and {"0"} == set(store._stores):
             # noinspection PyProtectedMember
             store = store._stores["0"]
 
@@ -267,9 +267,9 @@ def get_zarr_chunk_sizes(
             raise NotImplementedError(f"store type: {type(store).__name__!r}")
 
     for key, value in store.items():
-        if '.zarray' in key:
+        if ".zarray" in key:
 
-            levelstr = (key.split('/')[0] + '/') if '/' in key else ''
+            levelstr = (key.split("/")[0] + "/") if "/" in key else ""
             # skip if not selected level
             if levelstr == "" and level != 0:
                 continue
@@ -283,16 +283,14 @@ def get_zarr_chunk_sizes(
         raise ValueError(f"no matching level: {level}")
 
     value = json.loads(value)
-    shape = value['shape']
-    chunks = value['chunks']
+    shape = value["shape"]
+    chunks = value["chunks"]
 
     assert len(shape) == len(chunks)
-    if len(shape) != 3:
-        raise NotImplementedError("chunk dimensions != 3")
+    if len(shape) not in (2, 3):
+        raise NotImplementedError("chunk dimensions not in (2, 3)")
 
-    chunked = tuple(
-        i // j + (1 if i % j else 0) for i, j in zip(shape, chunks)
-    )
+    chunked = tuple(i // j + (1 if i % j else 0) for i, j in zip(shape, chunks))
 
     # fixme:
     #  relies on private functionality of ZarrTiffStore, might break at any time
@@ -306,9 +304,9 @@ def get_zarr_chunk_sizes(
 
     chunk_sizes = np.full(chunked, dtype=np.int64, fill_value=-1)
 
-    _index = ""
+    # _index = ""
     for indices in np.ndindex(*chunked):
-        chunkindex = '.'.join(str(index) for index in indices)
+        chunkindex = ".".join(str(index) for index in indices)
         key = levelstr + chunkindex
         keyframe, page, _, offset, bytecount = parse_key(key)
         # key = levelstr + _index + chunkindex
@@ -318,8 +316,8 @@ def get_zarr_chunk_sizes(
         if offset and bytecount:
             chunk_sizes[indices] = bytecount
 
-    if chunk_sizes.ndim != 3:
-        raise NotImplementedError("chunk dimensions != 3")
+    if chunk_sizes.ndim not in (2, 3):
+        raise NotImplementedError("chunk dimensions not in (2, 3)")
 
     if sum_axis is None:
         return chunk_sizes  # type: ignore
@@ -377,7 +375,10 @@ def get_overlap(
     if Y1 < y0 or y1 <= Y0:
         return None
     # dim 2
-    z0, z1, _ = s2.indices(d2)
+    if s2 is Ellipsis:
+        z0, z1 = 0, 1
+    else:
+        z0, z1, _ = s2.indices(d2)
     Z0 = o2
     Z1 = o2 + a2
     if Z1 < z0 or z1 <= Z0:
@@ -447,6 +448,8 @@ def get_zarr_depth_and_dtype(grp: zarr.Group, axes: str) -> tuple[int, DTypeLike
         depth = zarray.shape[2]
     elif axes == "CYX":
         depth = zarray.shape[0]
+    elif axes == "YX":
+        depth = 1
     else:
         raise NotImplementedError(f"axes={axes!r}")
 

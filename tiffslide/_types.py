@@ -28,6 +28,11 @@ if TYPE_CHECKING:
 
     from fsspec import AbstractFileSystem
 
+    if sys.version_info >= (3, 10):
+        from types import EllipsisType
+    else:
+        EllipsisType: TypeAlias = Any
+
 
 __all__ = [
     "PathOrFileOrBufferLike",
@@ -40,9 +45,9 @@ __all__ = [
 ]
 
 if sys.version_info >= (3, 9):
-    PathLikeAnyStr = os.PathLike[AnyStr]
+    PathLikeAnyStr: TypeAlias = os.PathLike[AnyStr]
 else:
-    PathLikeAnyStr = os.PathLike
+    PathLikeAnyStr: TypeAlias = os.PathLike
 
 
 @runtime_checkable
@@ -86,7 +91,9 @@ PathOrFileOrBufferLike = Union[AnyStr, PathLikeAnyStr, OpenFileLike, TiffFileIO]
 
 Point3D: TypeAlias = "tuple[int, int, int]"
 Size3D: TypeAlias = "tuple[int, int, int]"
-Slice3D: TypeAlias = "tuple[slice, slice, slice]"
+Slice2D: TypeAlias = "tuple[slice, slice]"
+_Slice2D_YX0: TypeAlias = "tuple[slice, slice, EllipsisType]"
+Slice3D: TypeAlias = "tuple[slice, slice, slice] | _Slice2D_YX0"
 
 
 class SeriesCompositionInfo(TypedDict):

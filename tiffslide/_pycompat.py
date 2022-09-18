@@ -64,10 +64,7 @@ class _IncompatibleStoreShim(Mapping[str, Any]):
         self._mutable_mapping = mapping
 
     def __getitem__(self, key: str) -> Any:
-        if (
-            key.endswith((".zarray", ".zgroup"))
-            and key not in self._mutable_mapping
-        ):
+        if key.endswith((".zarray", ".zgroup")) and key not in self._mutable_mapping:
             raise KeyError(key)
         try:
             return self._mutable_mapping[key]

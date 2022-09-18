@@ -17,6 +17,8 @@ from typing import overload
 from warnings import warn
 from xml.etree import ElementTree
 
+from tiffslide._types import Slice3D
+
 if sys.version_info[:2] >= (3, 8):
     from functools import cached_property
     from typing import Literal
@@ -261,7 +263,9 @@ class TiffSlide:
                 num_decode_threads = int(_num_decode)
             else:
                 num_decode_threads = None
-        store = get_zarr_store(self.properties, self._tifffile, num_decode_threads=num_decode_threads)
+        store = get_zarr_store(
+            self.properties, self._tifffile, num_decode_threads=num_decode_threads
+        )
         return zarr.open_group(store, mode="r")
 
     @property
@@ -369,10 +373,13 @@ class TiffSlide:
             ry0 = _clip(ry0, 0, level_h)
             ry1 = _clip(ry1, 0, level_h)
 
+        selection: Slice3D
         if axes == "YXS":
             selection = slice(ry0, ry1), slice(rx0, rx1), slice(None)
         elif axes == "CYX":
             selection = slice(None), slice(ry0, ry1), slice(rx0, rx1)
+        elif axes == "YX":
+            selection = slice(ry0, ry1), slice(rx0, rx1), ...
         else:
             raise NotImplementedError(f"axes={axes!r}")
 
@@ -384,6 +391,8 @@ class TiffSlide:
 
         if axes == "CYX":
             arr = arr.transpose((1, 2, 0))
+        elif axes == "YX":
+            arr = arr[..., np.newaxis]
 
         if requires_padding:
             if arr.shape[0] == 0 or arr.shape[1] == 0:
@@ -402,6 +411,8 @@ class TiffSlide:
 
         if as_array:
             return arr
+        elif axes == "YX":
+            return Image.fromarray(arr[..., 0])
         else:
             return Image.fromarray(arr)
 
@@ -447,12 +458,16 @@ class TiffSlide:
 
         # now composite the thumbnail
         thumb = Image.new(
-            mode="RGB",
+            mode=img.mode,
             size=img.size,
             color=f"#{self.properties[PROPERTY_NAME_BACKGROUND_COLOR] or 'ffffff'}",
         )
         thumb.paste(img, box=None, mask=None)
-        thumb.thumbnail(size, _ANTIALIAS)
+        try:
+            thumb.thumbnail(size, _ANTIALIAS)
+        except ValueError:
+            # see: https://github.com/python-pillow/Pillow/blob/95cff6e959/src/libImaging/Resample.c#L559-L588
+            thumb.thumbnail(size, Image.NEAREST)
         return thumb
 
 
@@ -647,8 +662,10 @@ class _PropertyParser:
     def collect_level_info(cls, series: TiffPageSeries) -> dict[str, Any]:
         # calculate level info
         md = {}
-        if series.ndim != 3:
-            raise NotImplementedError("currently no support for series.ndim != 3")
+        if series.ndim not in (2, 3):
+            raise NotImplementedError(
+                "currently no support for series.ndim not in (2, 3)"
+            )
 
         axes = md["tiffslide.series-axes"] = series.axes
 
@@ -658,6 +675,9 @@ class _PropertyParser:
         elif axes == "CYX":
             _, h0, w0 = map(int, series.shape)
             level_dimensions = ((lvl.shape[2], lvl.shape[1]) for lvl in series.levels)
+        elif axes == "YX":
+            h0, w0 = map(int, series.shape)
+            level_dimensions = ((lvl.shape[1], lvl.shape[0]) for lvl in series.levels)
         else:
             raise NotImplementedError(f"series with axes={axes!r} not supported yet")
 
