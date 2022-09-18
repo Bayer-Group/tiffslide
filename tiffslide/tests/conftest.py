@@ -5,6 +5,7 @@ import hashlib
 import os
 import pathlib
 import shutil
+import sys
 import urllib.request
 from itertools import cycle
 from itertools import groupby
@@ -168,9 +169,14 @@ def _write_test_svs_with_axes_YX_dtype_uint16(pth):
     multi_hw = [(10240, 10240), (5120, 5120), (2560, 2560)]
     mpp = 0.25
     mag = 40
-    resolution = (10000 / mpp, 10000 / mpp)
-    resolution_unit = "CENTIMETER"
     filename = "ASD"
+    if sys.version_info >= (3, 8):
+        resolution_kw = {
+            "resolution": (10000 / mpp, 10000 / mpp),
+            "resolutionunit": "CENTIMETER",
+        }
+    else:
+        resolution_kw = {"resolution": (10000 / mpp, 10000 / mpp, "CENTIMETER")}
 
     # write to svs format
     with tifffile.TiffWriter(pth, bigtiff=True) as tif:
@@ -187,9 +193,8 @@ def _write_test_svs_with_axes_YX_dtype_uint16(pth):
             data=gen_im(tile_hw),
             shape=(*multi_hw[0], 1),
             tile=tile_hw[::-1],
-            resolution=resolution,
-            resolutionunit=resolution_unit,
             description=svs_desc.format(mag=mag, filename=filename, mpp=mpp),
+            **resolution_kw,
             **kwargs,
         )
         # write thumbnail image
@@ -201,9 +206,8 @@ def _write_test_svs_with_axes_YX_dtype_uint16(pth):
                 data=gen_im(tile_hw),
                 shape=(*hw, 1),
                 tile=tile_hw[::-1],
-                resolution=resolution,
-                resolutionunit=resolution_unit,
                 description="",
+                **resolution_kw,
                 **kwargs,
             )
 
