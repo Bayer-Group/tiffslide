@@ -155,6 +155,9 @@ def get_zarr_store(
         "tiffslide.series-composition"
     )
     store: Mapping[str, Any]
+    if isinstance(tf, ReferenceFileSystem):
+        return tf.get_mapper("")
+
     if composition:
         prefixed_stores = {}
         for series_idx in composition["located_series"].keys():
@@ -203,8 +206,10 @@ def get_zarr_selection(
         located_series = composition["located_series"]
 
         for series_idx, level_offsets in located_series.items():
-            arr = grp[f"{series_idx}/{level}"]
             offset = level_offsets[level]
+            if offset is None:
+                continue
+            arr = grp[f"{series_idx}/{level}"]
 
             if dtype is None:
                 dtype = arr.dtype

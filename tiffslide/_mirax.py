@@ -382,6 +382,14 @@ class Mirax:
 
         PIL.Image.fromarray(arr).save("output.png")
 
+    def build_properties(self):
+        # fixme: minimal version
+        return {
+            "tiffslide.series-axes": "YXS",
+            "tiffslide.level[0].width": self.slide_data.image_size[0],
+            "tiffslide.level[0].height": self.slide_data.image_size[1],
+        }
+
     def build_reference(self):
         """write a kerchunk reference loadable via zarr"""
         idiv = self.slide_data.image_divisions
@@ -465,12 +473,12 @@ class Mirax:
             level_shapes.append((int(sy), int(sx), 3))
 
             for c_idx in series_indices - c_indices:
-                located_series[c_idx].append(None)
+                located_series[f"s{c_idx}"].append(None)
             for c_idx in c_indices:
                 x0, y0 = self.tile_positions[c_idx]
                 x0 //= 2**level
                 y0 //= 2**level
-                located_series[c_idx].append((int(y0), int(x0), 0))
+                located_series[f"s{c_idx}"].append((int(y0), int(x0), 0))
 
         series_composition_info: SeriesCompositionInfo = dict(
             level_shapes=level_shapes,
@@ -478,8 +486,10 @@ class Mirax:
         )
 
         refs[".zattrs"] = json.dumps({
-            "series": sorted(level_series),
+            # "tiffslide.series": sorted(level_series),
             "tiffslide.series-composition": series_composition_info,
+            "tiffslide.properties": self.build_properties(),
+            "tiffslide.spec_version": 1,
         })
 
         kc["refs"] = {
@@ -505,8 +515,12 @@ def _debug_get_zarr(kc_dct):
 if __name__ == "__main__":
     import sys
     from itertools import islice
+    from pathlib import Path
+    from tiffslide._kerchunk import from_kerchunk
 
-    mm = Mirax(sys.argv[1])
+    pth = Path(sys.argv[1])
+
+    mm = Mirax(pth)
     _kc = mm.build_reference()
     print('"templates": {')
     for t, x in _kc["templates"].items():
@@ -520,8 +534,15 @@ if __name__ == "__main__":
     print("  ...")
     print("}")
 
+    with open(f"{pth.stem}.kerchunk.json", "w") as f:
+        json.dump(_kc, f)
+
     grp = _debug_get_zarr(_kc)
     # todo:
     #  > [ ] support None in series_composition
     #  > [ ] gather minimal properties and add to zarr
     #  > [ ] load via from_kerchunk
+
+
+    slide = from_kerchunk(_kc)
+    slide.read_region((55000, 150000), 0, (8192, 8192)).save("test_cmu_big.jpeg")
