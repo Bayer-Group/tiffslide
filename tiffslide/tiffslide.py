@@ -781,16 +781,25 @@ class _PropertyParser:
 
     def parse_hamamatsu(self) -> dict[str, Any]:
         warn(
-            "no special hamamatsu-format metadata parsing implemented yet!",
+            "partial hamamatsu-format metadata parsing has been implemented!",
             stacklevel=2,
         )
         md = self.parse_generic_tiff()
+
         # collect hamamatsu tags
         page0 = self._tf.series[0][0]
         hamamatsu_tags = {}
         for k,t in page0.tags.items():
             hamamatsu_tags[f'hamamatsu.{t.name}'] = t.value
         md.update(hamamatsu_tags)
+
+        # Update dict
+        md[PROPERTY_NAME_VENDOR]='hamamatsu'
+        md[PROPERTY_NAME_OBJECTIVE_POWER]=md['hamamatsu.65421']
+        md['hamamatsu.SourceLens']=md['hamamatsu.65421']
+        md['hamamatsu.XOffsetFromSlideCentre']=md['hamamatsu.65422']
+        md['hamamatsu.YOffsetFromSlideCentre']=md['hamamatsu.65423']
+
         return md
 
     def parse_generic_tiff(self) -> dict[str, Any]:
