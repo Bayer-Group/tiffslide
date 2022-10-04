@@ -784,7 +784,14 @@ class _PropertyParser:
             "no special hamamatsu-format metadata parsing implemented yet!",
             stacklevel=2,
         )
-        return self.parse_generic_tiff()
+        md = self.parse_generic_tiff()
+        # collect hamamatsu tags
+        page0 = self._tf.series[0][0]
+        hamamatsu_tags = {}
+        for k,t in page0.tags.items():
+            hamamatsu_tags[f'hamamatsu.{t.name}'] = t.value
+        md.update(hamamatsu_tags)
+        return md
 
     def parse_generic_tiff(self) -> dict[str, Any]:
         # todo: need to handle more supported formats in the future
