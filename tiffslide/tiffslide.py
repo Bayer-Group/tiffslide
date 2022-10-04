@@ -787,18 +787,19 @@ class _PropertyParser:
         md = self.parse_generic_tiff()
 
         # collect hamamatsu tags
-        page0 = self._tf.series[0][0]
-        hamamatsu_tags = {}
-        for k,t in page0.tags.items():
-            hamamatsu_tags[f'hamamatsu.{t.name}'] = t.value
-        md.update(hamamatsu_tags)
+        tags = self._tf.series[0][0].tags
+        tag_map = {"65421":"hamamatsu.SourceLens", 
+                   "65422":"hamamatsu.XOffsetFromSlideCentre",
+                   "65423":"hamamatsu.YOffsetFromSlideCentre",
+                   "Model":'hamamatsu.Model'}
+        for tf_t, ts_t in  tag_map.items():
+            tag = tags.get(tf_t)
+            if tag:
+                md[ts_t]=tag.value
 
-        # Update dict
         md[PROPERTY_NAME_VENDOR]='hamamatsu'
-        md[PROPERTY_NAME_OBJECTIVE_POWER]=md['hamamatsu.65421']
-        md['hamamatsu.SourceLens']=md['hamamatsu.65421']
-        md['hamamatsu.XOffsetFromSlideCentre']=md['hamamatsu.65422']
-        md['hamamatsu.YOffsetFromSlideCentre']=md['hamamatsu.65423']
+        if 'hamamatsu.SourceLens' in md:
+            md[PROPERTY_NAME_OBJECTIVE_POWER]=md['hamamatsu.SourceLens']
 
         return md
 
