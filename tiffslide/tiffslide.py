@@ -781,7 +781,7 @@ class _PropertyParser:
 
     def parse_hamamatsu(self) -> dict[str, Any]:
         warn(
-            "partial hamamatsu-format metadata parsing has been implemented!",
+            "hamamatsu-format metadata parsing only partially implemented!",
             stacklevel=2,
         )
         md = self.parse_generic_tiff()
