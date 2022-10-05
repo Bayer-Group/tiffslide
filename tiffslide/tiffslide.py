@@ -788,18 +788,20 @@ class _PropertyParser:
 
         # collect hamamatsu tags
         tags = self._tf.series[0][0].tags
-        tag_map = {"65421":"hamamatsu.SourceLens", 
-                   "65422":"hamamatsu.XOffsetFromSlideCentre",
-                   "65423":"hamamatsu.YOffsetFromSlideCentre",
-                   "Model":'hamamatsu.Model'}
-        for tf_t, ts_t in  tag_map.items():
+        tag_map = {
+            "65421": "hamamatsu.SourceLens",
+            "65422": "hamamatsu.XOffsetFromSlideCentre",
+            "65423": "hamamatsu.YOffsetFromSlideCentre",
+            "Model": "hamamatsu.Model",
+        }
+        for tf_t, ts_t in tag_map.items():
             tag = tags.get(tf_t)
             if tag:
-                md[ts_t]=tag.value
+                md[ts_t] = tag.value
 
-        md[PROPERTY_NAME_VENDOR]='hamamatsu'
-        if 'hamamatsu.SourceLens' in md:
-            md[PROPERTY_NAME_OBJECTIVE_POWER]=md['hamamatsu.SourceLens']
+        md[PROPERTY_NAME_VENDOR] = "hamamatsu"
+        if "hamamatsu.SourceLens" in md:
+            md[PROPERTY_NAME_OBJECTIVE_POWER] = md["hamamatsu.SourceLens"]
 
         return md
 
