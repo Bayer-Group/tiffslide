@@ -781,10 +781,29 @@ class _PropertyParser:
 
     def parse_hamamatsu(self) -> dict[str, Any]:
         warn(
-            "no special hamamatsu-format metadata parsing implemented yet!",
+            "hamamatsu-format metadata parsing only partially implemented!",
             stacklevel=2,
         )
-        return self.parse_generic_tiff()
+        md = self.parse_generic_tiff()
+
+        # collect hamamatsu tags
+        tags = self._tf.series[0][0].tags
+        tag_map = {
+            "65421": "hamamatsu.SourceLens",
+            "65422": "hamamatsu.XOffsetFromSlideCentre",
+            "65423": "hamamatsu.YOffsetFromSlideCentre",
+            "Model": "hamamatsu.Model",
+        }
+        for tf_t, ts_t in tag_map.items():
+            tag = tags.get(tf_t)
+            if tag:
+                md[ts_t] = tag.value
+
+        md[PROPERTY_NAME_VENDOR] = "hamamatsu"
+        if "hamamatsu.SourceLens" in md:
+            md[PROPERTY_NAME_OBJECTIVE_POWER] = md["hamamatsu.SourceLens"]
+
+        return md
 
     def parse_generic_tiff(self) -> dict[str, Any]:
         # todo: need to handle more supported formats in the future
