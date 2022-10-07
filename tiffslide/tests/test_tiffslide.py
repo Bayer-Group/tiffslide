@@ -6,6 +6,7 @@ import warnings
 from textwrap import dedent
 
 import fsspec
+import numpy
 import numpy as np
 import pytest
 
@@ -88,11 +89,22 @@ def test_image_properties(slide, svs_small_props):
 
 def test_image_get_best_level_for_downsample(slide):
     assert slide.get_best_level_for_downsample(1.0) == 0
-    lvl = 0
-    for ds in np.arange(0, 10, 0.5):
+
+    for lvl, ds in enumerate(slide.level_downsamples):
+
+        # query exact downsample
         lvl_new = slide.get_best_level_for_downsample(ds)
-        assert lvl <= lvl_new
-        lvl = lvl_new
+        assert lvl == lvl_new
+
+        # query smaller
+        ds_smaller = numpy.nextafter(ds, 0)
+        lvl_new = slide.get_best_level_for_downsample(ds_smaller)
+        assert max(lvl - 1, 0) == lvl_new
+
+        # query bigger
+        ds_bigger = numpy.nextafter(ds, float("inf"))
+        lvl_new = slide.get_best_level_for_downsample(ds_bigger)
+        assert lvl == lvl_new
 
 
 def test_image_read_region(slide):
