@@ -244,7 +244,7 @@ class TiffSlide:
         if downsample <= 1.0:
             return 0
         for lvl, ds in enumerate(self.level_downsamples):
-            if ds >= downsample:
+            if ds > downsample:
                 return lvl - 1
         return self.level_count - 1
 
