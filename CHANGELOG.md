@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ...
 
+## [1.10.0] - 2022-10-07
+## Added
+- `tiffslide`: parse additional hamamatsu specific tags
+
+## Fixed
+- `tiffslide`: fix bug in `TiffSlide.get_best_level_for_downsample`
+
 ## [1.9.0] - 2022-09-18
 ## Added
 - `tiffslide`: support single-channel 16bit svs/tiff files
@@ -140,8 +147,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - initial release of tiffslide and
 
-[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.9.0...HEAD
-[1.8.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.8.1...v1.9.0
+[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.10.0...HEAD
+[1.10.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.9.0...v1.10.0
+[1.9.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.8.1...v1.9.0
 [1.8.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.6.0...v1.7.0
