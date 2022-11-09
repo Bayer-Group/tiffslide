@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ...
 
+## [1.10.1] - 2022-11-09
+## Fixed
+- `tiffslide`: support `.getitems()` fetching via ReferenceFileSystem
+
 ## [1.10.0] - 2022-10-07
 ## Added
 - `tiffslide`: parse additional hamamatsu specific tags
