@@ -16,6 +16,7 @@ import zarr
 from fsspec.implementations.reference import ReferenceFileSystem
 from tifffile import TiffFile
 from tifffile import ZarrTiffStore
+from zarr.storage import FSStore
 
 from tiffslide._compat import NotTiffFile
 from tiffslide._pycompat import REQUIRES_STORE_FIX
@@ -116,7 +117,7 @@ def _get_series_zarr(
     if isinstance(obj, (TiffFile, NotTiffFile)):
         zstore = obj.series[series_idx].aszarr(maxworkers=num_decode_threads)  # type: ignore
     elif isinstance(obj, ReferenceFileSystem):
-        zstore = obj.get_mapper(root=f"s{series_idx}")  # type: ignore
+        zstore = FSStore(f"s{series_idx}", fs=obj)
     else:
         raise NotImplementedError(f"{type(obj).__name__} unsupported")
     if REQUIRES_STORE_FIX:
