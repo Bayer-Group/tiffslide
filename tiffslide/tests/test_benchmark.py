@@ -47,7 +47,7 @@ def root_pw(request):
 
 def try_to_clear_disk_cache(root_pass):
     env = os.environ.copy()
-    if root_pw:
+    if root_pw:  # type: ignore
         env["SUDO_PASSWORD"] = root_pass
 
     system = platform.system()
