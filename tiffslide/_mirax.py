@@ -9,18 +9,17 @@ import json
 import os
 import struct
 from collections import defaultdict
-from itertools import cycle
-
 from configparser import ConfigParser
 from functools import cached_property
 from io import BytesIO
+from itertools import cycle
 from pathlib import PurePath
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import BinaryIO
 from typing import Dict
 from typing import List
 from typing import NamedTuple
-from typing import TYPE_CHECKING
 from typing import TextIO
 
 import numpy as np
@@ -78,7 +77,9 @@ class SlideData:
 
         self.image_number_x = num_ix = c["GENERAL"].getint("IMAGENUMBER_X")
         self.image_number_y = num_iy = c["GENERAL"].getint("IMAGENUMBER_Y")
-        self.image_divisions = div_i = c["GENERAL"].getint("CameraImageDivisionsPerSide")
+        self.image_divisions = div_i = c["GENERAL"].getint(
+            "CameraImageDivisionsPerSide"
+        )
         self.num_positions = (num_ix / div_i) * (num_iy / div_i)
 
         zi = self._get_zoom_hierarchy_index()
@@ -107,10 +108,7 @@ class SlideData:
     def file_map(self) -> dict[int, str]:
         """map file numbers from Index.dat to corresponding file names"""
         df = self.c["DATAFILE"]
-        return {
-            f_idx: df[f"FILE_{f_idx}"]
-            for f_idx in range(int(df["FILE_COUNT"]))
-        }
+        return {f_idx: df[f"FILE_{f_idx}"] for f_idx in range(int(df["FILE_COUNT"]))}
 
     def _get_zoom_hierarchy_index(self) -> int:
         h = self.c["HIERARCHICAL"]
@@ -162,8 +160,7 @@ class IndexData:
         sv = fh.read(len(version)).decode()
         if sv != version:
             raise ValueError(
-                "Index.dat does not have expected version:"
-                f" {sv!r} != {version!r}"
+                "Index.dat does not have expected version:" f" {sv!r} != {version!r}"
             )
         si = fh.read(len(uuid)).decode()
         if uuid != uuid:
@@ -191,7 +188,7 @@ class IndexData:
         assert z1 == z2 == 0
         return Record(offset, length, file_number)
 
-    def get_hierarchy_zoom_map(self, zoom_levels: int) -> Dict[int, List[Tile]]:
+    def get_hierarchy_zoom_map(self, zoom_levels: int) -> dict[int, list[Tile]]:
         """get a mapping from zoom level to stored tiles"""
         out = {}
         for zoom_level_index in range(zoom_levels):
@@ -295,8 +292,8 @@ class Mirax:
                 raise RuntimeError("position buffer has incorrect size")
 
             for i in range(0, record.length, 9):
-                zz, x, y = struct.unpack("<bii", raw_positions[i:i+9])
-                assert zz & 0xfe == 0
+                zz, x, y = struct.unpack("<bii", raw_positions[i : i + 9])
+                assert zz & 0xFE == 0
                 positions.append((x * level_0_factor, y * level_0_factor))
 
             return np.array(positions, dtype=int)
@@ -352,11 +349,9 @@ class Mirax:
         # tw, th = self.slide_data.tile_size
 
         _colors = [
-            np.round(
-                np.array(
-                    colorsys.hsv_to_rgb(h, 1.0, 1.0)
-                ) * 255
-            ).astype(np.uint8).T[np.newaxis, np.newaxis, :]
+            np.round(np.array(colorsys.hsv_to_rgb(h, 1.0, 1.0)) * 255)
+            .astype(np.uint8)
+            .T[np.newaxis, np.newaxis, :]
             for h in np.linspace(0, 1.0, 7, endpoint=False)
         ]
         print(_colors)
@@ -413,16 +408,20 @@ class Mirax:
         _common_zgroup = json.dumps({"zarr_format": 2})
 
         def _common_zarray(max_idiv_x, max_idiv_y):
-            return json.dumps({
-                'zarr_format': 2,
-                'shape': [th * max_idiv_y, tw * max_idiv_x, 3],
-                'chunks': [th, tw, 3],
-                'dtype': "u1",
-                'compressor': {"id": "imagecodecs_jpeg"},  # fixme: set dependent on file info
-                'fill_value': min(self.slide_data.fill_value),
-                'order': 'C',
-                'filters': None,
-            })
+            return json.dumps(
+                {
+                    "zarr_format": 2,
+                    "shape": [th * max_idiv_y, tw * max_idiv_x, 3],
+                    "chunks": [th, tw, 3],
+                    "dtype": "u1",
+                    "compressor": {
+                        "id": "imagecodecs_jpeg"
+                    },  # fixme: set dependent on file info
+                    "fill_value": min(self.slide_data.fill_value),
+                    "order": "C",
+                    "filters": None,
+                }
+            )
 
         refs[".zgroup"] = _common_zgroup
         # print("tile_data.keys():", list(self.tile_data))
@@ -453,7 +452,9 @@ class Mirax:
                 # add chunks
                 rec = tile.record
                 templatename = f"u{rec.file_number}"
-                templates[templatename] = f"file://{self.data_dir}/{self.slide_data.file_map[rec.file_number]}"
+                templates[
+                    templatename
+                ] = f"file://{self.data_dir}/{self.slide_data.file_map[rec.file_number]}"
 
                 refs[key] = ["{{%s}}" % templatename, rec.offset, rec.length]
 
@@ -461,7 +462,10 @@ class Mirax:
                 # === set arrays
                 refs.setdefault(f"s{c_idx}/.zgroup", _common_zgroup)
                 refs[f"s{c_idx}/{level}/.zgroup"] = _common_zgroup
-                refs.setdefault(f"s{c_idx}/{level}/.zarray", _common_zarray(dxdy[0] + 1, dxdy[1] + 1))
+                refs.setdefault(
+                    f"s{c_idx}/{level}/.zarray",
+                    _common_zarray(dxdy[0] + 1, dxdy[1] + 1),
+                )
 
         series_indices = set.union(*level_series.values())
         level_shapes = []
@@ -485,18 +489,20 @@ class Mirax:
             located_series=located_series,
         )
 
-        refs[".zattrs"] = json.dumps({
-            # "tiffslide.series": sorted(level_series),
-            "tiffslide.series-composition": series_composition_info,
-            "tiffslide.properties": self.build_properties(),
-            "tiffslide.spec_version": 1,
-        })
+        refs[".zattrs"] = json.dumps(
+            {
+                # "tiffslide.series": sorted(level_series),
+                "tiffslide.series-composition": series_composition_info,
+                "tiffslide.properties": self.build_properties(),
+                "tiffslide.spec_version": 1,
+            }
+        )
 
         kc["refs"] = {
             k: refs[k]
             for k in sorted(
                 refs.keys(),
-                key=lambda x: f".{x}" if x.endswith((".zgroup", ".zarray")) else x
+                key=lambda x: f".{x}" if x.endswith((".zgroup", ".zarray")) else x,
             )
         }
         kc["templates"] = dict(sorted(templates.items()))
@@ -529,7 +535,7 @@ if __name__ == "__main__":
     print('"refs": {')
     _N = len(_kc["refs"])
     print("  ...")
-    for _k, r in islice(_kc["refs"].items(), _N//2, _N//2 + 10):
+    for _k, r in islice(_kc["refs"].items(), _N // 2, _N // 2 + 10):
         print(" ", f'"{_k}": {r!r},')
     print("  ...")
     print("}")
@@ -542,7 +548,6 @@ if __name__ == "__main__":
     #  > [ ] support None in series_composition
     #  > [ ] gather minimal properties and add to zarr
     #  > [ ] load via from_kerchunk
-
 
     slide = from_kerchunk(_kc)
     slide.read_region((55000, 150000), 0, (8192, 8192)).save("test_cmu_big.jpeg")
