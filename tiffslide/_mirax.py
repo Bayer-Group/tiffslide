@@ -522,9 +522,17 @@ if __name__ == "__main__":
     import sys
     from itertools import islice
     from pathlib import Path
+
     from tiffslide._kerchunk import from_kerchunk
 
-    pth = Path(sys.argv[1])
+    try:
+        pth = Path(sys.argv[1])
+    except IndexError:
+        print(
+            "usage: python -m tiffslide._mirax <file.mrxs>",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
 
     mm = Mirax(pth)
     _kc = mm.build_reference()
