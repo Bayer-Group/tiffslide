@@ -13,11 +13,18 @@ import pytest
 import tiffslide
 from tiffslide import TiffFileError
 from tiffslide import TiffSlide
+from tiffslide._kerchunk import from_kerchunk
+from tiffslide._mirax import Mirax
 
 
 @pytest.fixture
 def slide(wsi_file):
-    yield TiffSlide(wsi_file)
+    if wsi_file.suffix == ".mrxs":
+        mrxs = Mirax(wsi_file)
+        kc = mrxs.build_reference()
+        yield from_kerchunk(kc)
+    else:
+        yield TiffSlide(wsi_file)
 
 
 def test_image_detect_format(wsi_file):
@@ -107,10 +114,12 @@ def test_image_get_best_level_for_downsample(slide):
         assert lvl == lvl_new
 
 
+@pytest.mark.support_mirax
 def test_image_read_region(slide):
     assert slide.read_region((0, 0), 0, (2220, 2967)).size == (2220, 2967)
 
 
+@pytest.mark.support_mirax
 def test_image_read_region_as_array(slide):
     assert slide.read_region((0, 0), 0, (2220, 2967), as_array=True).shape[:2] == (
         2967,

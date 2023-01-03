@@ -7,6 +7,7 @@ import pathlib
 import shutil
 import sys
 import urllib.request
+import zipfile
 from itertools import cycle
 from itertools import groupby
 from itertools import islice
@@ -19,7 +20,7 @@ import tifffile
 from imagecodecs import imwrite
 
 # openslide aperio test images
-IMAGES_BASE_URL = "http://openslide.cs.cmu.edu/download/openslide-testdata/Aperio/"
+IMAGES_BASE_URL = "http://openslide.cs.cmu.edu/download/openslide-testdata/"
 
 try:
     APERIO_JP2000_RGB = tifffile.COMPRESSION.APERIO_JP2000_RGB
@@ -40,6 +41,7 @@ class TestImageType(enum.Enum):
     DOWNLOAD_SMALLEST_CMU = enum.auto()
     GENERATE_PYRAMIDAL_IMG = enum.auto()
     GENERATE_PYRAMIDAL_1CH_16B_SVS = enum.auto()
+    DOWNLOAD_MIRAX_CMU = enum.auto()
 
 
 def _wsi_files():
@@ -92,6 +94,11 @@ def _wsi_files():
             pytest.param(
                 TestImageType.GENERATE_PYRAMIDAL_1CH_16B_SVS,
                 id="generated-pyramidal-1ch-16b-svs",
+            ),
+            pytest.param(
+                TestImageType.DOWNLOAD_MIRAX_CMU,
+                id="CMU-1.mrxs",
+                marks=pytest.mark.mirax,
             ),
         ]
     return paths
@@ -261,15 +268,45 @@ def wsi_file(request, tmp_path_factory):
 
         if not img_fn.is_file():
             # download svs from openslide test images
-            url = IMAGES_BASE_URL + small_image
+            url = IMAGES_BASE_URL + "Aperio/" + small_image
             with urllib.request.urlopen(url) as response, open(
                 img_fn, "wb"
             ) as out_file:
                 shutil.copyfileobj(response, out_file)
 
         if md5(img_fn) != small_image_md5:  # pragma: no cover
-            shutil.rmtree(img_fn)
+            os.remove(img_fn)
             pytest.fail("incorrect md5")
+
+    elif request.param == TestImageType.DOWNLOAD_MIRAX_CMU:
+        mirax_image = "CMU-1.mrxs"
+        mirax_image_zip = "CMU-1.zip"
+        mirax_image_md5 = "1b82dc0364441c1f6ac9a253400f9b02"
+        data_dir = pathlib.Path(__file__).parent / "data"
+
+        data_dir.mkdir(parents=True, exist_ok=True)
+        zip_fn = data_dir / mirax_image_zip
+
+        if not zip_fn.is_file():
+            # download zip from openslide test images
+            url = IMAGES_BASE_URL + "Mirax/" + mirax_image_zip
+            with urllib.request.urlopen(url) as response, open(
+                zip_fn, "wb"
+            ) as out_file:
+                shutil.copyfileobj(response, out_file)
+
+        print("file md5", md5(zip_fn), mirax_image_md5)
+        if md5(zip_fn) != mirax_image_md5:  # pragma: no cover
+            # os.remove(zip_fn)
+            pytest.fail("incorrect md5")
+
+        img_fn = data_dir / mirax_image
+        if not img_fn.is_file():
+            with zipfile.ZipFile(zip_fn, "r") as zip_ref:
+                zip_ref.extractall(data_dir)
+
+        if not img_fn.exists():
+            pytest.fail("image file was not extracted")
 
     elif request.param == TestImageType.GENERATE_PYRAMIDAL_IMG:
         img_fn = tmp_path_factory.mktemp("_generated_test_tiffs").joinpath(
@@ -378,3 +415,11 @@ def svs_small_props():
         'tiffslide.quickhash-1': None,
         'tiffslide.vendor': 'aperio',
     }  # fmt: skip
+
+
+def pytest_collection_modifyitems(config, items):
+    # skip unsupported Mirax tests
+    skip_unsupported_mirax = pytest.mark.skip(reason="not supported for Mirax")
+    for item in items:
+        if "mirax" in item.keywords and "support_mirax" not in item.keywords:
+            item.add_marker(skip_unsupported_mirax)

@@ -13,6 +13,7 @@ from collections import ChainMap
 from io import StringIO
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Union
 
 if sys.version_info >= (3, 8):
     from typing import TypedDict
@@ -118,7 +119,7 @@ def to_kerchunk(
 
 
 def from_kerchunk(
-    kc: KerchunkSpec,
+    kc: Union[KerchunkSpec, dict[str, Any]],
     *,
     urlpath: str | None = None,
     storage_options: dict[str, Any] | None = None,
