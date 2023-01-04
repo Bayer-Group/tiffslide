@@ -155,10 +155,10 @@ def get_zarr_store(
         "tiffslide.series-composition"
     )
     store: Mapping[str, Any]
-    if isinstance(tf, ReferenceFileSystem):
-        return tf.get_mapper("")
+    if composition and isinstance(tf, ReferenceFileSystem):
+        store = tf.get_mapper("")
 
-    if composition:
+    elif composition:
         prefixed_stores = {}
         for series_idx in composition["located_series"].keys():
             _store = _get_series_zarr(

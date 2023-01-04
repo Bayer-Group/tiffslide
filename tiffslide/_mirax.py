@@ -377,12 +377,13 @@ class Mirax:
 
         PIL.Image.fromarray(arr).save("output.png")
 
-    def build_properties(self):
+    def build_properties(self, extra_properties):
         # fixme: minimal version
         return {
             "tiffslide.series-axes": "YXS",
             "tiffslide.level[0].width": self.slide_data.image_size[0],
             "tiffslide.level[0].height": self.slide_data.image_size[1],
+            **extra_properties
         }
 
     def build_reference(self):
@@ -493,7 +494,9 @@ class Mirax:
             {
                 # "tiffslide.series": sorted(level_series),
                 "tiffslide.series-composition": series_composition_info,
-                "tiffslide.properties": self.build_properties(),
+                "tiffslide.properties": self.build_properties(
+                    {"tiffslide.series-composition": series_composition_info}  # FIXME: don't duplicate...
+                ),
                 "tiffslide.spec_version": 1,
             }
         )
