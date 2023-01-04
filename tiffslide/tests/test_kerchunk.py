@@ -28,3 +28,10 @@ def test_from_kerchunk(slide, wsi_file):
     ts = from_kerchunk(kc)
     assert ts.properties
     assert ts.read_region((0, 0), 0, (100, 100), as_array=True).size > 0
+
+
+def test_kerchunked_repr(slide, wsi_file):
+    kc = to_kerchunk(slide, urlpath=wsi_file)
+
+    ts = from_kerchunk(kc)
+    assert repr(ts)

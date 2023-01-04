@@ -163,7 +163,9 @@ class TiffSlide:
         self.ts_tifffile.close()
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.ts_tifffile.filename!r})"
+        fn = _get_filename(self._tifffile)
+        r = repr(fn) if fn else "<unknown filename ...>"
+        return f"{type(self).__name__}({r})"
 
     @classmethod
     def detect_format(
@@ -997,3 +999,17 @@ def _has_mpp(md: dict[str, Any]) -> bool:
 def _clip(x: int, min_: int, max_: int) -> int:
     """clip a value to a range"""
     return min(max(x, min_), max_)
+
+
+def _get_filename(obj: Any) -> str:
+    """return a filename or a placeholder"""
+    if isinstance(obj, ReferenceFileSystem):
+        for name in obj.templates.values():
+            return name or ""
+        else:
+            return ""
+    else:
+        try:
+            return obj.filename or ""
+        except AttributeError:
+            return ""
