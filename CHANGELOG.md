@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - ...
 ## Fixed
 - `tiffslide`: fix repr when backed by ReferenceFileSystem
+- `tiffslide`: prevent deprecation warning with non-rgb images
 
 ## [1.10.1] - 2022-11-09
 ## Fixed
