@@ -91,6 +91,10 @@ try:
     _ANTIALIAS = Image.Resampling.LANCZOS
 except AttributeError:
     _ANTIALIAS = Image.ANTIALIAS
+try:
+    _NEAREST = Image.Resampling.NEAREST
+except AttributeError:
+    _NEAREST = Image.NEAREST
 
 
 class TiffSlide:
@@ -469,7 +473,7 @@ class TiffSlide:
             thumb.thumbnail(size, _ANTIALIAS)
         except ValueError:
             # see: https://github.com/python-pillow/Pillow/blob/95cff6e959/src/libImaging/Resample.c#L559-L588
-            thumb.thumbnail(size, Image.NEAREST)
+            thumb.thumbnail(size, _NEAREST)
         return thumb
 
 
