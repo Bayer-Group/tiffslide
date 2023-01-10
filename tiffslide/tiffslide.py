@@ -231,7 +231,10 @@ class TiffSlide:
     def level_downsamples(self) -> tuple[float, ...]:
         """return the downsampling factors of levels as a list"""
         w0, h0 = self.dimensions
-        return tuple(math.sqrt((w0 * h0) / (w * h)) for w, h in self.level_dimensions)
+        return tuple(
+            ((w0 / w) + (h0 / h)) / 2.0
+            for w, h in self.level_dimensions
+        )
 
     @cached_property
     def properties(self) -> dict[str, Any]:
