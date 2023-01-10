@@ -18,6 +18,9 @@ addopts = [
   "-p", "no:faulthandler",
   "-m", "not compat",
 ]
+markers = [
+  "compat",
+]
 
 [tool.isort]
 profile = "black"

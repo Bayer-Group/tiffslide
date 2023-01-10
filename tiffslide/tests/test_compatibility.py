@@ -7,6 +7,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+
+pytestmark = pytest.mark.compat
+
 OPENSLIDE_TESTDATA_DIR = os.getenv("OPENSLIDE_TESTDATA_DIR", None)
 _FILES = {
     "svs": [
@@ -42,12 +45,8 @@ _FILES = {
     ],
 }
 FILES = {}
-if OPENSLIDE_TESTDATA_DIR is None:
-    pytestmark = pytest.mark.skip
 
-else:
-    pytestmark = pytest.mark.compat  # type: ignore
-
+if OPENSLIDE_TESTDATA_DIR is not None:
     for key, fns in _FILES.items():
         for fn in fns:
             k = f"{key}-{fn.split('/')[1]}"
@@ -89,6 +88,10 @@ def os_slide(file_name):
     from openslide import OpenSlide
 
     yield OpenSlide(file_name)
+
+
+def test_openslide_testdata_dir_env():
+    assert os.getenv("OPENSLIDE_TESTDATA_DIR") is not None
 
 
 def test_dimensions(ts_slide, os_slide):
