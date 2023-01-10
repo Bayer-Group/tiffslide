@@ -1,5 +1,4 @@
 import itertools
-import math
 import os
 import warnings
 from pathlib import Path
@@ -125,11 +124,8 @@ def test_strict_subset_level_dimensions(ts_slide, os_slide):
 
 
 def test_strict_subset_level_downsamples(ts_slide, os_slide):
-    # test that all available tiffslide levels are in os_slide
-    for ds in ts_slide.level_downsamples:
-        assert any(
-            math.isclose(ds, x, rel_tol=1e-5) for x in os_slide.level_downsamples
-        )
+    # test that all available tiffslide downsamples are in os_slide
+    assert set(ts_slide.level_downsamples).issubset(os_slide.level_downsamples)
 
 
 def test_read_region_equality_level_min(ts_slide, os_slide, file_name):
