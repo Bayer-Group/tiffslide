@@ -113,11 +113,7 @@ def test_level_downsamples(ts_slide, os_slide, file_name):
     if matches(file_name, vendor="hamamatsu"):
         pytest.xfail("'ndpi' no computed levels")
 
-    np.testing.assert_allclose(
-        ts_slide.level_downsamples,
-        os_slide.level_downsamples,
-        rtol=1e-5,
-    )
+    assert ts_slide.level_downsamples == os_slide.level_downsamples
 
 
 def test_strict_subset_level_dimensions(ts_slide, os_slide):
