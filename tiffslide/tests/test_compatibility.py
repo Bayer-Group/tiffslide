@@ -70,7 +70,11 @@ def matches(fn, vendor=None, filename=None, ext=None):
 
 @pytest.fixture(params=list(FILES))
 def file_name(request):
-    yield FILES[request.param]
+    f = FILES[request.param]
+    if not os.path.isfile(f):
+        pytest.xfail("missing local test file")
+    else:
+        yield f
 
 
 @pytest.fixture()
