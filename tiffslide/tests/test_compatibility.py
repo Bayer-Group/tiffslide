@@ -1,3 +1,4 @@
+import contextlib
 import itertools
 import os
 import warnings
@@ -154,6 +155,59 @@ def test_read_region_equality_level_min(ts_slide, os_slide, file_name):
             np.testing.assert_equal(ts_arr, os_arr)
         else:
             np.testing.assert_allclose(ts_arr, os_arr, atol=1, rtol=0)
+
+
+@contextlib.contextmanager
+def _debug_image_differences(arr0, arr1, name=None):
+    try:
+        yield
+    except BaseException:
+
+        from PIL import Image
+
+        pth = os.getenv("DEBUG_OPENSLIDE_IMAGE_DIR", None)
+        if pth is not None:
+            Image.fromarray(arr0).save(os.path.join(pth, f'{name}-0-tiffslide.png'))
+            Image.fromarray(arr1).save(os.path.join(pth, f'{name}-1-openslide.png'))
+
+        raise
+
+
+def test_read_region_equality_level_intermediate(ts_slide, os_slide, file_name):
+    if ts_slide.level_count <= 2:
+        pytest.skip("requires at least 3 levels")
+
+    exact = True
+    if "JP2K-33003" in file_name:
+        warnings.warn(
+            f"JP2K file {file_name} is tested to be almost equal (not exactly equal)!",
+            stacklevel=2,
+        )
+        exact = False
+
+    level = ts_slide.level_count // 2
+    width, height = ts_slide.dimensions
+
+    ws = range(0, width, width // 5)
+    hs = range(0, height, height // 5)
+    for loc in itertools.product(ws[:-1], hs[:-1]):
+        ts_img = ts_slide.read_region(loc, level, (256, 256))
+        os_img = os_slide.read_region(loc, level, (256, 256))
+
+        ts_arr = np.array(ts_img)
+        os_arr = np.array(os_img)
+        # np.testing.assert_equal(os_arr[:, :, 3], 255)
+        os_arr = os_arr[:, :, :3]
+
+        with _debug_image_differences(
+            ts_arr,
+            os_arr,
+            f"{os.path.basename(file_name)}-x{loc[0]}y{loc[1]}-lvl{level}",
+        ):
+            if exact:
+                np.testing.assert_equal(ts_arr, os_arr)
+            else:
+                np.testing.assert_allclose(ts_arr, os_arr, atol=1, rtol=0)
 
 
 def test_read_region_equality_level_common_max(ts_slide, os_slide, file_name):
