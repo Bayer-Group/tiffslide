@@ -364,3 +364,20 @@ def test_no_numpy_scalar_overflow(slide):
         warnings.simplefilter("error", RuntimeWarning)
 
         slide.read_region(loc, 0, size, as_array=True)
+
+
+def test_read_region_intermediate_level_non_zero_loc(small_multilevel_img):
+    # this test will fail, because of the way small_multilevel_img was constructed
+    # the sizes of the base level were chosen so that the 4x lower zoom intermediate
+    # levels will cause errors with when reading from the intermediate levels, where
+    # the location translated to the base level could be scaled asymmetrically.
+    # see: https://github.com/bayer-science-for-a-better-life/tiffslide/issues/51
+    slide = TiffSlide(small_multilevel_img)
+
+    # ensure non-zero loc on level 0 returns correct tile
+    tile0 = slide.read_region((40, 40), 0, (16, 16), as_array=True)
+    assert np.all(tile0 == 200)
+
+    # ensure non-zero loc on level 1 returns correct tile
+    tile1 = slide.read_region((40, 40), 1, (4, 4), as_array=True)
+    assert np.all(tile1 == 200)

@@ -289,6 +289,61 @@ def wsi_file(request, tmp_path_factory):
     yield img_fn.absolute()
 
 
+@pytest.fixture()
+def small_multilevel_img(tmp_path):
+    # small_multilevel_img is a 3 level 16x16 tile-size image
+    # with a size that causes the smaller level sizes to have
+    # slightly different downsamples when calculated from sizes
+    # alone.
+    #
+    # image data is tiled filled with tiles like this:
+    # 11 12 13 14 15 16
+    # 21 22 23 ...
+    # ...
+    import tifffile
+
+    pth = tmp_path.joinpath("small_multilevel.tiff")
+
+    size = (117, 67, 3)
+    tile_size = 32
+
+    data = np.ones(size, dtype=np.uint8) * 100
+    data[39:, 39:, :] = 200
+
+    with tifffile.TiffWriter(pth, bigtiff=False, ome=True) as tif:
+        im_height, im_width, _ = size
+        options0 = {}
+        metadata = {
+            "PhysicalSizeX": 0.5,
+            "PhysicalSizeXUnit": "µm",
+            "PhysicalSizeY": 0.5,
+            "PhysicalSizeYUnit": "µm",
+        }
+        options0["resolution"] = (2.0, 2.0, "MICROMETER")
+        options = dict(
+            tile=(tile_size, tile_size),
+            photometric="rgb",
+            compression="png",
+            metadata=metadata,
+        )
+        tif.write(
+            data,
+            subifds=2,
+            **options0,
+            **options,
+        )
+        lvl_data = data
+        for _ in range(2):
+            lvl_data = lvl_data[::4, ::4, :]
+            tif.write(
+                lvl_data,
+                subfiletype=1,
+                **options,
+            )
+
+    yield pth
+
+
 @pytest.fixture
 def wsi_file_urlpath(wsi_file):
     if wsi_file.stat().st_size > 100 * 1024 * 1024:
