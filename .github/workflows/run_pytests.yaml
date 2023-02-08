@@ -1,6 +1,12 @@
 name: tiffslide ci
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - v*.*.*
+  pull_request: {}
 
 jobs:
   # RUN PYTEST ON TIFFSLIDE SOURCE
