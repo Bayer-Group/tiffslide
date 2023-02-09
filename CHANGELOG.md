@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ...
 
+## [2.0.1] - 2023-02-09
+## Fixed
+- `tiffslide`: fixed missing occurrences of downsamples change
+
 ## [2.0.0] - 2023-02-09
 ## Changed
 - `tiffslide`: the downsamples are now calculated identical to openslide (breaking)
@@ -161,7 +165,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - initial release of tiffslide and
 
-[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.10.1...v2.0.0
 [1.10.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.10.0...v1.10.1
 [1.10.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.9.0...v1.10.0
