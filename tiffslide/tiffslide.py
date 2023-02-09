@@ -691,7 +691,7 @@ class _PropertyParser:
             raise NotImplementedError(f"series with axes={axes!r} not supported yet")
 
         for lvl, (width, height) in enumerate(level_dimensions):
-            downsample = math.sqrt((w0 * h0) / (width * height))
+            downsample = ((w0 / width) + (h0 / height)) / 2.0
             page = series.levels[lvl][0]
             md[f"tiffslide.level[{lvl}].downsample"] = downsample
             md[f"tiffslide.level[{lvl}].height"] = int(height)
@@ -950,8 +950,8 @@ def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
         lvl_size_y = math.ceil(slide_y_nm / lvl_nm_per_px)
         md[f"tiffslide.level[{lvl}].height"] = lvl_size_y
         md[f"tiffslide.level[{lvl}].width"] = lvl_size_x
-        md[f"tiffslide.level[{lvl}].downsample"] = math.sqrt(
-            slide_x_px / lvl_size_x * slide_y_px / lvl_size_y
+        md[f"tiffslide.level[{lvl}].downsample"] = (
+            ((slide_x_px / lvl_size_x) + (slide_y_px / lvl_size_y)) / 2.0
         )
         level_shapes.append((lvl_size_y, lvl_size_x, 3))
 
