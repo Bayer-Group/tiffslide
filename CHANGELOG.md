@@ -6,9 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased] - ...
+
+## [2.0.0] - 2023-02-09
+## Changed
+- `tiffslide`: the downsamples are now calculated identical to openslide (breaking)
+
 ## Fixed
 - `tiffslide`: fix repr when backed by ReferenceFileSystem
 - `tiffslide`: prevent deprecation warning with non-rgb images
+- prevent incompatibility issues with fsspec on py3.7
+- support newer pillow
 
 ## [1.10.1] - 2022-11-09
 ## Fixed
@@ -154,7 +161,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - initial release of tiffslide and
 
-[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.10.0...HEAD
+[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.10.1...v2.0.0
+[1.10.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.10.0...v1.10.1
 [1.10.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.8.1...v1.9.0
 [1.8.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.8.0...v1.8.1
