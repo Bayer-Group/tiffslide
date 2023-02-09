@@ -291,24 +291,24 @@ def wsi_file(request, tmp_path_factory):
 
 @pytest.fixture()
 def small_multilevel_img(tmp_path):
-    # small_multilevel_img is a 3 level 16x16 tile-size image
+    # small_multilevel_img is a 3 level 32x32 tile-size image
     # with a size that causes the smaller level sizes to have
     # slightly different downsamples when calculated from sizes
     # alone.
-    #
-    # image data is tiled filled with tiles like this:
-    # 11 12 13 14 15 16
-    # 21 22 23 ...
-    # ...
     import tifffile
 
     pth = tmp_path.joinpath("small_multilevel.tiff")
 
-    size = (117, 67, 3)
-    tile_size = 32
+    size = (480, 370, 3)
+    tile_size = 48
+    data = np.ones(size, dtype="uint8")
 
-    data = np.ones(size, dtype=np.uint8) * 100
-    data[39:, 39:, :] = 200
+    for iy, y in enumerate(range(0, size[0], tile_size)):
+        for ix, x in enumerate(range(0, size[1], tile_size)):
+            val = (iy + ix) % 2
+            data[y:y+tile_size, x:x+tile_size] = 100 * (val + 1)
+
+    # (46000, 32914), (11500, 8228)
 
     with tifffile.TiffWriter(pth, bigtiff=False, ome=True) as tif:
         im_height, im_width, _ = size

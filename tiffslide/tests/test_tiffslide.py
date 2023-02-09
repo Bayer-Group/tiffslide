@@ -375,9 +375,13 @@ def test_read_region_intermediate_level_non_zero_loc(small_multilevel_img):
     slide = TiffSlide(small_multilevel_img)
 
     # ensure non-zero loc on level 0 returns correct tile
-    tile0 = slide.read_region((40, 40), 0, (16, 16), as_array=True)
-    assert np.all(tile0 == 200)
+    tile0 = slide.read_region((48, 48), 0, (48, 48), as_array=True)[:, :, 0]
+    assert np.all(tile0 == 100)
 
     # ensure non-zero loc on level 1 returns correct tile
-    tile1 = slide.read_region((40, 40), 1, (4, 4), as_array=True)
-    assert np.all(tile1 == 200)
+    tile1 = slide.read_region((48, 48), 1, (12, 12), as_array=True)[:, :, 0]
+    assert np.all(tile1 == 100)
+
+    # ensure non-zero loc on level 2 returns correct tile
+    tile2 = slide.read_region((48, 48), 2, (3, 3), as_array=True)[:, :, 0]
+    assert np.all(tile2 == 100)
