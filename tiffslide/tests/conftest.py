@@ -323,11 +323,13 @@ def small_multilevel_img(tmp_path):
         options = dict(
             tile=(tile_size, tile_size),
             photometric="rgb",
-            compression="jpeg",
             metadata=metadata,
         )
         if tuple(map(int, tifffile.__version__.split("."))) > (2022, 5, 4):
+            options["compression"] = "jpeg"
             options["compressionargs"] = {"level": 100}
+        else:
+            options["compression"] = "jpeg", 100
 
         tif.write(
             data,
