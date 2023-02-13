@@ -7,7 +7,6 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-
 pytestmark = pytest.mark.compat
 
 OPENSLIDE_TESTDATA_DIR = os.getenv("OPENSLIDE_TESTDATA_DIR", None)
@@ -162,13 +161,12 @@ def _debug_image_differences(arr0, arr1, name=None):
     try:
         yield
     except BaseException:
-
         from PIL import Image
 
         pth = os.getenv("DEBUG_OPENSLIDE_IMAGE_DIR", None)
         if pth is not None:
-            Image.fromarray(arr0).save(os.path.join(pth, f'{name}-0-tiffslide.png'))
-            Image.fromarray(arr1).save(os.path.join(pth, f'{name}-1-openslide.png'))
+            Image.fromarray(arr0).save(os.path.join(pth, f"{name}-0-tiffslide.png"))
+            Image.fromarray(arr1).save(os.path.join(pth, f"{name}-1-openslide.png"))
 
         raise
 

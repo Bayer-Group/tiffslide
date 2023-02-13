@@ -231,10 +231,7 @@ class TiffSlide:
     def level_downsamples(self) -> tuple[float, ...]:
         """return the downsampling factors of levels as a list"""
         w0, h0 = self.dimensions
-        return tuple(
-            ((w0 / w) + (h0 / h)) / 2.0
-            for w, h in self.level_dimensions
-        )
+        return tuple(((w0 / w) + (h0 / h)) / 2.0 for w, h in self.level_dimensions)
 
     @cached_property
     def properties(self) -> dict[str, Any]:
@@ -341,7 +338,6 @@ class TiffSlide:
             if True, will ensure that the size of the returned image is deterministic.
         """
         base_x, base_y = map(int, location)
-        base_w, base_h = self.dimensions
         _rw, _rh = map(int, size)
         axes = self.properties["tiffslide.series-axes"]
 
@@ -360,8 +356,7 @@ class TiffSlide:
             depth, dtype = get_zarr_depth_and_dtype(self.zarr_group, axes)
             return np.zeros((_rh, _rw, depth), dtype=dtype)
 
-        rx0 = (base_x * level_w) // base_w
-        ry0 = (base_y * level_h) // base_h
+        rx0, ry0 = self._read_region_loc_transform((base_x, base_y), level)
         rx1 = rx0 + _rw
         ry1 = ry0 + _rh
 
@@ -424,6 +419,23 @@ class TiffSlide:
             return Image.fromarray(arr[..., 0])
         else:
             return Image.fromarray(arr)
+
+    def _read_region_loc_transform(
+        self, location: tuple[int, int], level: int
+    ) -> tuple[int, int]:
+        """return the location at the provided level
+
+        Notes
+        -----
+        Overwrite in subclasses in case you want to change the default
+        interpretation of the `loc` argument in `read_region()`.
+
+        """
+        base_x, base_y = location
+        level_ds = self.level_downsamples[level]
+        rx0 = int(base_x / level_ds)
+        ry0 = int(base_y / level_ds)
+        return rx0, ry0
 
     def get_thumbnail(
         self, size: tuple[int, int], *, use_embedded: bool = False
@@ -951,8 +963,8 @@ def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
         md[f"tiffslide.level[{lvl}].height"] = lvl_size_y
         md[f"tiffslide.level[{lvl}].width"] = lvl_size_x
         md[f"tiffslide.level[{lvl}].downsample"] = (
-            ((slide_x_px / lvl_size_x) + (slide_y_px / lvl_size_y)) / 2.0
-        )
+            (slide_x_px / lvl_size_x) + (slide_y_px / lvl_size_y)
+        ) / 2.0
         level_shapes.append((lvl_size_y, lvl_size_x, 3))
 
     md["tiffslide.series-index"] = first_non_macro_idx

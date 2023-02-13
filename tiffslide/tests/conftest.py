@@ -289,6 +289,66 @@ def wsi_file(request, tmp_path_factory):
     yield img_fn.absolute()
 
 
+@pytest.fixture()
+def small_multilevel_img(tmp_path):
+    # small_multilevel_img is a 3 level 48x48 tile-size image
+    # with a size that causes the smaller level sizes to have
+    # slightly different downsamples when calculated from sizes
+    # alone.
+    import tifffile
+
+    pth = tmp_path.joinpath("small_multilevel.tiff")
+
+    size = (480, 370, 3)
+    tile_size = 48
+    data = np.ones(size, dtype="uint8")
+
+    for iy, y in enumerate(range(0, size[0], tile_size)):
+        for ix, x in enumerate(range(0, size[1], tile_size)):
+            val = (iy + ix) % 2
+            data[y : y + tile_size, x : x + tile_size] = 100 * (val + 1)
+
+    # (46000, 32914), (11500, 8228)
+
+    with tifffile.TiffWriter(pth, bigtiff=False, ome=True) as tif:
+        im_height, im_width, _ = size
+        options0 = {}
+        metadata = {
+            "PhysicalSizeX": 0.5,
+            "PhysicalSizeXUnit": "µm",
+            "PhysicalSizeY": 0.5,
+            "PhysicalSizeYUnit": "µm",
+        }
+        options0["resolution"] = (2.0, 2.0, "MICROMETER")
+        options = dict(
+            tile=(tile_size, tile_size),
+            photometric="rgb",
+            metadata=metadata,
+        )
+        if tuple(map(int, tifffile.__version__.split("."))) > (2022, 5, 4):
+            options["compression"] = "jpeg"
+            options["compressionargs"] = {"level": 100}
+        else:
+            options["compression"] = "jpeg", 100
+
+        tif.write(
+            data,
+            subifds=2,
+            **options0,
+            **options,
+        )
+        lvl_data = data
+        for _ in range(2):
+            lvl_data = lvl_data[::4, ::4, :]
+            tif.write(
+                lvl_data,
+                subfiletype=1,
+                **options,
+            )
+
+    yield pth
+
+
 @pytest.fixture
 def wsi_file_urlpath(wsi_file):
     if wsi_file.stat().st_size > 100 * 1024 * 1024:
