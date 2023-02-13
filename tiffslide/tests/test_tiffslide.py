@@ -366,22 +366,27 @@ def test_no_numpy_scalar_overflow(slide):
         slide.read_region(loc, 0, size, as_array=True)
 
 
-def test_read_region_intermediate_level_non_zero_loc(small_multilevel_img):
+@pytest.mark.parametrize(
+    "loc,lvl,size", [
+        ((219, 219), 0, (48, 48)),
+        ((219, 219), 1, (12, 12)),
+        ((219, 219), 2, (3, 3)),
+    ],
+    ids=["lvl0", "lvl1", "lvl2"],
+)
+def test_read_region_intermediate_level_non_zero_loc(small_multilevel_img, loc, lvl, size):
     # this test will fail, because of the way small_multilevel_img was constructed
     # the sizes of the base level were chosen so that the 4x lower zoom intermediate
-    # levels will cause errors with when reading from the intermediate levels, where
+    # levels will cause errors when reading from the intermediate levels, where
     # the location translated to the base level could be scaled asymmetrically.
     # see: https://github.com/bayer-science-for-a-better-life/tiffslide/issues/51
     slide = TiffSlide(small_multilevel_img)
 
-    # ensure non-zero loc on level 0 returns correct tile
-    tile0 = slide.read_region((48, 48), 0, (48, 48), as_array=True)[:, :, 0]
-    assert np.all(tile0 == 100)
+    # return a sample of the checkerboard slide (we only need one channel)
+    tile = slide.read_region(loc, lvl, size, as_array=True)[:, :, 0]
 
-    # ensure non-zero loc on level 1 returns correct tile
-    tile1 = slide.read_region((48, 48), 1, (12, 12), as_array=True)[:, :, 0]
-    assert np.all(tile1 == 100)
+    # ensure we select an area that tests the checkerboard (in case refactoring breaks the test assumptions)
+    assert not np.all(tile == tile[0, 0]), "test tile does not sample the checkerboard"
 
-    # ensure non-zero loc on level 2 returns correct tile
-    tile2 = slide.read_region((48, 48), 2, (3, 3), as_array=True)[:, :, 0]
-    assert np.all(tile2 == 100)
+    # if the resulting tile is not symmetric it means we downsampled asymmetrically to the target level
+    assert np.all(tile == tile.T), "tile does not sample the checkerboard symmetrically"

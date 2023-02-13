@@ -291,7 +291,7 @@ def wsi_file(request, tmp_path_factory):
 
 @pytest.fixture()
 def small_multilevel_img(tmp_path):
-    # small_multilevel_img is a 3 level 32x32 tile-size image
+    # small_multilevel_img is a 3 level 48x48 tile-size image
     # with a size that causes the smaller level sizes to have
     # slightly different downsamples when calculated from sizes
     # alone.
@@ -323,7 +323,8 @@ def small_multilevel_img(tmp_path):
         options = dict(
             tile=(tile_size, tile_size),
             photometric="rgb",
-            compression="png",
+            compression="jpeg",
+            compressionargs={"level": 100},
             metadata=metadata,
         )
         tif.write(
