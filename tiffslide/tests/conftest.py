@@ -324,9 +324,11 @@ def small_multilevel_img(tmp_path):
             tile=(tile_size, tile_size),
             photometric="rgb",
             compression="jpeg",
-            compressionargs={"level": 100},
             metadata=metadata,
         )
+        if tuple(map(int, tifffile.__version__.split("."))) > (2022, 5, 4):
+            options["compressionargs"] = {"level": 100}
+
         tif.write(
             data,
             subifds=2,
