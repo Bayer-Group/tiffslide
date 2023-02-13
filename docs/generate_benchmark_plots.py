@@ -46,7 +46,6 @@ def run_pytest_benchmarks(force: bool) -> None:
 
     df = pd.DataFrame.from_records(records)
     for test_name, ptdf in df.groupby("test_name"):
-
         ft_ax_order = [
             "svs",
             "generic",

@@ -11,7 +11,6 @@ from tiffslide import TiffSlide
 
 
 def write_lvl(fn):
-
     ts_slide = TiffSlide(fn)
     os_slide = OpenSlide(fn)
 

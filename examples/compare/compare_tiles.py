@@ -11,7 +11,6 @@ from tiffslide import TiffSlide
 
 
 def write_tiles(fn):
-
     ts_slide = TiffSlide(fn)
     os_slide = OpenSlide(fn)
 

@@ -91,7 +91,6 @@ def test_image_get_best_level_for_downsample(slide):
     assert slide.get_best_level_for_downsample(1.0) == 0
 
     for lvl, ds in enumerate(slide.level_downsamples):
-
         # query exact downsample
         lvl_new = slide.get_best_level_for_downsample(ds)
         assert lvl == lvl_new
@@ -262,7 +261,6 @@ def test_non_tiff_fallback(jpg_file):
     ],
 )
 def test_read_region_padding_fully_oob(slide, loc, lvl):
-
     if loc[0] is None:
         loc = slide.dimensions[0], loc[1]
     if loc[1] is None:
@@ -294,7 +292,6 @@ def test_read_region_padding_fully_oob(slide, loc, lvl):
     ],
 )
 def test_read_region_padding_partially_oob(slide, loc):
-
     size = (150, 150)
 
     if loc[0] is None:
@@ -327,7 +324,6 @@ def test_read_region_nopadding_oob(slide):
 
 
 def test_padding_no_padding(slide):
-
     lvl = slide.level_count - 1
     isize = width, height = slide.level_dimensions[lvl]
     rsize = width + 20, height + 40
@@ -337,7 +333,6 @@ def test_padding_no_padding(slide):
 
 
 def test_padding_br_on_nonzero_level(slide):
-
     if slide.level_count == 1:
         pytest.skip("only one level")
 
@@ -367,14 +362,17 @@ def test_no_numpy_scalar_overflow(slide):
 
 
 @pytest.mark.parametrize(
-    "loc,lvl,size", [
+    "loc,lvl,size",
+    [
         ((219, 219), 0, (48, 48)),
         ((219, 219), 1, (12, 12)),
         ((219, 219), 2, (3, 3)),
     ],
     ids=["lvl0", "lvl1", "lvl2"],
 )
-def test_read_region_intermediate_level_non_zero_loc(small_multilevel_img, loc, lvl, size):
+def test_read_region_intermediate_level_non_zero_loc(
+    small_multilevel_img, loc, lvl, size
+):
     # this test will fail, because of the way small_multilevel_img was constructed
     # the sizes of the base level were chosen so that the 4x lower zoom intermediate
     # levels will cause errors when reading from the intermediate levels, where

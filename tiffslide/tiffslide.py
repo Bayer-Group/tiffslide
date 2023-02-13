@@ -231,10 +231,7 @@ class TiffSlide:
     def level_downsamples(self) -> tuple[float, ...]:
         """return the downsampling factors of levels as a list"""
         w0, h0 = self.dimensions
-        return tuple(
-            ((w0 / w) + (h0 / h)) / 2.0
-            for w, h in self.level_dimensions
-        )
+        return tuple(((w0 / w) + (h0 / h)) / 2.0 for w, h in self.level_dimensions)
 
     @cached_property
     def properties(self) -> dict[str, Any]:
@@ -423,7 +420,9 @@ class TiffSlide:
         else:
             return Image.fromarray(arr)
 
-    def _read_region_loc_transform(self, location: tuple[int, int], level: int) -> tuple[int, int]:
+    def _read_region_loc_transform(
+        self, location: tuple[int, int], level: int
+    ) -> tuple[int, int]:
         """return the location at the provided level
 
         Notes
@@ -964,8 +963,8 @@ def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
         md[f"tiffslide.level[{lvl}].height"] = lvl_size_y
         md[f"tiffslide.level[{lvl}].width"] = lvl_size_x
         md[f"tiffslide.level[{lvl}].downsample"] = (
-            ((slide_x_px / lvl_size_x) + (slide_y_px / lvl_size_y)) / 2.0
-        )
+            (slide_x_px / lvl_size_x) + (slide_y_px / lvl_size_y)
+        ) / 2.0
         level_shapes.append((lvl_size_y, lvl_size_x, 3))
 
     md["tiffslide.series-index"] = first_non_macro_idx

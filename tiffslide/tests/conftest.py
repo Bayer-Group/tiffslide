@@ -306,7 +306,7 @@ def small_multilevel_img(tmp_path):
     for iy, y in enumerate(range(0, size[0], tile_size)):
         for ix, x in enumerate(range(0, size[1], tile_size)):
             val = (iy + ix) % 2
-            data[y:y+tile_size, x:x+tile_size] = 100 * (val + 1)
+            data[y : y + tile_size, x : x + tile_size] = 100 * (val + 1)
 
     # (46000, 32914), (11500, 8228)
 

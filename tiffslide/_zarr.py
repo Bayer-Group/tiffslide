@@ -269,7 +269,6 @@ def get_zarr_chunk_sizes(
 
     for key, value in store.items():
         if ".zarray" in key:
-
             levelstr = (key.split("/")[0] + "/") if "/" in key else ""
             # skip if not selected level
             if levelstr == "" and level != 0:
