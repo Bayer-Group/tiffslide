@@ -187,4 +187,4 @@ _([Santi](https://github.com/sdvillal) is happy to help you setting up pycharm i
 
 Build with love by Andreas Poehlmann and Santi Villalba from the _Machine Learning Research_ group at Bayer.
 
-`tiffslide`: copyright 2020-2022 Bayer AG, licensed under [BSD](https://github.com/bayer-science-for-a-better-life/tiffslide/blob/master/LICENSE)
+`tiffslide`: copyright 2020 Bayer AG, licensed under [BSD](https://github.com/bayer-science-for-a-better-life/tiffslide/blob/master/LICENSE)
