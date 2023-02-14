@@ -982,7 +982,7 @@ def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
 
 def _xml_to_dict(xml: str) -> dict[str, Any]:
     """helper function to convert xml string to a dictionary"""
-    x = ElementTree.fromstring(xml)
+    x = ElementTree.fromstring(xml)  # nosec B314
 
     def _to_dict(e):  # type: ignore
         tag = e.tag[e.tag.find("}") + 1 :]

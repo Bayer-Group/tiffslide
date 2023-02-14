@@ -29,7 +29,10 @@ except AttributeError:
 
 
 def md5(fn):
-    m = hashlib.md5()
+    if sys.version_info >= (3, 9):
+        m = hashlib.md5(usedforsecurity=False)
+    else:
+        m = hashlib.md5()  # nosec B324
     with open(fn, "rb") as f:
         for chunk in iter(lambda: f.read(4096), b""):
             m.update(chunk)
@@ -262,7 +265,7 @@ def wsi_file(request, tmp_path_factory):
         if not img_fn.is_file():
             # download svs from openslide test images
             url = IMAGES_BASE_URL + small_image
-            with urllib.request.urlopen(url) as response, open(
+            with urllib.request.urlopen(url) as response, open(  # nosec B310
                 img_fn, "wb"
             ) as out_file:
                 shutil.copyfileobj(response, out_file)

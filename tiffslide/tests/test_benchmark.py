@@ -56,14 +56,16 @@ def try_to_clear_disk_cache(root_pass):
         max_size = "1000G"
         drop_level = 3
 
-        if 0 != os.system(f'vmtouch -e -f -q -m {max_size} "{OPENSLIDE_TESTDATA_DIR}"'):
+        if 0 != os.system(  # nosec B605
+            f'vmtouch -e -f -q -m {max_size} "{OPENSLIDE_TESTDATA_DIR}"'
+        ):
             subprocess.run(
                 r"""printf '%%s\n' "$SUDO_PASSWORD" """
                 r"""| sudo -p "" -S -- sh -c 'sync && echo %d > /proc/sys/vm/drop_caches'"""
                 % drop_level,
                 env=env,
                 check=True,
-                shell=True,
+                shell=True,  # nosec B602
             )
 
     elif system == "Darwin":
