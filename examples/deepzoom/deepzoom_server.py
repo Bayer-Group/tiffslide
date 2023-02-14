@@ -1,4 +1,5 @@
-import hashlib
+import sys
+from hashlib import sha1
 
 from flask import Flask
 from flask import abort
@@ -14,11 +15,22 @@ app = Flask(__name__)
 _dzgen = None
 
 
+if sys.version_info >= (3, 9):
+
+    def hash_fn(x: str) -> str:
+        return sha1(x.encode(), usedforsecurity=False).hexdigest()
+
+else:
+
+    def hash_fn(x: str) -> str:
+        return sha1(x.encode()).hexdigest()  # nosec
+
+
 @app.route("/")
 def index():
     # noinspection PyProtectedMember
     fn = _dzgen._openfile.path  # just so we don't need to worry about caching
-    su = url_for("dzi", image_fn=hashlib.sha1(fn.encode()).hexdigest())
+    su = url_for("dzi", image_fn=hash_fn(fn))
     return render_template("index.html", filename=fn, slide_url=su)
 
 
