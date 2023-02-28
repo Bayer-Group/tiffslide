@@ -9,13 +9,14 @@ from itertools import count
 from types import TracebackType
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import AnyStr
 from typing import Iterator
 from typing import Mapping
 from typing import TypeVar
 from typing import overload
 from warnings import warn
 from xml.etree import ElementTree
+
+from tifffile import TiffPage
 
 from tiffslide._types import Slice3D
 
@@ -104,7 +105,7 @@ class TiffSlide:
 
     def __init__(
         self,
-        filename: PathOrFileOrBufferLike[AnyStr],
+        filename: PathOrFileOrBufferLike,
         *,
         tifffile_options: dict[str, Any] | None = None,
         storage_options: dict[str, Any] | None = None,
@@ -174,7 +175,7 @@ class TiffSlide:
     @classmethod
     def detect_format(
         cls,
-        filename: PathOrFileOrBufferLike[AnyStr],
+        filename: PathOrFileOrBufferLike,
         *,
         tifffile_options: dict[str, Any] | None = None,
         storage_options: dict[str, Any] | None = None,
@@ -496,7 +497,7 @@ class NotTiffSlide(TiffSlide):
     # noinspection PyMissingConstructor
     def __init__(
         self,
-        filename: PathOrFileOrBufferLike[AnyStr],
+        filename: PathOrFileOrBufferLike,
         *,
         tifffile_options: dict[str, Any] | None = None,
         storage_options: dict[str, Any] | None = None,
@@ -512,7 +513,7 @@ class NotTiffSlide(TiffSlide):
     @classmethod
     def detect_format(
         cls,
-        filename: PathOrFileOrBufferLike[AnyStr],
+        filename: PathOrFileOrBufferLike,
         *,
         tifffile_options: dict[str, Any] | None = None,
         storage_options: dict[str, Any] | None = None,
@@ -566,7 +567,7 @@ TF = TypeVar("TF", TiffFile, NotTiffFile)
 
 
 def _prepare_tifffile(
-    fb: PathOrFileOrBufferLike[AnyStr],
+    fb: PathOrFileOrBufferLike,
     *,
     tifffile_options: dict[str, Any] | None = None,
     storage_options: dict[str, Any] | None = None,

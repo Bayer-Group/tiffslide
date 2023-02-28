@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import os
 import sys
+import warnings
 from typing import IO
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import AnyStr
 from typing import Union
 
 if sys.version_info >= (3, 8):
@@ -35,6 +35,7 @@ if TYPE_CHECKING:
 
 
 __all__ = [
+    "PathLikeStr",
     "PathOrFileOrBufferLike",
     "OpenFileLike",
     "TiffFileIO",
@@ -44,10 +45,28 @@ __all__ = [
     "SeriesCompositionInfo",
 ]
 
-if sys.version_info >= (3, 9):
+if TYPE_CHECKING:
+    from typing import AnyStr
+
     PathLikeAnyStr: TypeAlias = os.PathLike[AnyStr]
+
+
+def __getattr__(name: str) -> Any:
+    if name == "PathLikeAnyStr":
+        warnings.warn(
+            "use PathLikeStr instead of PathLikeAnyStr",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return "os.PathLike[AnyStr]"
+    else:
+        raise AttributeError(name)
+
+
+if sys.version_info >= (3, 9):
+    PathLikeStr: TypeAlias = os.PathLike[str]
 else:
-    PathLikeAnyStr: TypeAlias = os.PathLike
+    PathLikeStr: TypeAlias = os.PathLike
 
 
 @runtime_checkable
@@ -57,7 +76,7 @@ class OpenFileLike(Protocol):
     fs: AbstractFileSystem
     path: str
 
-    def __enter__(self) -> IO[AnyStr]:
+    def __enter__(self) -> IO[bytes]:
         ...
 
     def __exit__(
@@ -79,14 +98,14 @@ class TiffFileIO(Protocol):
     def tell(self) -> int:
         ...
 
-    def read(self, n: int = -1) -> AnyStr:
+    def read(self, n: int = -1) -> bytes:
         ...
 
     def readinto(self, __buffer: Any) -> int | None:
         ...
 
 
-PathOrFileOrBufferLike = Union[AnyStr, PathLikeAnyStr, OpenFileLike, TiffFileIO]
+PathOrFileOrBufferLike = Union[str, PathLikeStr, OpenFileLike, TiffFileIO]
 
 
 Point3D: TypeAlias = "tuple[int, int, int]"
