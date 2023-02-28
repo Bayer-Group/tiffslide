@@ -3,7 +3,6 @@
 a somewhat drop-in replacement for openslide-python using tifffile and zarr
 
 """
-from typing import AnyStr
 from warnings import warn
 
 from tiffslide._types import PathOrFileOrBufferLike
@@ -52,7 +51,7 @@ def __getattr__(name):  # type: ignore
     raise AttributeError(name)
 
 
-def open_slide(filename: PathOrFileOrBufferLike[AnyStr]) -> TiffSlide:
+def open_slide(filename: PathOrFileOrBufferLike) -> TiffSlide:
     """drop-in helper function
 
     Note: this will always try to fall back to the NotTiffSlide class
