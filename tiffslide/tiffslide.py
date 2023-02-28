@@ -1041,6 +1041,11 @@ def _get_filename(obj: Any) -> str:
 
 def _check_page_description_encoding(page: TiffPage) -> str:
     """try to return the description tag of a tiffpage"""
+    value = page.description
+    if value:
+        return value
+
+    # value was empty, try to recover
     value = page.tags.valueof(270, default="")
 
     if isinstance(value, str):
