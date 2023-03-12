@@ -596,6 +596,8 @@ def _prepare_tifffile(
                 stacklevel=3,
             )
 
+    _monkey_patch()
+
     if isinstance(fb, TiffFileIO):
         # provided an IO stream like instance
         _warn_unused_storage_options(st_kw)
@@ -759,7 +761,8 @@ class _PropertyParser:
         md = self.new_metadata()
 
         # parse metadata from description
-        desc = self._tf.pages[0].description
+        page = self._tf.pages[0]
+        desc = _check_page_description_encoding(page)
         md.update(_parse_metadata_aperio(desc))
         md["tiff.ImageDescription"] = desc
 
@@ -832,7 +835,8 @@ class _PropertyParser:
         md = self.new_metadata()
 
         # store the description
-        desc = self._tf.pages[0].description
+        page = self._tf.pages[0]
+        desc = _check_page_description_encoding(page)
         md["tiff.ImageDescription"] = desc
 
         md["tiffslide.series-index"] = 0  # use series 0
@@ -1033,3 +1037,56 @@ def _get_filename(obj: Any) -> str:
             return obj.filename or ""
         except AttributeError:
             return ""
+
+
+def _check_page_description_encoding(page: TiffPage) -> str:
+    """try to return the description tag of a tiffpage"""
+    value = page.description
+    if isinstance(value, str) and value:
+        return value
+
+    # value was empty, try to recover
+    value = page.tags.valueof(270, default="")
+
+    if isinstance(value, str):
+        return value
+
+    elif isinstance(value, bytes) and value:
+        raise TiffFileError(
+            "ImageDescription tag has incompatible encoding.\n"
+            "# Try setting the environment variable TIFFSLIDE_MONKEY_PATCH_NON_ASCII_DESCRIPTIONS=1\n"
+            "# Or better fix your original file by running:\n"
+            "$ python -m tiffslide.repair description-tag-encoding <WSI_FILENAME>",
+        )
+
+    else:
+        raise ValueError(f"unsupported description type: {type(value)!r}")
+
+
+# === monkey patching =================================================
+
+
+def _env2bool(value: str) -> bool:
+    """convert an environment variable to bool"""
+    if not isinstance(value, str):
+        raise TypeError(f"value must be of type str, got: {type(value).__name__}")
+    value = value.lower()
+    if value in {"yes", "true", "t", "y", "1"}:
+        return True
+    elif value in {"no", "false", "f", "n", "0", ""}:
+        return False
+    else:
+        raise ValueError(f"could not parse value: {value!r}")
+
+
+def _monkey_patch() -> None:
+    """applying monkey tiffslide patches if requested"""
+    if _env2bool(os.getenv("TIFFSLIDE_MONKEY_PATCH_NON_ASCII_DESCRIPTIONS", "")):
+        from tiffslide.repair import monkey_patch_description_tag_encoding
+
+        warn(
+            "TIFFSLIDE_MONKEY_PATCH_NON_ASCII_DESCRIPTIONS is active!",
+            RuntimeWarning,
+            stacklevel=4,
+        )
+        monkey_patch_description_tag_encoding()
