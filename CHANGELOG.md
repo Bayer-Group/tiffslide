@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ...
 
+## [2.1.1] - 2023-03-13
+## Fixed
+- `tiffslide`: Provide fallback support for broken images with non-ascii ImageDescription tags
+
 ## [2.1.0] - 2023-02-13
 ## Fixed
 - `tiffslide`: fix possible inconsistency in downsampled scaling between axis
@@ -169,7 +173,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - initial release of tiffslide and
 
-[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.1.1...HEAD
+[2.1.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.0.1...v2.1.0
 [2.0.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v1.10.1...v2.0.0
