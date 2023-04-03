@@ -887,6 +887,10 @@ def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
     first_non_macro_idx: int | None = None
     lvl_resolutions = defaultdict(list)
     series_offsets_nm = {}
+    levels_start_x_nm: int | None = None
+    levels_start_y_nm: int | None = None
+    levels_end_x_nm: int | None = None
+    levels_end_y_nm: int | None = None
 
     for idx, image in enumerate(collection["image"]):
         image_x_nm = int(image["view"]["@sizeX"])
@@ -902,6 +906,16 @@ def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
         )
         if is_macro_image:
             continue
+        if levels_start_x_nm  is None or levels_start_x_nm > offset_x_nm:
+            levels_start_x_nm = offset_x_nm
+        if levels_start_y_nm is None or levels_start_y_nm > offset_y_nm:
+            levels_start_y_nm = offset_y_nm
+        level_end_x_nm = offset_x_nm + image_x_nm
+        level_end_y_nm = offset_y_nm + image_y_nm
+        if levels_end_x_nm  is None or levels_end_x_nm < level_end_x_nm:
+            levels_end_x_nm = level_end_x_nm
+        if levels_end_y_nm  is None or levels_end_y_nm < level_end_y_nm:
+            levels_end_y_nm = level_end_y_nm
 
         if first_non_macro_idx is None:
             first_non_macro_idx = idx
@@ -944,7 +958,10 @@ def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
     mpp = nm_per_px / 1000.0
     md[PROPERTY_NAME_MPP_X] = mpp
     md[PROPERTY_NAME_MPP_Y] = mpp
-
+    md[PROPERTY_NAME_BOUNDS_X] = int(levels_start_x_nm / nm_per_px)
+    md[PROPERTY_NAME_BOUNDS_Y] = int(levels_start_y_nm / nm_per_px)
+    md[PROPERTY_NAME_BOUNDS_WIDTH] = int((levels_end_x_nm-levels_start_x_nm) / nm_per_px)
+    md[PROPERTY_NAME_BOUNDS_HEIGHT] = int((levels_end_y_nm-levels_start_y_nm) / nm_per_px)
     slide_x_px = math.ceil(slide_x_nm / nm_per_px)
     slide_y_px = math.ceil(slide_y_nm / nm_per_px)
 
