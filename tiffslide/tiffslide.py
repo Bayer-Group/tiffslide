@@ -906,15 +906,15 @@ def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
         )
         if is_macro_image:
             continue
-        if levels_start_x_nm  is None or levels_start_x_nm > offset_x_nm:
+        if levels_start_x_nm is None or levels_start_x_nm > offset_x_nm:
             levels_start_x_nm = offset_x_nm
         if levels_start_y_nm is None or levels_start_y_nm > offset_y_nm:
             levels_start_y_nm = offset_y_nm
         level_end_x_nm = offset_x_nm + image_x_nm
         level_end_y_nm = offset_y_nm + image_y_nm
-        if levels_end_x_nm  is None or levels_end_x_nm < level_end_x_nm:
+        if levels_end_x_nm is None or levels_end_x_nm < level_end_x_nm:
             levels_end_x_nm = level_end_x_nm
-        if levels_end_y_nm  is None or levels_end_y_nm < level_end_y_nm:
+        if levels_end_y_nm is None or levels_end_y_nm < level_end_y_nm:
             levels_end_y_nm = level_end_y_nm
 
         if first_non_macro_idx is None:
@@ -946,6 +946,12 @@ def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
 
     if not lvl_resolutions:
         raise ValueError("no non-macro images in file")
+
+    assert levels_start_x_nm is not None
+    assert levels_start_y_nm is not None
+    assert levels_end_x_nm is not None
+    assert levels_end_y_nm is not None
+
     resolutions0 = np.array(lvl_resolutions[0])
     # allow some threshold
     _r_avg = resolutions0.mean()
@@ -960,8 +966,12 @@ def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
     md[PROPERTY_NAME_MPP_Y] = mpp
     md[PROPERTY_NAME_BOUNDS_X] = int(levels_start_x_nm / nm_per_px)
     md[PROPERTY_NAME_BOUNDS_Y] = int(levels_start_y_nm / nm_per_px)
-    md[PROPERTY_NAME_BOUNDS_WIDTH] = int((levels_end_x_nm-levels_start_x_nm) / nm_per_px)
-    md[PROPERTY_NAME_BOUNDS_HEIGHT] = int((levels_end_y_nm-levels_start_y_nm) / nm_per_px)
+    md[PROPERTY_NAME_BOUNDS_WIDTH] = int(
+        (levels_end_x_nm - levels_start_x_nm) / nm_per_px
+    )
+    md[PROPERTY_NAME_BOUNDS_HEIGHT] = int(
+        (levels_end_y_nm - levels_start_y_nm) / nm_per_px
+    )
     slide_x_px = math.ceil(slide_x_nm / nm_per_px)
     slide_y_px = math.ceil(slide_y_nm / nm_per_px)
 
