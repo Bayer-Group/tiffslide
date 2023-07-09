@@ -13,13 +13,9 @@ from types import MappingProxyType
 from types import TracebackType
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Literal
 from typing import Mapping
 from typing import Sequence
-
-if sys.version_info >= (3, 8):
-    from typing import Literal
-else:
-    from typing_extensions import Literal
 
 import numpy as np
 import zarr

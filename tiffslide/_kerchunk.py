@@ -13,11 +13,7 @@ from collections import ChainMap
 from io import StringIO
 from typing import TYPE_CHECKING
 from typing import Any
-
-if sys.version_info >= (3, 8):
-    from typing import TypedDict
-else:
-    from typing_extensions import TypedDict
+from typing import TypedDict
 
 import fsspec
 from imagecodecs.numcodecs import register_codecs
