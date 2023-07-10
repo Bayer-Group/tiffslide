@@ -179,13 +179,10 @@ def _write_test_svs_with_axes_YX_dtype_uint16(pth):
     mpp = 0.25
     mag = 40
     filename = "ASD"
-    if sys.version_info >= (3, 8):
-        resolution_kw = {
-            "resolution": (10000 / mpp, 10000 / mpp),
-            "resolutionunit": "CENTIMETER",
-        }
-    else:
-        resolution_kw = {"resolution": (10000 / mpp, 10000 / mpp, "CENTIMETER")}
+    resolution_kw = {
+        "resolution": (10000 / mpp, 10000 / mpp),
+        "resolutionunit": "CENTIMETER",
+    }
 
     # write to svs format
     with tifffile.TiffWriter(pth, bigtiff=True) as tif:

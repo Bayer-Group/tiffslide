@@ -5,27 +5,18 @@ import os.path
 import sys
 from collections import defaultdict
 from fractions import Fraction
+from functools import cached_property
 from itertools import count
 from types import TracebackType
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Iterator
+from typing import Literal
 from typing import Mapping
 from typing import TypeVar
 from typing import overload
 from warnings import warn
 from xml.etree import ElementTree
-
-from tifffile import TiffPage
-
-from tiffslide._types import Slice3D
-
-if sys.version_info[:2] >= (3, 8):
-    from functools import cached_property
-    from typing import Literal
-else:
-    from tiffslide._pycompat import cached_property
-    from typing_extensions import Literal
 
 import numpy as np
 import tifffile
@@ -36,6 +27,7 @@ from fsspec.implementations.reference import ReferenceFileSystem
 from PIL import Image
 from tifffile import TiffFile
 from tifffile import TiffFileError as TiffFileError
+from tifffile import TiffPage
 from tifffile import TiffPageSeries
 from tifffile.tifffile import svs_description_metadata
 
@@ -43,6 +35,7 @@ from tiffslide._compat import NotTiffFile
 from tiffslide._types import OpenFileLike
 from tiffslide._types import PathOrFileOrBufferLike
 from tiffslide._types import SeriesCompositionInfo
+from tiffslide._types import Slice3D
 from tiffslide._types import TiffFileIO
 from tiffslide._zarr import get_zarr_depth_and_dtype
 from tiffslide._zarr import get_zarr_selection

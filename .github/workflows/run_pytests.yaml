@@ -27,8 +27,6 @@ jobs:
             python-version: "3.9"
           - os: ubuntu-latest
             python-version: "3.8"
-          - os: ubuntu-latest
-            python-version: "3.7"
     steps:
       - name: Checkout TiffSlide
         uses: actions/checkout@v3

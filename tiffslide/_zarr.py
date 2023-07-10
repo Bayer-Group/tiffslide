@@ -4,12 +4,10 @@ provides helpers for handling and compositing arrays and zarr-like groups
 from __future__ import annotations
 
 import json
-import sys
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Iterator
 from typing import Mapping
-from warnings import warn
 
 import numpy as np
 import zarr
@@ -19,8 +17,6 @@ from tifffile import ZarrTiffStore
 from zarr.storage import FSStore
 
 from tiffslide._compat import NotTiffFile
-from tiffslide._pycompat import REQUIRES_STORE_FIX
-from tiffslide._pycompat import py37_fix_store
 from tiffslide._types import Point3D
 from tiffslide._types import SeriesCompositionInfo
 from tiffslide._types import Size3D
@@ -41,12 +37,6 @@ __all__ = [
     "get_zarr_depth_and_dtype",
     "get_zarr_selection",
 ]
-
-if REQUIRES_STORE_FIX and sys.version_info >= (3, 8):
-    warn(
-        "detected outdated tifffile version on `python>=3.8` with `zarr>=2.11.0`: "
-        "updating tifffile is recommended!"
-    )
 
 
 # --- zarr storage classes --------------------------------------------
@@ -120,8 +110,6 @@ def _get_series_zarr(
         zstore = FSStore(f"s{series_idx}", fs=obj)
     else:
         raise NotImplementedError(f"{type(obj).__name__} unsupported")
-    if REQUIRES_STORE_FIX:
-        zstore = py37_fix_store(zstore)
     return zstore  # type: ignore
 
 
@@ -302,7 +290,7 @@ def get_zarr_chunk_sizes(
     except AttributeError:
         raise RuntimeError("probably not supported with your tifffile version")
 
-    chunk_sizes = np.full(chunked, dtype=np.int64, fill_value=-1)
+    chunk_sizes: NDArray[np.int64] = np.full(chunked, dtype=np.int64, fill_value=-1)
 
     # _index = ""
     for indices in np.ndindex(*chunked):
