@@ -14,6 +14,7 @@ import pytest
 OPENSLIDE_TESTDATA_DIR = os.getenv("OPENSLIDE_TESTDATA_DIR", None)
 FILES = {
     "svs": "Aperio/CMU-2.svs",
+    "svs_jp2k": "Aperio-JP2K/TCGA-05-4395-01Z-00-DX1.20205276-ca16-46b2-914a-fe5e576a5cf9.svs",
     "generic": "Generic-TIFF/CMU-1.tiff",
     "hamamatsu": "Hamamatsu/OS-3.ndpi",
     "leica": "Leica/Leica-2.scn",

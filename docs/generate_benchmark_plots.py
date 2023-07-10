@@ -48,6 +48,7 @@ def run_pytest_benchmarks(force: bool) -> None:
     for test_name, ptdf in df.groupby("test_name"):
         ft_ax_order = [
             "svs",
+            "svs_jp2k",
             "generic",
             "hamamatsu",
             "leica",
@@ -59,7 +60,7 @@ def run_pytest_benchmarks(force: bool) -> None:
         ft_ax_map = {ft: ax for ft, ax in zip(ft_ax_order, axes)}
 
         for file_type, tdf in ptdf.groupby("file_type"):
-            ldf = tdf.groupby(["modname", "label"]).mean()
+            ldf = tdf.groupby(["modname", "label"])[["time"]].mean()
             ldf["time"] *= 1000
             ldf = ldf.reset_index()
             pdf = ldf.pivot(index="label", columns="modname", values="time")
