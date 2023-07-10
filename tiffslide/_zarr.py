@@ -14,7 +14,9 @@ import zarr
 from fsspec.implementations.reference import ReferenceFileSystem
 from tifffile import TiffFile
 from tifffile import ZarrTiffStore
+from zarr.storage import BaseStore
 from zarr.storage import FSStore
+from zarr.storage import KVStore as _KVStore
 
 from tiffslide._compat import NotTiffFile
 from tiffslide._types import Point3D
@@ -26,11 +28,6 @@ if TYPE_CHECKING:
     from numpy.typing import DTypeLike
     from numpy.typing import NDArray
 
-try:
-    from zarr.storage import KVStore
-except ImportError:
-    KVStore = lambda x: x  # noqa
-
 
 __all__ = [
     "get_zarr_store",
@@ -40,6 +37,16 @@ __all__ = [
 
 
 # --- zarr storage classes --------------------------------------------
+
+if "__contains__" not in _KVStore.__dict__:
+    # fix missing contains caused double decode:
+    # https://github.com/bayer-science-for-a-better-life/tiffslide/issues/72#issuecomment-1627918238
+    class KVStore(_KVStore):
+        def __contains__(self, item: str) -> bool:
+            return item in self._mutable_mapping
+
+else:
+    KVStore = _KVStore  # type: ignore
 
 
 class _CompositedStore(Mapping[str, Any]):
@@ -118,7 +125,7 @@ def get_zarr_store(
     tf: TiffFile | ReferenceFileSystem | None,
     *,
     num_decode_threads: int | None = None,
-) -> Mapping[str, Any]:
+) -> BaseStore:
     """return a zarr store
 
     Parameters
@@ -142,7 +149,7 @@ def get_zarr_store(
     composition: SeriesCompositionInfo | None = properties.get(
         "tiffslide.series-composition"
     )
-    store: Mapping[str, Any]
+    store: BaseStore
     if composition:
         prefixed_stores = {}
         for series_idx in composition["located_series"].keys():
@@ -154,17 +161,21 @@ def get_zarr_store(
                 _store = _CompositedStore({"0": _store})
             prefixed_stores[str(series_idx)] = _store
 
-        store = _CompositedStore(prefixed_stores, zattrs=composition)
-        store = KVStore(store)
+        _store = _CompositedStore(prefixed_stores, zattrs=composition)
+        store = KVStore(_store)
 
     else:
         series_idx = properties.get("tiffslide.series-index", 0)
-        store = _get_series_zarr(tf, series_idx, num_decode_threads=num_decode_threads)
+        _store = _get_series_zarr(tf, series_idx, num_decode_threads=num_decode_threads)
 
         # encapsulate store as group if tifffile returns a zarr array
-        if ".zarray" in store:
-            store = _CompositedStore({"0": store})
-            store = KVStore(store)
+        if ".zarray" in _store:
+            _store = _CompositedStore({"0": _store})
+            store = KVStore(_store)
+        elif isinstance(_store, BaseStore):
+            store = _store
+        else:
+            store = KVStore(_store)
 
     return store
 
