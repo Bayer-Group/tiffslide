@@ -48,8 +48,10 @@ file = "README.md"
 content-type = "text/markdown"
 
 [project.urls]
-Homepage = "https://github.com/bayer-science-for-a-better-life/tiffslide"
-Download = "https://github.com/bayer-science-for-a-better-life/tiffslide"
+Homepage = "https://github.com/Bayer-Group/tiffslide"
+Download = "https://github.com/Bayer-Group/tiffslide"
+Source = "https://github.com/Bayer-Group/tiffslide"
+Changelog = "https://github.com/Bayer-Group/tiffslide/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
