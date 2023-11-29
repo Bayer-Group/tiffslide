@@ -14,7 +14,6 @@ from typing import Iterator
 from typing import Literal
 from typing import Mapping
 from typing import Optional
-from typing import Tuple
 from typing import TypeVar
 from typing import overload
 from warnings import warn
