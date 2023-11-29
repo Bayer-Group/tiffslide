@@ -56,10 +56,7 @@ def __getattr__(name: str) -> Any:
         raise AttributeError(name)
 
 
-if sys.version_info >= (3, 9):
-    PathLikeStr: TypeAlias = os.PathLike[str]
-else:
-    PathLikeStr: TypeAlias = os.PathLike
+PathLikeStr: TypeAlias = "os.PathLike[str]"
 
 
 @runtime_checkable

@@ -13,6 +13,7 @@ from typing import Any
 from typing import Iterator
 from typing import Literal
 from typing import Mapping
+from typing import Optional
 from typing import TypeVar
 from typing import overload
 from warnings import warn
@@ -644,6 +645,7 @@ class _PropertyParser:
         scn="leica",
         bif="ventana",
         ndpi="hamamatsu",
+        philips="philips_tiff"
         # add more when needed
     )
 
@@ -841,6 +843,34 @@ class _PropertyParser:
 
         # collect level info
         md.update(self.collect_level_info(series0))
+        return md
+
+    def parse_philips_tiff(self) -> dict[str, Any]:
+        """parse Philips tiff properties"""
+        md = self.parse_generic_tiff()
+        if self._tf.philips_metadata is None:
+            return md
+        philips_metadata = ElementTree.fromstring(self._tf.philips_metadata)
+
+        def get_first_attribute_with_name(
+            root: ElementTree.Element, name: str
+        ) -> str | None:
+            return next(root.iterfind(f".//Attribute[@Name='{name}']")).text
+
+        md[PROPERTY_NAME_VENDOR] = get_first_attribute_with_name(
+            philips_metadata, "DICOM_MANUFACTURER"
+        )
+        pixel_spacing_attribute = get_first_attribute_with_name(
+            philips_metadata, "DICOM_PIXEL_SPACING"
+        )
+        if pixel_spacing_attribute is not None:
+            pixel_spacings = [
+                float(element.strip('"')) * 1000
+                for element in pixel_spacing_attribute.split(" ")
+            ]
+            mpp_x, mpp_y = pixel_spacings[0], pixel_spacings[1]
+            md[PROPERTY_NAME_MPP_X] = mpp_x
+            md[PROPERTY_NAME_MPP_Y] = mpp_y
         return md
 
 
