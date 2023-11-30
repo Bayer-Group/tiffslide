@@ -868,7 +868,7 @@ class _PropertyParser:
                 float(element.strip('"')) * 1000
                 for element in pixel_spacing_attribute.split(" ")
             ]
-            mpp_x, mpp_y = pixel_spacings[0], pixel_spacings[1]
+            mpp_y, mpp_x = pixel_spacings[0], pixel_spacings[1]
             md[PROPERTY_NAME_MPP_X] = mpp_x
             md[PROPERTY_NAME_MPP_Y] = mpp_y
         return md
