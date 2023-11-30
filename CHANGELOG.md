@@ -7,110 +7,114 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ...
 
+## [2.3.1] - 2023-11-30
+### Fixed
+- `tiffslide`: fix philips tiff mpp_x, mpp_y 
+
 ## [2.3.0] - 2023-11-30
-## Added
+### Added
 - `tiffslide`: added support for philips tiff metadata parsing
 
 ## [2.2.0] - 2023-06-10
-## Changed
+### Changed
 - `tiffslide`: drop support for Python 3.7
 
-## Fixed
+### Fixed
 - `tiffslide._zarr`: speedup tile access by preventing double decode #72
 
 ## [2.1.2] - 2023-04-04
-## Fixed
+### Fixed
 - `tiffslide`: add bounds when parsing leica metadata #68
 
 ## [2.1.1] - 2023-03-13
-## Fixed
+### Fixed
 - `tiffslide`: Provide fallback support for broken images with non-ascii ImageDescription tags
 
 ## [2.1.0] - 2023-02-13
-## Fixed
+### Fixed
 - `tiffslide`: fix possible inconsistency in downsampled scaling between axis
 
 ## [2.0.1] - 2023-02-09
-## Fixed
+### Fixed
 - `tiffslide`: fixed missing occurrences of downsamples change
 
 ## [2.0.0] - 2023-02-09
-## Changed
+### Changed
 - `tiffslide`: the downsamples are now calculated identical to openslide (breaking)
 
-## Fixed
+### Fixed
 - `tiffslide`: fix repr when backed by ReferenceFileSystem
 - `tiffslide`: prevent deprecation warning with non-rgb images
 - prevent incompatibility issues with fsspec on py3.7
 - support newer pillow
 
 ## [1.10.1] - 2022-11-09
-## Fixed
+### Fixed
 - `tiffslide`: support `.getitems()` fetching via ReferenceFileSystem
 
 ## [1.10.0] - 2022-10-07
-## Added
+### Added
 - `tiffslide`: parse additional hamamatsu specific tags
 
-## Fixed
+### Fixed
 - `tiffslide`: fix bug in `TiffSlide.get_best_level_for_downsample`
 
 ## [1.9.0] - 2022-09-18
-## Added
+### Added
 - `tiffslide`: support single-channel 16bit svs/tiff files
 
 ## [1.8.1] - 2022-09-13
-## Fixed
+### Fixed
 - `tiffslide._zarr`: unwrap the compatibility shim correctly on py37
 
 ## [1.8.0] - 2022-08-31
-## Added
+### Added
 - `tiffslide`: allow limiting worker threads via env `TIFFSLIDE_NUM_DECODE_THREADS`
 
 ## [1.7.0] - 2022-08-23
-## Added
+### Added
 - `tiffslide._zarr`: added experimental support for getting chunk sizes
 
 ## [1.6.0] - 2022-08-15
-## Changed
+### Changed
 - `tiffslide`: remove old svs metadata parsing compatibility patch
 
 ## [1.5.0] - 2022-07-25
-## Fixed
+### Fixed
 - `tiffslide`: prevent deprecation warning with `ANTIALIAS` for `pillow>=9.1.0`
 
-## Changed
+### Changed
 - `tiffslide`: don't require `backports.cached_property` on python3.7 anymore
 
 ## [1.4.0] - 2022-07-15
-## Added
+### Added
 - `tiffslide._kerchunk`: added experimental support for kerchunk serialization
 
 ## [1.3.0] - 2022-06-30
-## Fixed
+### Fixed
 - compatibility: fixed scn compositing (#36)
 
-## Added
+### Added
 - `TiffSlide().zarr_group` property to replace `.ts_zarr_grp` in a future version
 
 ## [1.2.1] - 2022-06-16
-## Fixed
+### Fixed
 - correct padding on nonzero levels (#38)
 
 ## [1.2.0] - 2022-04-03
-## Added
+### Added
 - compatibility: add fallback support for non-tiff images via `tiffslide.open_slide` (#19)
 - make region padding configurable
 
-## Fixed
+### Fixed
 - compatibility: support padding regions if out-of-bounds region requested (#27)
 - prevent numpy scalar overflows when using np.int32 coords in `read_region` (#29)
 
 ## [1.1.1] - 2022-03-31
-## Changes
+### Changes
 - change conda environment back to have conda devenv features in a compatibility way
 
-## Fixed
+### Fixed
 - fixes py37 zarr/tifffile version compatibility issue for installs via pypi
 
 ## [1.1.0] - 2022-03-22
@@ -188,7 +192,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - initial release of tiffslide and
 
-[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.3.0...HEAD
+[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.3.1...HEAD
+[2.3.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.1.2...v2.2.0
 [2.1.2]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.1.1...v2.1.2
