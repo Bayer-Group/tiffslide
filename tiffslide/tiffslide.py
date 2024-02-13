@@ -14,7 +14,6 @@ from typing import Any
 from typing import Iterator
 from typing import Literal
 from typing import Mapping
-from typing import Optional
 from typing import TypeVar
 from typing import overload
 from warnings import warn
@@ -242,7 +241,7 @@ class TiffSlide:
         return _LazyAssociatedImagesDict(series)
 
     @cached_property
-    def color_profile(self) -> Optional[ImageCms.ImageCmsProfile]:
+    def color_profile(self) -> ImageCms.ImageCmsProfile | None:
         """return the color profile of the image if present"""
         if self._profile is None:
             return None
@@ -500,7 +499,7 @@ class TiffSlide:
         return thumb
 
     @cached_property
-    def _profile(self) -> Optional[bytes]:
+    def _profile(self) -> bytes | None:
         """return the color profile of the image if present"""
         parser = _IccParser(self._tifffile)
         return parser.parse()
@@ -1061,7 +1060,9 @@ class _IccParser:
         """return the ICC profile if present"""
         page = self._tf.pages[0]
         if isinstance(page, TiffPage) and "InterColorProfile" in page.tags:
-            return page.tags["InterColorProfile"].value
+            icc_profile = page.tags["InterColorProfile"].value
+            if isinstance(icc_profile, bytes):
+                return icc_profile
         return None
 
 
