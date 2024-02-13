@@ -1,4 +1,5 @@
 from __future__ import annotations
+import io
 
 import math
 import os.path
@@ -13,7 +14,6 @@ from typing import Any
 from typing import Iterator
 from typing import Literal
 from typing import Mapping
-from typing import Optional
 from typing import TypeVar
 from typing import overload
 from warnings import warn
@@ -25,7 +25,7 @@ import zarr
 from fsspec.core import url_to_fs
 from fsspec.implementations.local import LocalFileSystem
 from fsspec.implementations.reference import ReferenceFileSystem
-from PIL import Image
+from PIL import Image, ImageCms
 from tifffile import TiffFile
 from tifffile import TiffFileError as TiffFileError
 from tifffile import TiffPage
@@ -240,6 +240,13 @@ class TiffSlide:
         series = self.ts_tifffile.series[idx + 1 :]
         return _LazyAssociatedImagesDict(series)
 
+    @cached_property
+    def color_profile(self) -> ImageCms.ImageCmsProfile | None:
+        """return the color profile of the image if present"""
+        if self._profile is None:
+            return None
+        return ImageCms.getOpenProfile(io.BytesIO(self._profile))
+
     def get_best_level_for_downsample(self, downsample: float) -> int:
         """return the best level for a given downsampling factor"""
         if downsample <= 1.0:
@@ -411,9 +418,12 @@ class TiffSlide:
         if as_array:
             return arr
         elif axes == "YX":
-            return Image.fromarray(arr[..., 0])
+            image = Image.fromarray(arr[..., 0])
         else:
-            return Image.fromarray(arr)
+            image = Image.fromarray(arr)
+        if self._profile is not None:
+            image.info['icc_profile'] = self._profile
+        return image
 
     def _read_region_loc_transform(
         self, location: tuple[int, int], level: int
@@ -484,7 +494,15 @@ class TiffSlide:
         except ValueError:
             # see: https://github.com/python-pillow/Pillow/blob/95cff6e959/src/libImaging/Resample.c#L559-L588
             thumb.thumbnail(size, _NEAREST)
+        if self._profile is not None:
+            thumb.info['icc_profile'] = self._profile
         return thumb
+
+    @cached_property
+    def _profile(self) -> bytes | None:
+        """return the color profile of the image if present"""
+        parser = _IccParser(self._tifffile)
+        return parser.parse()
 
 
 class NotTiffSlide(TiffSlide):
@@ -771,6 +789,7 @@ class _PropertyParser:
 
         # collect level info
         md.update(self.collect_level_info(series0))
+
         return md
 
     def parse_leica(self) -> dict[str, Any]:
@@ -1030,6 +1049,21 @@ def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
     )
 
     return md
+
+class _IccParser:
+    """parse ICC profile from tiff tags"""
+
+    def __init__(self, tf: TiffFile) -> None:
+        self._tf = tf
+
+    def parse(self) -> bytes | None:
+        """return the ICC profile if present"""
+        page = self._tf.pages[0]
+        if isinstance(page, TiffPage) and "InterColorProfile" in page.tags:
+            icc_profile = page.tags["InterColorProfile"].value
+            if isinstance(icc_profile, bytes):
+                return icc_profile
+        return None
 
 
 # --- helper functions --------------------------------------------------------

@@ -84,7 +84,14 @@ def ts_slide(file_name):
 
 @pytest.fixture()
 def os_slide(file_name):
-    from openslide import OpenSlide
+    import os
+    if hasattr(os, 'add_dll_directory'):
+        openslide_path = os.getenv("OPENSLIDE_PATH")
+        if openslide_path is not None:
+            with os.add_dll_directory(openslide_path):
+                from openslide import OpenSlide
+    else:
+        from openslide import OpenSlide
 
     yield OpenSlide(file_name)
 
@@ -233,3 +240,28 @@ def test_read_region_equality_level_common_max(ts_slide, os_slide, file_name):
 
     max_difference = np.max(np.abs(ts_arr.astype(int) - os_arr.astype(int)))
     assert max_difference <= (0 if exact else 1)
+
+def test_color_profile_property(ts_slide, os_slide):
+    if os_slide.color_profile is None:
+        assert ts_slide.color_profile is None
+    else:
+        assert ts_slide.color_profile.tobytes() == os_slide.color_profile.tobytes()
+
+def test_icc_profile_in_thumbnail(ts_slide, os_slide):
+    ts_slide_thumbnail = ts_slide.get_thumbnail((200, 200))
+    os_slide_thumbnail = os_slide.get_thumbnail((200, 200))
+
+    if os_slide_thumbnail.info.get("icc_profile") is None:
+        assert ts_slide_thumbnail.info.get("icc_profile") is None
+    else:
+        assert os_slide_thumbnail.info["icc_profile"] == ts_slide_thumbnail.info["icc_profile"]
+
+
+def test_icc_profile_in_region(ts_slide, os_slide):
+    ts_slide_region = ts_slide.read_region((0, 0), 0, (200, 200))
+    os_slide_region = os_slide.read_region((0, 0), 0, (200, 200))
+
+    if os_slide_region.info.get("icc_profile") is None:
+        assert ts_slide_region.info.get("icc_profile") is None
+    else:
+        assert os_slide_region.info["icc_profile"] == ts_slide_region.info["icc_profile"]
