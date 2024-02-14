@@ -21,7 +21,7 @@ jobs:
         python-version: ["3.12"]
         include:
           # we'll test the python support on ubuntu
-          - os: ububtu-latest
+          - os: ubuntu-latest
             python-version: "3.11"
           - os: ubuntu-latest
             python-version: "3.10"
