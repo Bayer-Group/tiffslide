@@ -38,7 +38,7 @@ dependencies = [
   "fsspec!=2022.11.0,!=2023.1.0",
   "pillow",
   "tifffile>=2021.6.14",
-  "zarr>=2.11.0",
+  "zarr>=2.11.0,<3.0",
   "typing_extensions>=4.0",
 ]
 dynamic = ["version"]
