@@ -21,7 +21,7 @@ dependencies:
   - imagecodecs
   - pillow
   - tifffile>=2021.6.14
-  - zarr
+  - zarr<3.0
 
   # development dependencies
   - pre-commit        # [ TIFFSLIDE_DEVEL ]
