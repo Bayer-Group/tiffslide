@@ -82,16 +82,6 @@ PROPERTY_NAME_BOUNDS_Y = "tiffslide.bounds-y"
 PROPERTY_NAME_BOUNDS_WIDTH = "tiffslide.bounds-width"
 PROPERTY_NAME_BOUNDS_HEIGHT = "tiffslide.bounds-height"
 
-# prevent pillow>=9.1.0 deprecation warning
-try:
-    _ANTIALIAS = Image.Resampling.LANCZOS
-except AttributeError:
-    _ANTIALIAS = Image.ANTIALIAS
-try:
-    _NEAREST = Image.Resampling.NEAREST
-except AttributeError:
-    _NEAREST = Image.NEAREST
-
 
 class TiffSlide:
     """
@@ -488,10 +478,10 @@ class TiffSlide:
         )
         thumb.paste(img, box=None, mask=None)
         try:
-            thumb.thumbnail(size, _ANTIALIAS)
+            thumb.thumbnail(size, Image.Resampling.LANCZOS)
         except ValueError:
             # see: https://github.com/python-pillow/Pillow/blob/95cff6e959/src/libImaging/Resample.c#L559-L588
-            thumb.thumbnail(size, _NEAREST)
+            thumb.thumbnail(size, Image.Resampling.NEAREST)
         if self._profile is not None:
             thumb.info["icc_profile"] = self._profile
         return thumb
