@@ -3,19 +3,20 @@
 compatibility layer to support loading non-tiff images
 
 """
+
 from __future__ import annotations
 
 import json
 import os.path
 import sys
+from collections.abc import Mapping
+from collections.abc import Sequence
 from pathlib import PurePath
 from types import MappingProxyType
 from types import TracebackType
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
-from typing import Mapping
-from typing import Sequence
 
 import numpy as np
 import zarr

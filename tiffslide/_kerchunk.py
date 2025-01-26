@@ -4,6 +4,7 @@ Test implementation of serialization and deserialization code to and from kerchu
 Don't rely on this API until it's public.
 
 """
+
 from __future__ import annotations
 
 import json

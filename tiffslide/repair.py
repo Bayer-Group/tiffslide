@@ -1,4 +1,5 @@
 """helpers for broken wsi"""
+
 from __future__ import annotations
 
 import functools

@@ -1,13 +1,14 @@
 """
 provides helpers for handling and compositing arrays and zarr-like groups
 """
+
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Iterator
-from typing import Mapping
 
 import numpy as np
 import zarr

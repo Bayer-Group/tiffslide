@@ -3,6 +3,7 @@
 a somewhat drop-in replacement for openslide-python using tifffile and zarr
 
 """
+
 from warnings import warn
 
 from tiffslide._types import PathOrFileOrBufferLike

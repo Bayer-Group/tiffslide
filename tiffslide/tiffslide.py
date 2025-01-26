@@ -1,19 +1,19 @@
 from __future__ import annotations
-import io
 
+import io
 import math
 import os.path
 import sys
 from collections import defaultdict
+from collections.abc import Iterator
+from collections.abc import Mapping
 from fractions import Fraction
 from functools import cached_property
 from itertools import count
 from types import TracebackType
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Iterator
 from typing import Literal
-from typing import Mapping
 from typing import TypeVar
 from typing import overload
 from warnings import warn
@@ -25,7 +25,8 @@ import zarr
 from fsspec.core import url_to_fs
 from fsspec.implementations.local import LocalFileSystem
 from fsspec.implementations.reference import ReferenceFileSystem
-from PIL import Image, ImageCms
+from PIL import Image
+from PIL import ImageCms
 from tifffile import TiffFile
 from tifffile import TiffFileError as TiffFileError
 from tifffile import TiffPage
@@ -288,8 +289,7 @@ class TiffSlide:
         location: tuple[int, int],
         level: int,
         size: tuple[int, int],
-    ) -> Image.Image:
-        ...
+    ) -> Image.Image: ...
 
     @overload
     def read_region(
@@ -300,8 +300,7 @@ class TiffSlide:
         *,
         as_array: Literal[False] = ...,
         padding: bool = ...,
-    ) -> Image.Image:
-        ...
+    ) -> Image.Image: ...
 
     @overload
     def read_region(
@@ -312,8 +311,7 @@ class TiffSlide:
         *,
         as_array: Literal[True] = ...,
         padding: bool = ...,
-    ) -> npt.NDArray[np.int_]:
-        ...
+    ) -> npt.NDArray[np.int_]: ...
 
     def read_region(
         self,
@@ -422,7 +420,7 @@ class TiffSlide:
         else:
             image = Image.fromarray(arr)
         if self._profile is not None:
-            image.info['icc_profile'] = self._profile
+            image.info["icc_profile"] = self._profile
         return image
 
     def _read_region_loc_transform(
@@ -495,7 +493,7 @@ class TiffSlide:
             # see: https://github.com/python-pillow/Pillow/blob/95cff6e959/src/libImaging/Resample.c#L559-L588
             thumb.thumbnail(size, _NEAREST)
         if self._profile is not None:
-            thumb.info['icc_profile'] = self._profile
+            thumb.info["icc_profile"] = self._profile
         return thumb
 
     @cached_property
@@ -663,7 +661,7 @@ class _PropertyParser:
         scn="leica",
         bif="ventana",
         ndpi="hamamatsu",
-        philips="philips_tiff"
+        philips="philips_tiff",
         # add more when needed
     )
 
@@ -1049,6 +1047,7 @@ def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
     )
 
     return md
+
 
 class _IccParser:
     """parse ICC profile from tiff tags"""

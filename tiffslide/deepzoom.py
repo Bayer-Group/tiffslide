@@ -6,12 +6,13 @@ minimal overhead tile server for viewing tiled whole slide images in the
 browser without having to re-tile the existing layers in the slide.
 
 """
+
 import math
+from collections.abc import Iterator
+from collections.abc import Sequence
 from io import BytesIO
 from typing import Any
 from typing import Dict
-from typing import Iterator
-from typing import Sequence
 from typing import Tuple
 from typing import Union
 from warnings import warn
@@ -121,7 +122,7 @@ class MinimalComputeAperioDZGenerator:
                 }
 
     @property
-    def level_size(self) -> Dict[int, Tuple[int, int]]:
+    def level_size(self) -> dict[int, tuple[int, int]]:
         """return a dict mapping deep zoom level to tile index size"""
         return {
             idx: (
