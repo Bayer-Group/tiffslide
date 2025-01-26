@@ -1,3 +1,5 @@
+default_language_version:
+  python: python3.9
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v5.0.0
@@ -23,7 +25,10 @@ repos:
   rev: 'v1.14.1'
   hooks:
   - id: mypy
-    additional_dependencies: ["numpy"]
+    additional_dependencies: [
+	"numpy==2.0.2",
+        "pillow==10.0.1",
+    ]
     exclude: ^examples/|^tiffslide/tests/
 - repo: https://github.com/PyCQA/flake8
   rev: '7.1.1'

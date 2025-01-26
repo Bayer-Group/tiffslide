@@ -125,7 +125,7 @@ class NotTiffPage:
     tilewidth = 0
 
     def __init__(self, array: NDArray[np.uint8], codec: str):
-        self._array = array
+        self._array: NDArray[np.uint8] = array
         self._codec = codec
 
     @property
