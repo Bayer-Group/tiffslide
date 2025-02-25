@@ -745,13 +745,14 @@ class _PropertyParser:
             md["tiff.XResolution"] = float(x_resolution)
             md["tiff.YResolution"] = float(y_resolution)
 
+            RESUNIT = tifffile.RESUNIT
             scale = {
-                "INCH": 25400.0,
-                "CENTIMETER": 10000.0,
-                "MILLIMETER": 1000.0,
-                "MICROMETER": 1.0,
-                "NONE": None,
-            }.get(resolution_unit.name, None)
+                RESUNIT.INCH: 25400.0,
+                RESUNIT.CENTIMETER: 10000.0,
+                RESUNIT.MILLIMETER: 1000.0,
+                RESUNIT.MICROMETER: 1.0,
+                RESUNIT.NONE: None,
+            }.get(resolution_unit, None)
             if scale is not None:
                 try:
                     mpp_x = scale / x_resolution
