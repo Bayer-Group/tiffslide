@@ -733,7 +733,7 @@ class _PropertyParser:
             md["tiff.XResolution"] = float(x_resolution)
             md["tiff.YResolution"] = float(y_resolution)
 
-            RESUNIT = tifffile.TIFF.RESUNIT
+            RESUNIT = tifffile.RESUNIT
             scale = {
                 RESUNIT.INCH: 25400.0,
                 RESUNIT.CENTIMETER: 10000.0,
