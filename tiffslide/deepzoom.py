@@ -85,11 +85,11 @@ class MinimalComputeAperioDZGenerator:
                     ):
                         self._mapped_levels[dz_idx] = im_idx
 
-            self._page_info = {}
+            self._page_info: Any = {}
             for lvl_idx, page_series in enumerate(baseline.levels):
                 # extract the current page from page_series
                 page: TiffPage
-                (page,) = page_series.pages
+                (page,) = page_series.pages  # type: ignore[assignment]
 
                 # more assumptions to ensure programmer sanity
                 assert page.compression in {

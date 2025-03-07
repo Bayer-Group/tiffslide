@@ -503,7 +503,7 @@ class NotTiffSlide(TiffSlide):
         storage_options: dict[str, Any] | None = None,
     ) -> None:
         # tifffile instance, can raise TiffFileError
-        self._tifffile = _prepare_tifffile(
+        self._tifffile = _prepare_tifffile(  # type: ignore[assignment]
             filename,
             storage_options=storage_options,
             tifffile_options=tifffile_options,
@@ -571,7 +571,7 @@ def _prepare_tifffile(
     *,
     tifffile_options: dict[str, Any] | None = None,
     storage_options: dict[str, Any] | None = None,
-    _cls: type[TF] = TiffFile,
+    _cls: type[TF] = TiffFile,  # type: ignore[assignment]
 ) -> TF:
     """prepare a TiffFile instance
 
@@ -602,7 +602,7 @@ def _prepare_tifffile(
         # provided an IO stream like instance
         _warn_unused_storage_options(st_kw)
 
-        return _cls(fb, **tf_kw)
+        return _cls(fb, **tf_kw)  # type: ignore[arg-type]
 
     elif isinstance(fb, OpenFileLike):
         # provided a fsspec compatible OpenFile instance
@@ -686,7 +686,7 @@ class _PropertyParser:
     @classmethod
     def collect_level_info(cls, series: TiffPageSeries) -> dict[str, Any]:
         # calculate level info
-        md = {}
+        md: dict[str, Any] = {}
         if series.ndim not in (2, 3):
             raise NotImplementedError(
                 "currently no support for series.ndim not in (2, 3)"
@@ -708,7 +708,7 @@ class _PropertyParser:
 
         for lvl, (width, height) in enumerate(level_dimensions):
             downsample = ((w0 / width) + (h0 / height)) / 2.0
-            page = series.levels[lvl][0]
+            page: TiffPage = series.levels[lvl][0]  # type: ignore[assignment]
             md[f"tiffslide.level[{lvl}].downsample"] = downsample
             md[f"tiffslide.level[{lvl}].height"] = int(height)
             md[f"tiffslide.level[{lvl}].width"] = int(width)
@@ -719,7 +719,7 @@ class _PropertyParser:
     @classmethod
     def recover_mpp(cls, series: TiffPageSeries) -> dict[str, Any]:
         """recover mpp from tiff tags"""
-        page0 = series[0]
+        page0: TiffPage = series[0]  # type: ignore[assignment]
         md: dict[str, Any] = {}
 
         try:
@@ -762,7 +762,7 @@ class _PropertyParser:
         md = self.new_metadata()
 
         # parse metadata from description
-        page = self._tf.pages[0]
+        page: TiffPage = self._tf.pages[0]  # type: ignore[assignment]
         desc = _check_page_description_encoding(page)
         md.update(_parse_metadata_aperio(desc))
         md["tiff.ImageDescription"] = desc
@@ -789,7 +789,7 @@ class _PropertyParser:
         md["tiff.ImageDescription"] = desc
 
         # get all leica info
-        md.update(_parse_metadata_leica(desc))
+        md.update(_parse_metadata_leica(desc or ""))
 
         # fill tile-width / tile-height
         idx = md["tiffslide.series-index"]
@@ -814,7 +814,7 @@ class _PropertyParser:
         md = self.parse_generic_tiff()
 
         # collect hamamatsu tags
-        tags = self._tf.series[0][0].tags
+        tags = self._tf.series[0][0].tags  # type: ignore[union-attr]
         tag_map = {
             "65421": "hamamatsu.SourceLens",
             "65422": "hamamatsu.XOffsetFromSlideCentre",
@@ -837,7 +837,7 @@ class _PropertyParser:
         md = self.new_metadata()
 
         # store the description
-        page = self._tf.pages[0]
+        page: TiffPage = self._tf.pages[0]  # type: ignore[assignment]
         desc = _check_page_description_encoding(page)
         md["tiff.ImageDescription"] = desc
 

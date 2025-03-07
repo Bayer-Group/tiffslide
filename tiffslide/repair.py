@@ -24,6 +24,7 @@ def fix_description_tag_encoding(
 
     applied_fixes = False
     for page in tf.pages:
+        assert isinstance(page, tifffile.TiffPage)
         try:
             description_tag = page.tags["ImageDescription"]
         except KeyError:
@@ -81,7 +82,7 @@ def monkey_patch_description_tag_encoding() -> None:
     )
 
     # monkey patch the TiffTags class
-    TiffTags.valueof = patched_valueof
+    TiffTags.valueof = patched_valueof  # type: ignore[method-assign]
 
 
 if __name__ == "__main__":

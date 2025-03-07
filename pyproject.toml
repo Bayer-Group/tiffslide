@@ -122,8 +122,7 @@ plugins = ["numpy.typing.mypy_plugin"]
 
 [[tool.mypy.overrides]]
 module = ["tiffslide.tests.*"]
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
+ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = ["fsspec.*"]

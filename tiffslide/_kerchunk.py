@@ -77,7 +77,7 @@ def to_kerchunk(
                     urlpath,
                     groupname=f"s{idx}",
                     version=KERCHUNK_SPEC_VERSION,
-                    **kw,
+                    **kw,  # type: ignore[arg-type]
                 )
             except ValueError as err:
                 if "incomplete chunks" in str(err):
