@@ -66,33 +66,27 @@ class OpenFileLike(Protocol):
     fs: AbstractFileSystem
     path: str
 
-    def __enter__(self) -> IO[bytes]:
-        ...
+    def __enter__(self) -> IO[bytes]: ...
 
     def __exit__(
         self,
         exc_type: type[BaseException] | None,
         exc: BaseException | None,
         traceback: TracebackType | None,
-    ) -> None:
-        ...
+    ) -> None: ...
 
 
 @runtime_checkable
 class TiffFileIO(Protocol):
     """minimal stream io for use in tifffile.FileHandle"""
 
-    def seek(self, offset: int, whence: int = 0) -> int:
-        ...
+    def seek(self, offset: int, whence: int = 0) -> int: ...
 
-    def tell(self) -> int:
-        ...
+    def tell(self) -> int: ...
 
-    def read(self, n: int = -1) -> bytes:
-        ...
+    def read(self, n: int = -1) -> bytes: ...
 
-    def readinto(self, __buffer: Any) -> int | None:
-        ...
+    def readinto(self, __buffer: Any) -> int | None: ...
 
 
 PathOrFileOrBufferLike = Union[str, PathLikeStr, OpenFileLike, TiffFileIO]

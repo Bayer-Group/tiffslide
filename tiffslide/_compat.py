@@ -3,19 +3,20 @@
 compatibility layer to support loading non-tiff images
 
 """
+
 from __future__ import annotations
 
 import json
 import os.path
 import sys
+from collections.abc import Mapping
+from collections.abc import Sequence
 from pathlib import PurePath
 from types import MappingProxyType
 from types import TracebackType
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
-from typing import Mapping
-from typing import Sequence
 
 import numpy as np
 import zarr
@@ -124,7 +125,7 @@ class NotTiffPage:
     tilewidth = 0
 
     def __init__(self, array: NDArray[np.uint8], codec: str):
-        self._array = array
+        self._array: NDArray[np.uint8] = array
         self._codec = codec
 
     @property

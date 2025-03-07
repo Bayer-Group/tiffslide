@@ -4,6 +4,7 @@ Test implementation of serialization and deserialization code to and from kerchu
 Don't rely on this API until it's public.
 
 """
+
 from __future__ import annotations
 
 import json
@@ -76,7 +77,7 @@ def to_kerchunk(
                     urlpath,
                     groupname=f"s{idx}",
                     version=KERCHUNK_SPEC_VERSION,
-                    **kw,
+                    **kw,  # type: ignore[arg-type]
                 )
             except ValueError as err:
                 if "incomplete chunks" in str(err):

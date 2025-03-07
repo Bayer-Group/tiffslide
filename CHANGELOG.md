@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.4.0] - 2024-02-14
 ### Added
-- `tiffslide`: support for getting the icc profile if available 
+- `tiffslide`: support for getting the icc profile if available
 
 ## [2.3.1] - 2023-11-30
 ### Fixed
-- `tiffslide`: fix philips tiff mpp_x, mpp_y 
+- `tiffslide`: fix philips tiff mpp_x, mpp_y
 
 ## [2.3.0] - 2023-11-30
 ### Added

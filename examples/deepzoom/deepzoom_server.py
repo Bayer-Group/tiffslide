@@ -15,15 +15,8 @@ app = Flask(__name__)
 _dzgen = None
 
 
-if sys.version_info >= (3, 9):
-
-    def hash_fn(x: str) -> str:
-        return sha1(x.encode(), usedforsecurity=False).hexdigest()
-
-else:
-
-    def hash_fn(x: str) -> str:
-        return sha1(x.encode()).hexdigest()  # nosec
+def hash_fn(x: str) -> str:
+    return sha1(x.encode(), usedforsecurity=False).hexdigest()
 
 
 @app.route("/")

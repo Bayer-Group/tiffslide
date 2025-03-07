@@ -18,11 +18,11 @@ classifiers = [
   "License :: OSI Approved :: BSD License",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Scientific/Engineering",
   "Topic :: Scientific/Engineering :: Information Analysis",
   "Topic :: Scientific/Engineering :: Bio-Informatics",
@@ -32,13 +32,13 @@ classifiers = [
   "Operating System :: Unix",
   "Operating System :: MacOS",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 dependencies = [
   "imagecodecs",
-  "fsspec!=2022.11.0,!=2023.1.0",
-  "pillow",
-  "tifffile>=2021.6.14",
-  "zarr>=2.11.0,<3.0",
+  "fsspec>=2023.3.0",
+  "pillow>=9.1.0",
+  "tifffile>=2023.7.4",
+  "zarr>=2.16.0,<3.0",
   "typing_extensions>=4.0",
 ]
 dynamic = ["version"]
@@ -90,7 +90,7 @@ markers = [
 
 [tool.isort]
 profile = "black"
-py_version = "37"
+py_version = "39"
 force_single_line = true
 extend_skip = ["setup.py", "docs/source/conf.py"]
 
@@ -107,7 +107,7 @@ exclude_lines = [
 ]
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.9"
 check_untyped_defs = true
 disallow_any_generics = true
 disallow_incomplete_defs = true
@@ -122,12 +122,7 @@ plugins = ["numpy.typing.mypy_plugin"]
 
 [[tool.mypy.overrides]]
 module = ["tiffslide.tests.*"]
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-
-[[tool.mypy.overrides]]
-module = ["PIL.*"]
-ignore_missing_imports = true
+ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = ["fsspec.*"]

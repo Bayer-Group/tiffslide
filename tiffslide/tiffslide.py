@@ -1,19 +1,19 @@
 from __future__ import annotations
-import io
 
+import io
 import math
 import os.path
 import sys
 from collections import defaultdict
+from collections.abc import Iterator
+from collections.abc import Mapping
 from fractions import Fraction
 from functools import cached_property
 from itertools import count
 from types import TracebackType
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Iterator
 from typing import Literal
-from typing import Mapping
 from typing import TypeVar
 from typing import overload
 from warnings import warn
@@ -25,7 +25,8 @@ import zarr
 from fsspec.core import url_to_fs
 from fsspec.implementations.local import LocalFileSystem
 from fsspec.implementations.reference import ReferenceFileSystem
-from PIL import Image, ImageCms
+from PIL import Image
+from PIL import ImageCms
 from tifffile import TiffFile
 from tifffile import TiffFileError as TiffFileError
 from tifffile import TiffPage
@@ -80,16 +81,6 @@ PROPERTY_NAME_BOUNDS_X = "tiffslide.bounds-x"
 PROPERTY_NAME_BOUNDS_Y = "tiffslide.bounds-y"
 PROPERTY_NAME_BOUNDS_WIDTH = "tiffslide.bounds-width"
 PROPERTY_NAME_BOUNDS_HEIGHT = "tiffslide.bounds-height"
-
-# prevent pillow>=9.1.0 deprecation warning
-try:
-    _ANTIALIAS = Image.Resampling.LANCZOS
-except AttributeError:
-    _ANTIALIAS = Image.ANTIALIAS
-try:
-    _NEAREST = Image.Resampling.NEAREST
-except AttributeError:
-    _NEAREST = Image.NEAREST
 
 
 class TiffSlide:
@@ -288,8 +279,7 @@ class TiffSlide:
         location: tuple[int, int],
         level: int,
         size: tuple[int, int],
-    ) -> Image.Image:
-        ...
+    ) -> Image.Image: ...
 
     @overload
     def read_region(
@@ -300,8 +290,7 @@ class TiffSlide:
         *,
         as_array: Literal[False] = ...,
         padding: bool = ...,
-    ) -> Image.Image:
-        ...
+    ) -> Image.Image: ...
 
     @overload
     def read_region(
@@ -312,8 +301,7 @@ class TiffSlide:
         *,
         as_array: Literal[True] = ...,
         padding: bool = ...,
-    ) -> npt.NDArray[np.int_]:
-        ...
+    ) -> npt.NDArray[np.int_]: ...
 
     def read_region(
         self,
@@ -422,7 +410,7 @@ class TiffSlide:
         else:
             image = Image.fromarray(arr)
         if self._profile is not None:
-            image.info['icc_profile'] = self._profile
+            image.info["icc_profile"] = self._profile
         return image
 
     def _read_region_loc_transform(
@@ -490,12 +478,12 @@ class TiffSlide:
         )
         thumb.paste(img, box=None, mask=None)
         try:
-            thumb.thumbnail(size, _ANTIALIAS)
+            thumb.thumbnail(size, Image.Resampling.LANCZOS)
         except ValueError:
             # see: https://github.com/python-pillow/Pillow/blob/95cff6e959/src/libImaging/Resample.c#L559-L588
-            thumb.thumbnail(size, _NEAREST)
+            thumb.thumbnail(size, Image.Resampling.NEAREST)
         if self._profile is not None:
-            thumb.info['icc_profile'] = self._profile
+            thumb.info["icc_profile"] = self._profile
         return thumb
 
     @cached_property
@@ -515,7 +503,7 @@ class NotTiffSlide(TiffSlide):
         storage_options: dict[str, Any] | None = None,
     ) -> None:
         # tifffile instance, can raise TiffFileError
-        self._tifffile = _prepare_tifffile(
+        self._tifffile = _prepare_tifffile(  # type: ignore[assignment]
             filename,
             storage_options=storage_options,
             tifffile_options=tifffile_options,
@@ -583,7 +571,7 @@ def _prepare_tifffile(
     *,
     tifffile_options: dict[str, Any] | None = None,
     storage_options: dict[str, Any] | None = None,
-    _cls: type[TF] = TiffFile,
+    _cls: type[TF] = TiffFile,  # type: ignore[assignment]
 ) -> TF:
     """prepare a TiffFile instance
 
@@ -614,7 +602,7 @@ def _prepare_tifffile(
         # provided an IO stream like instance
         _warn_unused_storage_options(st_kw)
 
-        return _cls(fb, **tf_kw)
+        return _cls(fb, **tf_kw)  # type: ignore[arg-type]
 
     elif isinstance(fb, OpenFileLike):
         # provided a fsspec compatible OpenFile instance
@@ -663,7 +651,7 @@ class _PropertyParser:
         scn="leica",
         bif="ventana",
         ndpi="hamamatsu",
-        philips="philips_tiff"
+        philips="philips_tiff",
         # add more when needed
     )
 
@@ -698,7 +686,7 @@ class _PropertyParser:
     @classmethod
     def collect_level_info(cls, series: TiffPageSeries) -> dict[str, Any]:
         # calculate level info
-        md = {}
+        md: dict[str, Any] = {}
         if series.ndim not in (2, 3):
             raise NotImplementedError(
                 "currently no support for series.ndim not in (2, 3)"
@@ -720,7 +708,7 @@ class _PropertyParser:
 
         for lvl, (width, height) in enumerate(level_dimensions):
             downsample = ((w0 / width) + (h0 / height)) / 2.0
-            page = series.levels[lvl][0]
+            page: TiffPage = series.levels[lvl][0]  # type: ignore[assignment]
             md[f"tiffslide.level[{lvl}].downsample"] = downsample
             md[f"tiffslide.level[{lvl}].height"] = int(height)
             md[f"tiffslide.level[{lvl}].width"] = int(width)
@@ -731,7 +719,7 @@ class _PropertyParser:
     @classmethod
     def recover_mpp(cls, series: TiffPageSeries) -> dict[str, Any]:
         """recover mpp from tiff tags"""
-        page0 = series[0]
+        page0: TiffPage = series[0]  # type: ignore[assignment]
         md: dict[str, Any] = {}
 
         try:
@@ -745,7 +733,7 @@ class _PropertyParser:
             md["tiff.XResolution"] = float(x_resolution)
             md["tiff.YResolution"] = float(y_resolution)
 
-            RESUNIT = tifffile.TIFF.RESUNIT
+            RESUNIT = tifffile.RESUNIT
             scale = {
                 RESUNIT.INCH: 25400.0,
                 RESUNIT.CENTIMETER: 10000.0,
@@ -774,7 +762,7 @@ class _PropertyParser:
         md = self.new_metadata()
 
         # parse metadata from description
-        page = self._tf.pages[0]
+        page: TiffPage = self._tf.pages[0]  # type: ignore[assignment]
         desc = _check_page_description_encoding(page)
         md.update(_parse_metadata_aperio(desc))
         md["tiff.ImageDescription"] = desc
@@ -801,7 +789,7 @@ class _PropertyParser:
         md["tiff.ImageDescription"] = desc
 
         # get all leica info
-        md.update(_parse_metadata_leica(desc))
+        md.update(_parse_metadata_leica(desc or ""))
 
         # fill tile-width / tile-height
         idx = md["tiffslide.series-index"]
@@ -826,7 +814,7 @@ class _PropertyParser:
         md = self.parse_generic_tiff()
 
         # collect hamamatsu tags
-        tags = self._tf.series[0][0].tags
+        tags = self._tf.series[0][0].tags  # type: ignore[union-attr]
         tag_map = {
             "65421": "hamamatsu.SourceLens",
             "65422": "hamamatsu.XOffsetFromSlideCentre",
@@ -849,7 +837,7 @@ class _PropertyParser:
         md = self.new_metadata()
 
         # store the description
-        page = self._tf.pages[0]
+        page: TiffPage = self._tf.pages[0]  # type: ignore[assignment]
         desc = _check_page_description_encoding(page)
         md["tiff.ImageDescription"] = desc
 
@@ -1050,6 +1038,7 @@ def _parse_metadata_leica(image_description: str) -> dict[str, Any]:
 
     return md
 
+
 class _IccParser:
     """parse ICC profile from tiff tags"""
 
@@ -1092,11 +1081,6 @@ def _xml_to_dict(xml: str) -> dict[str, Any]:
         return {tag: d}
 
     return _to_dict(x)  # type: ignore
-
-
-def _label_series_axes(axes: str) -> tuple[str, ...]:
-    """helper to make series shapes more understandable"""
-    return tuple(tifffile.TIFF.AXES_LABELS[c] for c in axes)
 
 
 def _has_mpp(md: dict[str, Any]) -> bool:

@@ -1,13 +1,14 @@
 """
 provides helpers for handling and compositing arrays and zarr-like groups
 """
+
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Iterator
-from typing import Mapping
 
 import numpy as np
 import zarr
@@ -16,7 +17,7 @@ from tifffile import TiffFile
 from tifffile import ZarrTiffStore
 from zarr.storage import BaseStore
 from zarr.storage import FSStore
-from zarr.storage import KVStore as _KVStore
+from zarr.storage import KVStore
 
 from tiffslide._compat import NotTiffFile
 from tiffslide._types import Point3D
@@ -37,16 +38,6 @@ __all__ = [
 
 
 # --- zarr storage classes --------------------------------------------
-
-if "__contains__" not in _KVStore.__dict__:
-    # fix missing contains caused double decode:
-    # https://github.com/bayer-science-for-a-better-life/tiffslide/issues/72#issuecomment-1627918238
-    class KVStore(_KVStore):
-        def __contains__(self, item: str) -> bool:
-            return item in self._mutable_mapping
-
-else:
-    KVStore = _KVStore  # type: ignore
 
 
 class _CompositedStore(Mapping[str, Any]):

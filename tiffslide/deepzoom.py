@@ -6,12 +6,13 @@ minimal overhead tile server for viewing tiled whole slide images in the
 browser without having to re-tile the existing layers in the slide.
 
 """
+
 import math
+from collections.abc import Iterator
+from collections.abc import Sequence
 from io import BytesIO
 from typing import Any
 from typing import Dict
-from typing import Iterator
-from typing import Sequence
 from typing import Tuple
 from typing import Union
 from warnings import warn
@@ -29,11 +30,7 @@ from tifffile import TiffPage
 # improve robustness when encountering corrupted tiles
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-# prevent pillow>=9.1.0 deprecation warning
-try:
-    _ANTIALIAS = Image.Resampling.LANCZOS
-except AttributeError:
-    _ANTIALIAS = Image.ANTIALIAS
+_ANTIALIAS = Image.Resampling.LANCZOS
 
 
 def __getattr__(name):  # type: ignore
@@ -88,11 +85,11 @@ class MinimalComputeAperioDZGenerator:
                     ):
                         self._mapped_levels[dz_idx] = im_idx
 
-            self._page_info = {}
+            self._page_info: Any = {}
             for lvl_idx, page_series in enumerate(baseline.levels):
                 # extract the current page from page_series
                 page: TiffPage
-                (page,) = page_series.pages
+                (page,) = page_series.pages  # type: ignore[assignment]
 
                 # more assumptions to ensure programmer sanity
                 assert page.compression in {
@@ -121,7 +118,7 @@ class MinimalComputeAperioDZGenerator:
                 }
 
     @property
-    def level_size(self) -> Dict[int, Tuple[int, int]]:
+    def level_size(self) -> dict[int, tuple[int, int]]:
         """return a dict mapping deep zoom level to tile index size"""
         return {
             idx: (
