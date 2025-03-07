@@ -30,11 +30,7 @@ from tifffile import TiffPage
 # improve robustness when encountering corrupted tiles
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-# prevent pillow>=9.1.0 deprecation warning
-try:
-    _ANTIALIAS = Image.Resampling.LANCZOS
-except AttributeError:
-    _ANTIALIAS = Image.ANTIALIAS
+_ANTIALIAS = Image.Resampling.LANCZOS
 
 
 def __getattr__(name):  # type: ignore
