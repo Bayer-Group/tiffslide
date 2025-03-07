@@ -195,7 +195,7 @@ def _write_test_svs_with_axes_YX_dtype_uint16(pth):
         # write level 0
         tif.write(
             data=gen_im(tile_hw),
-            shape=(*multi_hw[0], 1),
+            shape=multi_hw[0],
             tile=tile_hw[::-1],
             description=svs_desc.format(mag=mag, filename=filename, mpp=mpp),
             **resolution_kw,
@@ -208,7 +208,7 @@ def _write_test_svs_with_axes_YX_dtype_uint16(pth):
         for hw in multi_hw[1:]:
             tif.write(
                 data=gen_im(tile_hw),
-                shape=(*hw, 1),
+                shape=hw,
                 tile=tile_hw[::-1],
                 description="",
                 **resolution_kw,
