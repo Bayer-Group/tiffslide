@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ...
 
+## [2.5.0] - 2024-03-07
+### Changed
+- `tiffslide`: pin zarr to `<3`
+- `tiffslide`: drop Python=3.8
+- `ci`: test against Python=3.13
+
+### Fixed
+- `tiffslide`: fix use of deprecated enums in tifffile
+
 ## [2.4.0] - 2024-02-14
 ### Added
 - `tiffslide`: support for getting the icc profile if available
@@ -196,7 +205,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - initial release of tiffslide and
 
-[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.3.1...HEAD
+[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.5.0...HEAD
+[2.5.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.4.0...v2.5.0
+[2.4.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.3.1...v2.4.0
 [2.3.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.1.2...v2.2.0
