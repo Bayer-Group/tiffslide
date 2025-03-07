@@ -1083,11 +1083,6 @@ def _xml_to_dict(xml: str) -> dict[str, Any]:
     return _to_dict(x)  # type: ignore
 
 
-def _label_series_axes(axes: str) -> tuple[str, ...]:
-    """helper to make series shapes more understandable"""
-    return tuple(tifffile.TIFF.AXES_LABELS[c] for c in axes)
-
-
 def _has_mpp(md: dict[str, Any]) -> bool:
     """check if metadata has MPP defined"""
     return md[PROPERTY_NAME_MPP_X] is not None and md[PROPERTY_NAME_MPP_Y] is not None
