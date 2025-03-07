@@ -124,7 +124,8 @@ def _write_test_tiff(
                 "PhysicalSizeY": mpp,
                 "PhysicalSizeYUnit": "µm",
             }
-            options0["resolution"] = (1.0 / mpp, 1.0 / mpp, "MICROMETER")
+            options0["resolution"] = (1.0 / mpp, 1.0 / mpp)
+            options0["resolutionunit"] = "MICROMETER"
         options = dict(
             tile=(tile_size, tile_size),
             photometric="rgb",
@@ -317,7 +318,8 @@ def small_multilevel_img(tmp_path):
             "PhysicalSizeY": 0.5,
             "PhysicalSizeYUnit": "µm",
         }
-        options0["resolution"] = (2.0, 2.0, "MICROMETER")
+        options0["resolution"] = (2.0, 2.0)
+        options0["resolutionunit"] = "MICROMETER"
         options = dict(
             tile=(tile_size, tile_size),
             photometric="rgb",
