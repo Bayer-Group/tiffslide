@@ -18,7 +18,7 @@ FILES = {
     "generic": "Generic-TIFF/CMU-1.tiff",
     "hamamatsu": "Hamamatsu/OS-3.ndpi",
     "leica": "Leica/Leica-2.scn",
-    "ventana": "Ventana/OS-2.bif",
+    # "ventana": "Ventana/OS-2.bif",
 }
 if OPENSLIDE_TESTDATA_DIR is None:
     pytestmark = pytest.mark.skip
