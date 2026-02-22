@@ -5,6 +5,7 @@ provides helpers for handling and compositing arrays and zarr-like groups
 from __future__ import annotations
 
 import asyncio
+import builtins
 import json
 from collections.abc import AsyncIterator
 from collections.abc import Iterable
@@ -49,7 +50,7 @@ __all__ = [
 
 def _store_exists_sync(store: Store, key: str) -> bool:
     """synchronous wrapper for store.exists()"""
-    return _sync(store.exists(key))
+    return bool(_sync(store.exists(key)))
 
 
 def _store_get_sync(
@@ -70,7 +71,7 @@ def _store_list_sync(store: Store) -> list[str]:
     async def _collect() -> list[str]:
         return [key async for key in store.list()]
 
-    return _sync(_collect())
+    return list(_sync(_collect()))
 
 
 def _store_list_prefix_sync(store: Store, prefix: str) -> list[str]:
@@ -79,7 +80,7 @@ def _store_list_prefix_sync(store: Store, prefix: str) -> list[str]:
     async def _collect() -> list[str]:
         return [key async for key in store.list_prefix(prefix)]
 
-    return _sync(_collect())
+    return list(_sync(_collect()))
 
 
 class _CompositedStore(Store):
@@ -133,11 +134,11 @@ class _CompositedStore(Store):
             except KeyError:
                 pass
             else:
-                return await store.exists(subkey)
+                return bool(await store.exists(subkey))
         # also return True for bare prefix (it's a "directory")
         if not subkey and prefix in self._stores:
             return True
-        return await self._base.exists(key)
+        return bool(await self._base.exists(key))
 
     async def set(self, key: str, value: Buffer) -> None:
         raise ReadOnlyError()
@@ -200,7 +201,7 @@ class _CompositedStore(Store):
         self,
         prototype: BufferPrototype,
         key_ranges: Iterable[tuple[str, ByteRequest | None]],
-    ) -> list[Buffer | None]:
+    ) -> builtins.list[Buffer | None]:
         return [
             await self.get(key, prototype, byte_range=byte_range)
             for key, byte_range in key_ranges
