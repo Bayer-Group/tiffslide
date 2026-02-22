@@ -60,7 +60,7 @@ jobs:
           python -m pip install -e .[dev]
       - name: Run mypy
         run: |
-          mypy --install-types --non-interactive --python-version=3.9 tiffslide
+          mypy --install-types --non-interactive --python-version=3.11 tiffslide
 
   # DEPLOY TIFFSLIDE TO TEST.PYPI ON SUCCESS
   testdeploy:
