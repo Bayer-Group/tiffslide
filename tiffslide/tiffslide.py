@@ -146,7 +146,7 @@ class TiffSlide:
             pass
         else:
             try:
-                grp.close()
+                grp.store.close()
             except AttributeError:
                 pass
             del grp
@@ -248,7 +248,7 @@ class TiffSlide:
         return self.level_count - 1
 
     @cached_property
-    def zarr_group(self) -> zarr.hierarchy.Group:
+    def zarr_group(self) -> zarr.Group:
         """return the tiff image as a zarr-like group
 
         NOTE: this is extra functionality and not part of the drop-in behaviour
@@ -265,10 +265,10 @@ class TiffSlide:
         store = get_zarr_store(
             self.properties, self._tifffile, num_decode_threads=num_decode_threads
         )
-        return zarr.open_group(store, mode="r")
+        return zarr.open_group(store, mode="r", zarr_format=2)
 
     @property
-    def ts_zarr_grp(self) -> zarr.hierarchy.Group:
+    def ts_zarr_grp(self) -> zarr.Group:
         """use .zarr_group instead"""
         # backwards compatibility
         return self.zarr_group
