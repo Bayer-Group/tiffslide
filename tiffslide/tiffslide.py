@@ -258,7 +258,7 @@ class TiffSlide:
         NOTE: this is extra functionality and not part of the drop-in behaviour
         """
         try:
-            return self._zarr_local.zarr_group
+            return self._zarr_local.zarr_group  # type: ignore[no-any-return]
         except AttributeError:
             pass
 

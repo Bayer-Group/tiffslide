@@ -23,6 +23,9 @@ from xml.etree.ElementTree import SubElement
 import fsspec
 from PIL import Image
 from PIL import ImageFile
+from tifffile import COMPRESSION
+from tifffile import PHOTOMETRIC
+from tifffile import PLANARCONFIG
 from tifffile import TIFF
 from tifffile import TiffFile
 from tifffile import TiffPage
@@ -93,13 +96,13 @@ class MinimalComputeAperioDZGenerator:
 
                 # more assumptions to ensure programmer sanity
                 assert page.compression in {
-                    TIFF.COMPRESSION.JPEG,
-                    TIFF.COMPRESSION.APERIO_JP2000_YCBC,
-                    TIFF.COMPRESSION.JPEG_2000_LOSSY,
-                    TIFF.COMPRESSION.APERIO_JP2000_RGB,
+                    COMPRESSION.JPEG,
+                    COMPRESSION.APERIO_JP2000_YCBC,
+                    COMPRESSION.JPEG_2000_LOSSY,
+                    COMPRESSION.APERIO_JP2000_RGB,
                 }
                 assert page.is_tiled
-                assert page.planarconfig == TIFF.PLANARCONFIG.CONTIG
+                assert page.planarconfig == PLANARCONFIG.CONTIG
 
                 # calculate indices
                 st_length, st_width = page.tilelength, page.tilewidth
@@ -114,7 +117,7 @@ class MinimalComputeAperioDZGenerator:
                     "image_wh": (im_width, im_length),
                     "offsets": page.dataoffsets,
                     "bytecounts": page.databytecounts,
-                    "requires_rgb_color_fix": page.photometric == TIFF.PHOTOMETRIC.RGB,
+                    "requires_rgb_color_fix": page.photometric == PHOTOMETRIC.RGB,
                 }
 
     @property

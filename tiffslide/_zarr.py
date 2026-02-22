@@ -12,6 +12,7 @@ from collections.abc import Iterable
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Literal
 
 import numpy as np
 import zarr
@@ -19,9 +20,10 @@ from fsspec.implementations.reference import ReferenceFileSystem
 from tifffile import TiffFile
 from tifffile.zarr import ZarrTiffStore
 from zarr.abc.store import Store
+from zarr.core.buffer import Buffer
 from zarr.core.buffer import BufferPrototype
 from zarr.core.buffer import default_buffer_prototype
-from zarr.core.buffer.cpu import Buffer
+from zarr.core.buffer.cpu import Buffer as CpuBuffer
 from zarr.core.sync import sync as _sync
 from zarr.storage import FsspecStore
 from zarr.storage import MemoryStore
@@ -100,10 +102,10 @@ class _CompositedStore(Store):
         self._base = MemoryStore()
         # create a zarr v2 group in the memory store with optional attributes
         _zgroup = json.dumps({"zarr_format": 2}).encode()
-        _sync(self._base.set(".zgroup", Buffer.from_bytes(_zgroup)))
+        _sync(self._base.set(".zgroup", CpuBuffer.from_bytes(_zgroup)))
         if zattrs:
             _zattrs = json.dumps({"tiffslide.series-composition": zattrs}).encode()
-            _sync(self._base.set(".zattrs", Buffer.from_bytes(_zattrs)))
+            _sync(self._base.set(".zattrs", CpuBuffer.from_bytes(_zattrs)))
 
         self._stores = {}
         for prefix, store in prefixed_stores.items():
@@ -190,7 +192,7 @@ class _CompositedStore(Store):
         return False
 
     @property
-    def supports_partial_writes(self) -> bool:
+    def supports_partial_writes(self) -> Literal[False]:
         return False
 
     @property
@@ -302,11 +304,11 @@ def get_zarr_selection(
     selection: Slice3D,
 ) -> NDArray[np.int_]:
     """retrieve the selection of the zarr Group"""
-    composition: SeriesCompositionInfo = grp.attrs.get("tiffslide.series-composition")
+    composition: SeriesCompositionInfo | None = grp.attrs.get("tiffslide.series-composition")  # type: ignore[assignment]
 
     if composition is None:
         # no composition required, simply retrieve the array
-        return grp[str(level)][selection]
+        return grp[str(level)][selection]  # type: ignore[no-any-return,return-value,index]
 
     else:
         # we need to composite the array
@@ -318,7 +320,7 @@ def get_zarr_selection(
         located_series = composition["located_series"]
 
         for series_idx, level_offsets in located_series.items():
-            arr = grp[f"{series_idx}/{level}"]
+            arr: zarr.Array[Any] = grp[f"{series_idx}/{level}"]  # type: ignore[assignment]
             offset = level_offsets[level]
 
             if dtype is None:
@@ -326,7 +328,7 @@ def get_zarr_selection(
             if fill_value is None:
                 fill_value = arr.fill_value
 
-            overlap = get_overlap(selection, level_shape, offset, arr.shape)
+            overlap = get_overlap(selection, level_shape, offset, arr.shape)  # type: ignore[arg-type]
             if overlap is None:
                 continue
 
@@ -346,7 +348,7 @@ def get_zarr_selection(
         out = np.full(shape, fill_value=fill_value, dtype=dtype)
 
         for series_idx, (target, source) in overlaps.items():
-            arr = grp[f"{series_idx}/{level}"]
+            arr = grp[f"{series_idx}/{level}"]  # type: ignore[assignment,index]
             out[target] = arr[source]
 
     return out
@@ -511,8 +513,8 @@ def get_overlap(
 
 
 def verify_located_arrays(
-    shape: Size3D, located_arrays: dict[Point3D, zarr.Array]
-) -> tuple[str, Any]:
+    shape: Size3D, located_arrays: dict[Point3D, zarr.Array[Any]]
+) -> tuple[DTypeLike, Any]:
     """verify located arrays
 
     ensures that dtypes and fill_values agree and that
@@ -543,12 +545,12 @@ def verify_located_arrays(
 def get_zarr_depth_and_dtype(grp: zarr.Group, axes: str) -> tuple[int, DTypeLike]:
     """return the image depth from the zarr group"""
     if "tiffslide.series-composition" in grp.attrs:
-        srs = next(iter(grp.attrs["series-composition"]["located_series"]))
+        srs = next(iter(grp.attrs["series-composition"]["located_series"]))  # type: ignore[index,call-overload,arg-type]
         key = f"{srs}/0"
     else:
         key = "0"  # -> level
 
-    zarray: zarr.Array = grp[key]
+    zarray: zarr.Array[Any] = grp[key]  # type: ignore[assignment]
 
     if axes == "YXS":
         depth = zarray.shape[2]
