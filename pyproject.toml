@@ -33,7 +33,6 @@ classifiers = [
 requires-python = ">=3.11"
 dependencies = [
   "imagecodecs",
-  "numcodecs!=0.15.1",
   "fsspec>=2024.10.0",
   "pillow>=9.1.0",
   "tifffile>=2025.5.21",
