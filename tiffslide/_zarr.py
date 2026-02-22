@@ -32,10 +32,9 @@ from tiffslide._types import Size3D
 from tiffslide._types import Slice3D
 
 if TYPE_CHECKING:
-    from zarr.abc.store import ByteRequest
-
     from numpy.typing import DTypeLike
     from numpy.typing import NDArray
+    from zarr.abc.store import ByteRequest
 
 
 __all__ = [
@@ -102,9 +101,7 @@ class _CompositedStore(Store):
         _zgroup = json.dumps({"zarr_format": 2}).encode()
         _sync(self._base.set(".zgroup", Buffer.from_bytes(_zgroup)))
         if zattrs:
-            _zattrs = json.dumps(
-                {"tiffslide.series-composition": zattrs}
-            ).encode()
+            _zattrs = json.dumps({"tiffslide.series-composition": zattrs}).encode()
             _sync(self._base.set(".zattrs", Buffer.from_bytes(_zattrs)))
 
         self._stores = {}
@@ -231,9 +228,7 @@ def _get_series_zarr(
     if isinstance(obj, (TiffFile, NotTiffFile)):
         zstore: Store = obj.series[series_idx].aszarr(maxworkers=num_decode_threads)  # type: ignore
     elif isinstance(obj, ReferenceFileSystem):
-        zstore = FsspecStore(
-            fs=obj, path=f"s{series_idx}", read_only=True
-        )
+        zstore = FsspecStore(fs=obj, path=f"s{series_idx}", read_only=True)
     else:
         raise NotImplementedError(f"{type(obj).__name__} unsupported")
     return zstore
