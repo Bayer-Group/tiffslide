@@ -157,8 +157,6 @@ class NotTiffPage:
         zarr.create_array(
             store=store,
             data=self._array,
-            shape=self._array.shape,
-            dtype=self._array.dtype,
             chunks=self._array.shape,
             zarr_format=2,
         )

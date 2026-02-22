@@ -7,6 +7,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncIterator
+from collections.abc import Iterable
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 from typing import Any
@@ -19,7 +20,7 @@ from tifffile.zarr import ZarrTiffStore
 from zarr.abc.store import Store
 from zarr.core.buffer import BufferPrototype
 from zarr.core.buffer import default_buffer_prototype
-from zarr.core.buffer.core import Buffer
+from zarr.core.buffer.cpu import Buffer
 from zarr.core.sync import sync as _sync
 from zarr.storage import FsspecStore
 from zarr.storage import MemoryStore
@@ -198,6 +199,23 @@ class _CompositedStore(Store):
     def supports_listing(self) -> bool:
         return True
 
+    async def get_partial_values(
+        self,
+        prototype: BufferPrototype,
+        key_ranges: Iterable[tuple[str, ByteRequest | None]],
+    ) -> list[Buffer | None]:
+        return [
+            await self.get(key, prototype, byte_range=byte_range)
+            for key, byte_range in key_ranges
+        ]
+
+    def __eq__(self, value: object) -> bool:
+        return (
+            isinstance(value, _CompositedStore)
+            and self._stores == value._stores
+            and self._base == value._base
+        )
+
 
 class ReadOnlyError(Exception):
     """raised when write operations are attempted on a read-only store"""
@@ -213,7 +231,9 @@ def _get_series_zarr(
     if isinstance(obj, (TiffFile, NotTiffFile)):
         zstore: Store = obj.series[series_idx].aszarr(maxworkers=num_decode_threads)  # type: ignore
     elif isinstance(obj, ReferenceFileSystem):
-        zstore = FsspecStore(fs=obj, path=f"s{series_idx}", read_only=True)
+        zstore = FsspecStore(
+            fs=obj, path=f"s{series_idx}", read_only=True
+        )
     else:
         raise NotImplementedError(f"{type(obj).__name__} unsupported")
     return zstore

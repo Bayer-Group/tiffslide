@@ -137,9 +137,16 @@ def from_kerchunk(
     fs: ReferenceFileSystem = fsspec.filesystem(
         "reference",
         fo=kc,
+        asynchronous=True,
         **storage_options,
     )
-    zattrs = json.loads(fs.cat_file(".zattrs"))
+    # Use a synchronous instance for cat_file
+    fs_sync: ReferenceFileSystem = fsspec.filesystem(
+        "reference",
+        fo=kc,
+        **storage_options,
+    )
+    zattrs = json.loads(fs_sync.cat_file(".zattrs"))
 
     if "tiffslide.spec_version" not in zattrs or "tiffslide.properties" not in zattrs:
         raise ValueError("")
