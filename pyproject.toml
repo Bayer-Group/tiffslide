@@ -18,8 +18,6 @@ classifiers = [
   "License :: OSI Approved :: BSD License",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
@@ -32,13 +30,14 @@ classifiers = [
   "Operating System :: Unix",
   "Operating System :: MacOS",
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dependencies = [
   "imagecodecs",
-  "fsspec>=2023.3.0",
+  "numcodecs!=0.15.1",
+  "fsspec>=2024.10.0",
   "pillow>=9.1.0",
-  "tifffile>=2023.7.4,<2025.5.21",
-  "zarr>=2.16.0,<3.0",
+  "tifffile>=2025.5.21",
+  "zarr>=3.0,<4.0",
   "typing_extensions>=4.0",
 ]
 dynamic = ["version"]
@@ -90,7 +89,7 @@ markers = [
 
 [tool.isort]
 profile = "black"
-py_version = "39"
+py_version = "311"
 force_single_line = true
 extend_skip = ["setup.py", "docs/source/conf.py"]
 
@@ -107,7 +106,7 @@ exclude_lines = [
 ]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.11"
 check_untyped_defs = true
 disallow_any_generics = true
 disallow_incomplete_defs = true
