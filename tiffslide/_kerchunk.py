@@ -18,6 +18,8 @@ from typing import Any
 from typing import TypedDict
 
 import fsspec
+from fsspec.asyn import get_loop
+from fsspec.asyn import sync as _fsspec_sync
 from imagecodecs.numcodecs import register_codecs
 
 from tiffslide.tiffslide import TiffSlide
@@ -141,13 +143,7 @@ def from_kerchunk(
         asynchronous=True,
         **storage_options,
     )
-    # Use a synchronous instance for cat_file
-    fs_sync: ReferenceFileSystem = fsspec.filesystem(
-        "reference",
-        fo=kc,
-        **storage_options,
-    )
-    zattrs = json.loads(fs_sync.cat_file(".zattrs"))
+    zattrs = json.loads(_fsspec_sync(get_loop(), fs._cat_file, ".zattrs"))
 
     if "tiffslide.spec_version" not in zattrs or "tiffslide.properties" not in zattrs:
         raise ValueError("")
