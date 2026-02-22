@@ -3,7 +3,7 @@ from __future__ import annotations
 import io
 import math
 import os.path
-import sys
+import threading
 from collections import defaultdict
 from collections.abc import Iterator
 from collections.abc import Mapping
@@ -114,6 +114,10 @@ class TiffSlide:
             _cls=TiffFile,
         )
 
+        # per-thread zarr_group cache
+        self._zarr_local: threading.local = threading.local()
+        self._zarr_lock: threading.Lock = threading.Lock()
+
     @property
     def ts_tifffile(self) -> TiffFile:
         """get the underlying tifffile instance"""
@@ -141,8 +145,8 @@ class TiffSlide:
 
     def close(self) -> None:
         try:
-            grp = self.__dict__.pop("zarr_group")
-        except KeyError:
+            grp = self._zarr_local.zarr_group
+        except AttributeError:
             pass
         else:
             try:
@@ -247,12 +251,17 @@ class TiffSlide:
                 return lvl - 1
         return self.level_count - 1
 
-    @cached_property
+    @property
     def zarr_group(self) -> zarr.Group:
         """return the tiff image as a zarr-like group
 
         NOTE: this is extra functionality and not part of the drop-in behaviour
         """
+        try:
+            return self._zarr_local.zarr_group
+        except AttributeError:
+            pass
+
         try:
             _num_decode = os.environ["TIFFSLIDE_NUM_DECODE_THREADS"]
         except KeyError:
@@ -262,10 +271,16 @@ class TiffSlide:
                 num_decode_threads = int(_num_decode)
             else:
                 num_decode_threads = None
-        store = get_zarr_store(
-            self.properties, self._tifffile, num_decode_threads=num_decode_threads
-        )
-        return zarr.open_group(store, mode="r", zarr_format=2)
+
+        with self._zarr_lock:
+            store = get_zarr_store(
+                self.properties,
+                self._tifffile,
+                num_decode_threads=num_decode_threads,
+            )
+            grp = zarr.open_group(store, mode="r", zarr_format=2)
+            self._zarr_local.zarr_group = grp
+        return grp
 
     @property
     def ts_zarr_grp(self) -> zarr.Group:
@@ -509,6 +524,8 @@ class NotTiffSlide(TiffSlide):
             tifffile_options=tifffile_options,
             _cls=NotTiffFile,
         )
+        self._zarr_local = threading.local()
+        self._zarr_lock = threading.Lock()
 
     @classmethod
     def detect_format(

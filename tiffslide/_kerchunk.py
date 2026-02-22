@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import threading
 from collections import ChainMap
 from io import StringIO
 from typing import TYPE_CHECKING
@@ -162,6 +163,8 @@ def from_kerchunk(
     inst = object.__new__(TiffSlide)
     inst.__dict__["properties"] = properties
     inst._tifffile = fs  # fixme: ...
+    inst._zarr_local = threading.local()
+    inst._zarr_lock = threading.Lock()
     return inst
 
 
