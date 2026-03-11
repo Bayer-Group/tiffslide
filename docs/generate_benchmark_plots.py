@@ -46,7 +46,7 @@ def run_pytest_benchmarks(force: bool) -> None:
 
     df = pd.DataFrame.from_records(records)
     for test_name, ptdf in df.groupby("test_name"):
-        ft_ax_order = [
+        ft_ax_order_all = [
             "svs",
             "svs_jp2k",
             "generic",
@@ -54,8 +54,10 @@ def run_pytest_benchmarks(force: bool) -> None:
             "leica",
             "ventana",
         ]
-        assert set(ptdf["file_type"].unique()) == set(ft_ax_order)
-        fig, axes = plt.subplots(1, len(ft_ax_order), figsize=(10, 4))
+        available = set(ptdf["file_type"].unique())
+        ft_ax_order = [ft for ft in ft_ax_order_all if ft in available]
+        fig, axes = plt.subplots(1, len(ft_ax_order), figsize=(10, 4), squeeze=False)
+        axes = axes[0]  # unwrap row dimension
         fig.suptitle(test_name, x=0.1, y=0.99)
         ft_ax_map = {ft: ax for ft, ax in zip(ft_ax_order, axes)}
 

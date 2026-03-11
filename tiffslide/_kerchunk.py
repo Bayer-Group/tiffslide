@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import threading
 from collections import ChainMap
 from io import StringIO
 from typing import TYPE_CHECKING
@@ -17,6 +18,8 @@ from typing import Any
 from typing import TypedDict
 
 import fsspec
+from fsspec.asyn import get_loop
+from fsspec.asyn import sync as _fsspec_sync
 from imagecodecs.numcodecs import register_codecs
 
 from tiffslide.tiffslide import TiffSlide
@@ -137,9 +140,10 @@ def from_kerchunk(
     fs: ReferenceFileSystem = fsspec.filesystem(
         "reference",
         fo=kc,
+        asynchronous=True,
         **storage_options,
     )
-    zattrs = json.loads(fs.cat_file(".zattrs"))
+    zattrs = json.loads(_fsspec_sync(get_loop(), fs._cat_file, ".zattrs"))
 
     if "tiffslide.spec_version" not in zattrs or "tiffslide.properties" not in zattrs:
         raise ValueError("")
@@ -155,6 +159,8 @@ def from_kerchunk(
     inst = object.__new__(TiffSlide)
     inst.__dict__["properties"] = properties
     inst._tifffile = fs  # fixme: ...
+    inst._zarr_local = threading.local()
+    inst._zarr_lock = threading.Lock()
     return inst
 
 
