@@ -145,6 +145,12 @@ class _CompositedStore(Store):
     async def set(self, key: str, value: Buffer) -> None:
         raise ReadOnlyError()
 
+    async def set_partial_values(
+        self,
+        key_start_values: Iterable[tuple[str, int, bytes | bytearray | memoryview]],
+    ) -> None:
+        raise ReadOnlyError()
+
     async def delete(self, key: str) -> None:
         raise ReadOnlyError()
 
