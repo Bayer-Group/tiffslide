@@ -153,7 +153,14 @@ class NotTiffPage:
         return self._array.size
 
     def aszarr(self) -> zarr.storage.MemoryStore:
-        return zarr.creation.array(self._array).store
+        store = zarr.storage.MemoryStore()
+        zarr.create_array(
+            store=store,
+            data=self._array,
+            chunks=self._array.shape,
+            zarr_format=2,
+        )
+        return store
 
     def asarray(self) -> NDArray[np.uint8]:
         return self._array

@@ -4,20 +4,29 @@ provides helpers for handling and compositing arrays and zarr-like groups
 
 from __future__ import annotations
 
+import asyncio
+import builtins
 import json
-from collections.abc import Iterator
+from collections.abc import AsyncIterator
+from collections.abc import Iterable
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Literal
 
 import numpy as np
 import zarr
 from fsspec.implementations.reference import ReferenceFileSystem
 from tifffile import TiffFile
-from tifffile import ZarrTiffStore
-from zarr.storage import BaseStore
-from zarr.storage import FSStore
-from zarr.storage import KVStore
+from tifffile.zarr import ZarrTiffStore
+from zarr.abc.store import Store
+from zarr.core.buffer import Buffer
+from zarr.core.buffer import BufferPrototype
+from zarr.core.buffer import default_buffer_prototype
+from zarr.core.buffer.cpu import Buffer as CpuBuffer
+from zarr.core.sync import sync as _sync
+from zarr.storage import FsspecStore
+from zarr.storage import MemoryStore
 
 from tiffslide._compat import NotTiffFile
 from tiffslide._types import Point3D
@@ -28,6 +37,7 @@ from tiffslide._types import Slice3D
 if TYPE_CHECKING:
     from numpy.typing import DTypeLike
     from numpy.typing import NDArray
+    from zarr.abc.store import ByteRequest
 
 
 __all__ = [
@@ -40,59 +50,175 @@ __all__ = [
 # --- zarr storage classes --------------------------------------------
 
 
-class _CompositedStore(Mapping[str, Any]):
-    """prefix zarr stores to allow mounting them in groups"""
+def _store_exists_sync(store: Store, key: str) -> bool:
+    """synchronous wrapper for store.exists()"""
+    return bool(_sync(store.exists(key)))
+
+
+def _store_get_sync(
+    store: Store,
+    key: str,
+    prototype: BufferPrototype | None = None,
+    byte_range: ByteRequest | None = None,
+) -> Buffer | None:
+    """synchronous wrapper for store.get()"""
+    if prototype is None:
+        prototype = default_buffer_prototype()
+    return _sync(store.get(key, prototype, byte_range=byte_range))
+
+
+def _store_list_sync(store: Store) -> list[str]:
+    """synchronous wrapper for store.list()"""
+
+    async def _collect() -> list[str]:
+        return [key async for key in store.list()]
+
+    return list(_sync(_collect()))
+
+
+def _store_list_prefix_sync(store: Store, prefix: str) -> list[str]:
+    """synchronous wrapper for store.list_prefix()"""
+
+    async def _collect() -> list[str]:
+        return [key async for key in store.list_prefix(prefix)]
+
+    return list(_sync(_collect()))
+
+
+class _CompositedStore(Store):
+    """prefix-routing zarr v3 Store that mounts child stores under prefixes"""
+
+    _stores: dict[str, Store]
+    _base: MemoryStore
 
     def __init__(
         self,
-        prefixed_stores: Mapping[str, Mapping[str, Any]],
+        prefixed_stores: Mapping[str, Store],
         *,
         zattrs: Mapping[str, Any] | None = None,
     ) -> None:
-        grp = zarr.group({})
+        super().__init__(read_only=True)
+
+        self._base = MemoryStore()
+        # create a zarr v2 group in the memory store with optional attributes
+        _zgroup = json.dumps({"zarr_format": 2}).encode()
+        _sync(self._base.set(".zgroup", CpuBuffer.from_bytes(_zgroup)))
         if zattrs:
-            grp.attrs["tiffslide.series-composition"] = zattrs
-        self._base = grp.store
+            _zattrs = json.dumps({"tiffslide.series-composition": zattrs}).encode()
+            _sync(self._base.set(".zattrs", CpuBuffer.from_bytes(_zattrs)))
+
         self._stores = {}
         for prefix, store in prefixed_stores.items():
             assert not prefix.endswith("/")
             self._stores[prefix] = store
 
-    def __len__(self) -> int:
-        return sum(map(len, self._stores.values())) + len(self._base)
-
-    def __contains__(self, item: object) -> bool:
-        if not isinstance(item, str):
-            return False
-
-        prefix, _, key = item.partition("/")
-        if key:
+    async def get(
+        self,
+        key: str,
+        prototype: BufferPrototype,
+        byte_range: ByteRequest | None = None,
+    ) -> Buffer | None:
+        prefix, _, subkey = key.partition("/")
+        if subkey:
             try:
                 store = self._stores[prefix]
             except KeyError:
                 pass
             else:
-                return key in store
+                return await store.get(subkey, prototype, byte_range=byte_range)
+        return await self._base.get(key, prototype, byte_range=byte_range)
 
-        return item in self._base or prefix in self._stores
+    async def exists(self, key: str) -> bool:
+        prefix, _, subkey = key.partition("/")
+        if subkey:
+            try:
+                store = self._stores[prefix]
+            except KeyError:
+                pass
+            else:
+                return bool(await store.exists(subkey))
+        # also return True for bare prefix (it's a "directory")
+        if not subkey and prefix in self._stores:
+            return True
+        return bool(await self._base.exists(key))
 
-    def __iter__(self) -> Iterator[str]:
+    async def set(self, key: str, value: Buffer) -> None:
+        raise ReadOnlyError()
+
+    async def delete(self, key: str) -> None:
+        raise ReadOnlyError()
+
+    async def list(self) -> AsyncIterator[str]:
         for prefix, store in self._stores.items():
-            yield from (f"{prefix}/{key}" for key in store.keys())
-        yield from self._base.keys()
+            async for key in store.list():
+                yield f"{prefix}/{key}"
+        async for key in self._base.list():
+            yield key
 
-    def __getitem__(self, item: str) -> Any:
-        prefix, _, key = item.partition("/")
+    async def list_prefix(self, prefix: str) -> AsyncIterator[str]:
+        async for key in self.list():
+            if key.startswith(prefix):
+                yield key
 
-        if key:
-            try:
-                store = self._stores[prefix]
-            except KeyError:
-                pass
-            else:
-                return store[key]
+    async def list_dir(self, prefix: str) -> AsyncIterator[str]:
+        if prefix:
+            store_prefix = prefix.rstrip("/")
+            if store_prefix in self._stores:
+                store = self._stores[store_prefix]
+                async for key in store.list():
+                    yield f"{store_prefix}/{key}"
+                return
+            # check if prefix is a sub-path within a child store
+            top, _, rest = store_prefix.partition("/")
+            if top in self._stores:
+                store = self._stores[top]
+                async for key in store.list_dir(rest):
+                    yield f"{top}/{key}"
+                return
+        # fall back to base store
+        async for key in self._base.list_dir(prefix):
+            yield key
+        # also list child store prefixes as "directories"
+        if not prefix:
+            for p in self._stores:
+                yield p
 
-        return self._base[item]
+    @property
+    def supports_writes(self) -> bool:
+        return False
+
+    @property
+    def supports_deletes(self) -> bool:
+        return False
+
+    @property
+    def supports_partial_writes(self) -> Literal[False]:
+        return False
+
+    @property
+    def supports_listing(self) -> bool:
+        return True
+
+    async def get_partial_values(
+        self,
+        prototype: BufferPrototype,
+        key_ranges: Iterable[tuple[str, ByteRequest | None]],
+    ) -> builtins.list[Buffer | None]:
+        return [
+            await self.get(key, prototype, byte_range=byte_range)
+            for key, byte_range in key_ranges
+        ]
+
+    def __eq__(self, value: object) -> bool:
+        return (
+            isinstance(value, _CompositedStore)
+            and self._stores == value._stores
+            and self._base == value._base
+        )
+
+
+class ReadOnlyError(Exception):
+    """raised when write operations are attempted on a read-only store"""
 
 
 def _get_series_zarr(
@@ -100,15 +226,20 @@ def _get_series_zarr(
     series_idx: int,
     *,
     num_decode_threads: int | None = None,
-) -> Mapping[str, Any]:
+) -> Store:
     """return a zarr store from the object"""
     if isinstance(obj, (TiffFile, NotTiffFile)):
-        zstore = obj.series[series_idx].aszarr(maxworkers=num_decode_threads)  # type: ignore
+        zstore: Store = obj.series[series_idx].aszarr(maxworkers=num_decode_threads)  # type: ignore
     elif isinstance(obj, ReferenceFileSystem):
-        zstore = FSStore(f"s{series_idx}", fs=obj)
+        zstore = FsspecStore(fs=obj, path=f"s{series_idx}", read_only=True)
     else:
         raise NotImplementedError(f"{type(obj).__name__} unsupported")
-    return zstore  # type: ignore
+    return zstore
+
+
+def _is_single_array_store(store: Store) -> bool:
+    """check if the store represents a single zarr array (not a group)"""
+    return _store_exists_sync(store, ".zarray")
 
 
 def get_zarr_store(
@@ -116,7 +247,7 @@ def get_zarr_store(
     tf: TiffFile | ReferenceFileSystem | None,
     *,
     num_decode_threads: int | None = None,
-) -> BaseStore:
+) -> Store:
     """return a zarr store
 
     Parameters
@@ -131,7 +262,7 @@ def get_zarr_store(
     Returns
     -------
     store:
-        a zarr store of the tiff
+        a zarr v3 Store of the tiff
     """
     if tf is None:
         raise NotImplementedError("support in future versions")
@@ -140,33 +271,29 @@ def get_zarr_store(
     composition: SeriesCompositionInfo | None = properties.get(
         "tiffslide.series-composition"
     )
-    store: BaseStore
+    store: Store
     if composition:
-        prefixed_stores = {}
+        prefixed_stores: dict[str, Store] = {}
         for series_idx in composition["located_series"].keys():
             _store = _get_series_zarr(
                 tf, series_idx, num_decode_threads=num_decode_threads
             )
             # encapsulate store as group if tifffile returns a zarr array
-            if ".zarray" in _store:
+            if _is_single_array_store(_store):
                 _store = _CompositedStore({"0": _store})
             prefixed_stores[str(series_idx)] = _store
 
-        _store = _CompositedStore(prefixed_stores, zattrs=composition)
-        store = KVStore(_store)
+        store = _CompositedStore(prefixed_stores, zattrs=composition)
 
     else:
         series_idx = properties.get("tiffslide.series-index", 0)
         _store = _get_series_zarr(tf, series_idx, num_decode_threads=num_decode_threads)
 
         # encapsulate store as group if tifffile returns a zarr array
-        if ".zarray" in _store:
-            _store = _CompositedStore({"0": _store})
-            store = KVStore(_store)
-        elif isinstance(_store, BaseStore):
-            store = _store
+        if _is_single_array_store(_store):
+            store = _CompositedStore({"0": _store})
         else:
-            store = KVStore(_store)
+            store = _store
 
     return store
 
@@ -177,11 +304,11 @@ def get_zarr_selection(
     selection: Slice3D,
 ) -> NDArray[np.int_]:
     """retrieve the selection of the zarr Group"""
-    composition: SeriesCompositionInfo = grp.attrs.get("tiffslide.series-composition")
+    composition: SeriesCompositionInfo | None = grp.attrs.get("tiffslide.series-composition")  # type: ignore[assignment]
 
     if composition is None:
         # no composition required, simply retrieve the array
-        return grp[str(level)][selection]
+        return grp[str(level)][selection]  # type: ignore[no-any-return,return-value,index]
 
     else:
         # we need to composite the array
@@ -193,7 +320,7 @@ def get_zarr_selection(
         located_series = composition["located_series"]
 
         for series_idx, level_offsets in located_series.items():
-            arr = grp[f"{series_idx}/{level}"]
+            arr: zarr.Array[Any] = grp[f"{series_idx}/{level}"]  # type: ignore[assignment]
             offset = level_offsets[level]
 
             if dtype is None:
@@ -201,7 +328,7 @@ def get_zarr_selection(
             if fill_value is None:
                 fill_value = arr.fill_value
 
-            overlap = get_overlap(selection, level_shape, offset, arr.shape)
+            overlap = get_overlap(selection, level_shape, offset, arr.shape)  # type: ignore[arg-type]
             if overlap is None:
                 continue
 
@@ -221,10 +348,23 @@ def get_zarr_selection(
         out = np.full(shape, fill_value=fill_value, dtype=dtype)
 
         for series_idx, (target, source) in overlaps.items():
-            arr = grp[f"{series_idx}/{level}"]
+            arr = grp[f"{series_idx}/{level}"]  # type: ignore[assignment,index]
             out[target] = arr[source]
 
     return out
+
+
+def _unwrap_to_zarrtiffstore(store: Store) -> ZarrTiffStore:
+    """navigate the store wrapper chain to find the underlying ZarrTiffStore"""
+    if isinstance(store, ZarrTiffStore):
+        return store
+
+    if isinstance(store, _CompositedStore) and {"0"} == set(store._stores):
+        inner = store._stores["0"]
+        if isinstance(inner, ZarrTiffStore):
+            return inner
+
+    raise NotImplementedError(f"store type: {type(store).__name__!r}")
 
 
 def get_zarr_chunk_sizes(
@@ -239,42 +379,25 @@ def get_zarr_chunk_sizes(
 
     """
     store = grp.store
+    tiff_store = _unwrap_to_zarrtiffstore(store)
 
-    if not isinstance(store, ZarrTiffStore):
-        while hasattr(store, "_mutable_mapping"):
-            # noinspection PyProtectedMember
-            store = store._mutable_mapping
-
-        # noinspection PyProtectedMember
-        if isinstance(store, _CompositedStore) and {"0"} == set(store._stores):
-            # noinspection PyProtectedMember
-            store = store._stores["0"]
-
-        while hasattr(store, "_mutable_mapping"):
-            # noinspection PyProtectedMember
-            store = store._mutable_mapping
-
-        if not isinstance(store, ZarrTiffStore):
-            raise NotImplementedError(f"store type: {type(store).__name__!r}")
-
-    for key, value in store.items():
-        if ".zarray" in key:
-            levelstr = (key.split("/")[0] + "/") if "/" in key else ""
-            # skip if not selected level
-            if levelstr == "" and level != 0:
-                continue
-            elif levelstr == "" and level == 0:
-                break
-            elif levelstr != f"{level}/":
-                continue
-            else:
-                break
+    # determine the level prefix and read metadata via zarr v2 .zarray keys
+    if tiff_store.is_multiscales:
+        levelstr = f"{level}/"
+        zarray_key = f"{level}/.zarray"
     else:
+        if level != 0:
+            raise ValueError(f"no matching level: {level}")
+        levelstr = ""
+        zarray_key = ".zarray"
+
+    buf = _store_get_sync(tiff_store, zarray_key)
+    if buf is None:
         raise ValueError(f"no matching level: {level}")
 
-    value = json.loads(value)
-    shape = value["shape"]
-    chunks = value["chunks"]
+    meta = json.loads(buf.to_bytes().decode())
+    shape = meta["shape"]
+    chunks = meta["chunks"]
 
     assert len(shape) == len(chunks)
     if len(shape) not in (2, 3):
@@ -286,22 +409,17 @@ def get_zarr_chunk_sizes(
     #  relies on private functionality of ZarrTiffStore, might break at any time
     try:
         # noinspection PyProtectedMember
-        chunkmode = store._chunkmode
-        # noinspection PyProtectedMember
-        parse_key = store._parse_key
+        parse_key = tiff_store._parse_key
     except AttributeError:
         raise RuntimeError("probably not supported with your tifffile version")
 
     chunk_sizes: NDArray[np.int64] = np.full(chunked, dtype=np.int64, fill_value=-1)
 
-    # _index = ""
     for indices in np.ndindex(*chunked):
         chunkindex = ".".join(str(index) for index in indices)
         key = levelstr + chunkindex
         keyframe, page, _, offset, bytecount = parse_key(key)
-        # key = levelstr + _index + chunkindex
-        if page and chunkmode and offset is None:
-            # offset = page.dataoffsets[0]
+        if page and offset is None:
             bytecount = keyframe.nbytes
         if offset and bytecount:
             chunk_sizes[indices] = bytecount
@@ -395,8 +513,8 @@ def get_overlap(
 
 
 def verify_located_arrays(
-    shape: Size3D, located_arrays: dict[Point3D, zarr.Array]
-) -> tuple[str, Any]:
+    shape: Size3D, located_arrays: dict[Point3D, zarr.Array[Any]]
+) -> tuple[DTypeLike, Any]:
     """verify located arrays
 
     ensures that dtypes and fill_values agree and that
@@ -427,12 +545,12 @@ def verify_located_arrays(
 def get_zarr_depth_and_dtype(grp: zarr.Group, axes: str) -> tuple[int, DTypeLike]:
     """return the image depth from the zarr group"""
     if "tiffslide.series-composition" in grp.attrs:
-        srs = next(iter(grp.attrs["series-composition"]["located_series"]))
+        srs = next(iter(grp.attrs["series-composition"]["located_series"]))  # type: ignore[index,call-overload,arg-type]
         key = f"{srs}/0"
     else:
         key = "0"  # -> level
 
-    zarray: zarr.core.Array = grp[key]
+    zarray: zarr.Array[Any] = grp[key]  # type: ignore[assignment]
 
     if axes == "YXS":
         depth = zarray.shape[2]
