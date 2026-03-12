@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ...
 
+## [3.0.0] - 2026-03-12
+### Changed
+- `tiffslide`: migrate to zarr v3
+- `tiffslide`: drop Python 3.9 and 3.10, require `>=3.11`
+- `tiffslide`: require `tifffile>=2025.5.21`
+- `tiffslide`: require `zarr>=3.0,<4.0`
+- `tiffslide`: require `fsspec>=2024.10.0`
+
+## [2.5.1] - 2025-05-30
+### Fixed
+- `tiffslide`: add upper bound to tifffile
+
 ## [2.5.0] - 2024-03-07
 ### Changed
 - `tiffslide`: pin zarr to `<3`
@@ -205,7 +217,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - initial release of tiffslide and
 
-[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.5.0...HEAD
+[Unreleased]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.5.1...v3.0.0
+[2.5.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.3.1...v2.4.0
 [2.3.1]: https://github.com/bayer-science-for-a-better-life/tiffslide/compare/v2.3.0...v2.3.1
