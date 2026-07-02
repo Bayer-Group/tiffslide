@@ -158,7 +158,7 @@ class NotTiffPage:
             store=store,
             data=self._array,
             chunks=self._array.shape,
-            zarr_format=2,
+            zarr_format=3,
         )
         return store
 

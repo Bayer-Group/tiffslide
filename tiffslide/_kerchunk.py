@@ -20,7 +20,7 @@ from typing import TypedDict
 import fsspec
 from fsspec.asyn import get_loop
 from fsspec.asyn import sync as _fsspec_sync
-from imagecodecs.numcodecs import register_codecs
+from imagecodecs.zarr import register_codecs
 
 from tiffslide.tiffslide import TiffSlide
 
@@ -80,6 +80,7 @@ def to_kerchunk(
                     urlpath,
                     groupname=f"s{idx}",
                     version=KERCHUNK_SPEC_VERSION,
+                    zarr_format=3,
                     **kw,  # type: ignore[arg-type]
                 )
             except ValueError as err:
@@ -95,21 +96,15 @@ def to_kerchunk(
         combined_refs = combined["refs"]
         refs = kc["refs"]
 
-        # insert .zgroup
-        _zgroup = refs.pop(".zgroup")
-        if ".zgroup" in combined_refs:
-            assert combined_refs[".zgroup"] == _zgroup
-        combined_refs[".zgroup"] = _zgroup
-
-        # insert .zattrs
-        if ".zattrs" not in combined_refs:
-            combined_refs[".zattrs"] = json.dumps(
-                {
-                    "tiffslide.spec_version": TIFFSLIDE_SPEC_VERSION,
-                    "tiffslide.properties": slide.properties,
-                }
-            )
-        assert ".zattrs" not in refs
+        # insert the top-level group metadata (zarr.json) and embed the
+        # tiffslide properties into its attributes (zarr v3)
+        _zgroup = refs.pop("zarr.json")
+        if "zarr.json" not in combined_refs:
+            group_meta = json.loads(_zgroup)
+            attributes = group_meta.setdefault("attributes", {})
+            attributes["tiffslide.spec_version"] = TIFFSLIDE_SPEC_VERSION
+            attributes["tiffslide.properties"] = slide.properties
+            combined_refs["zarr.json"] = json.dumps(group_meta)
 
         # insert refs
         combined_refs.update(refs)
@@ -143,7 +138,8 @@ def from_kerchunk(
         asynchronous=True,
         **storage_options,
     )
-    zattrs = json.loads(_fsspec_sync(get_loop(), fs._cat_file, ".zattrs"))
+    group_meta = json.loads(_fsspec_sync(get_loop(), fs._cat_file, "zarr.json"))
+    zattrs = group_meta.get("attributes", {})
 
     if "tiffslide.spec_version" not in zattrs or "tiffslide.properties" not in zattrs:
         raise ValueError("")

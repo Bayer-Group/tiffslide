@@ -20,8 +20,8 @@ dependencies:
   - fsspec>=2024.10.0
   - imagecodecs
   - pillow>=9.1.0
-  - tifffile>=2025.5.21,<2026.5.2
-  - zarr>=3.0,<3.2
+  - tifffile>=2026.5.2
+  - zarr>=3.2,<4.0
 
   # development dependencies
   - pre-commit        # [ TIFFSLIDE_DEVEL ]

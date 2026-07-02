@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased] - ...
+### Fixed
+- `tiffslide`: support `tifffile>=2026.5.2` which emits zarr v3 metadata
+  (`zarr.json`) from `ZarrTiffStore`, fixing `GroupNotFoundError` when reading
+  slides (#100)
+
+### Changed
+- `tiffslide`: require `tifffile>=2026.5.2`
+- `tiffslide`: require `zarr>=3.2,<4.0`
 
 ## [3.0.1] - 2026-07-03
 ### Fixed

@@ -27,5 +27,5 @@ def test_decode_only_once(wsi_file, monkeypatch):
 
     _ = ts.read_region((0, 0), 0, (1, 1), as_array=True)
     # filter out metadata keys — only check chunk data keys
-    data_keys = [k for k in called_keys if not k.startswith(".z")]
+    data_keys = [k for k in called_keys if not k.endswith("zarr.json")]
     assert len(data_keys) == len(set(data_keys))
