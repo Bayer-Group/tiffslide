@@ -35,8 +35,8 @@ dependencies = [
   "imagecodecs",
   "fsspec>=2024.10.0",
   "pillow>=9.1.0",
-  "tifffile>=2025.5.21",
-  "zarr>=3.0,<4.0",
+  "tifffile>=2025.5.21,<2026.5.2",
+  "zarr>=3.0,<3.2",
   "typing_extensions>=4.0",
 ]
 dynamic = ["version"]

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ...
 
+## [3.0.1] - 2026-07-03
+### Fixed
+- `tiffslide`: pin `tifffile<2026.5.2` and `zarr<3.2` to avoid `GroupNotFoundError`
+  when reading slides; `tifffile>=2026.5.2` switched `ZarrTiffStore` to zarr v3
+  metadata (`zarr.json` / NGFF 0.5) which is incompatible with tiffslide 3.0.0 (#100)
+- `environment.devenv.yml`: update outdated `python`, `tifffile`, and `zarr` pins
+  to match `pyproject.toml`
+
 ## [3.0.0] - 2026-03-12
 ### Changed
 - `tiffslide`: migrate to zarr v3
