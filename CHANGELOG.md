@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   slides (#100)
 
 ### Changed
+- `tiffslide`: drop Python 3.11, require `>=3.12` (follows `tifffile>=2026.5.2`
+  which requires Python `>=3.12`)
 - `tiffslide`: require `tifffile>=2026.5.2` (drops the `tifffile<2026.5.2` pin
   introduced in 3.0.1)
 - `tiffslide`: require `zarr>=3.2,<4.0`

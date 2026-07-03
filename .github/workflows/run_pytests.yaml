@@ -25,19 +25,17 @@ jobs:
             python-version: "3.13"
           - os: ubuntu-latest
             python-version: "3.12"
-          - os: ubuntu-latest
-            python-version: "3.11"
     steps:
       - name: Checkout TiffSlide
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install TiffSlide
         run: python -m pip install -e .[dev]
       - name: Cache tiffslide/tests/data
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: tiffslide/tests/data
           key: downloaded-slides
@@ -49,18 +47,18 @@ jobs:
     name: mypy type analysis
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.11
+          python-version: 3.12
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e .[dev]
       - name: Run mypy
         run: |
-          mypy --install-types --non-interactive --python-version=3.11 tiffslide
+          mypy --install-types --non-interactive --python-version=3.12 tiffslide
 
   # DEPLOY TIFFSLIDE TO TEST.PYPI ON SUCCESS
   testdeploy:
@@ -69,13 +67,13 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.11
+          python-version: 3.12
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -84,7 +82,7 @@ jobs:
       - name: Get version without local_scheme
         id: non_local_version
         run: |
-          python -m setuptools_scm | awk -F+ '{print "::set-output name=version::"$1}'
+          python -m setuptools_scm | awk -F+ '{print "version="$1}' >> "$GITHUB_OUTPUT"
       - name: Build a binary wheel and a source tarball
         env:
           SETUPTOOLS_SCM_PRETEND_VERSION: ${{ steps.non_local_version.outputs.version }}
@@ -106,13 +104,13 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.11
+          python-version: 3.12
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
