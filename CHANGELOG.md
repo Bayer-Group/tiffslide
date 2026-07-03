@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ...
 
+## [4.0.0] - 2026-07-03
+### Fixed
+- `tiffslide`: support `tifffile>=2026.5.2` which emits zarr v3 metadata
+  (`zarr.json`) from `ZarrTiffStore`, fixing `GroupNotFoundError` when reading
+  slides (#100)
+
+### Changed
+- `tiffslide`: drop Python 3.11, require `>=3.12` (follows `tifffile>=2026.5.2`
+  which requires Python `>=3.12`)
+- `tiffslide`: require `tifffile>=2026.5.2` (drops the `tifffile<2026.5.2` pin
+  introduced in 3.0.1)
+- `tiffslide`: require `zarr>=3.2,<4.0`
+
 ## [3.0.1] - 2026-07-03
 ### Fixed
 - `tiffslide`: pin `tifffile<2026.5.2` and `zarr<3.2` to avoid `GroupNotFoundError`

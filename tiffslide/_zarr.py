@@ -50,11 +50,6 @@ __all__ = [
 # --- zarr storage classes --------------------------------------------
 
 
-def _store_exists_sync(store: Store, key: str) -> bool:
-    """synchronous wrapper for store.exists()"""
-    return bool(_sync(store.exists(key)))
-
-
 def _store_get_sync(
     store: Store,
     key: str,
@@ -100,12 +95,14 @@ class _CompositedStore(Store):
         super().__init__(read_only=True)
 
         self._base = MemoryStore()
-        # create a zarr v2 group in the memory store with optional attributes
-        _zgroup = json.dumps({"zarr_format": 2}).encode()
-        _sync(self._base.set(".zgroup", CpuBuffer.from_bytes(_zgroup)))
+        # create a zarr v3 group in the memory store with optional attributes
+        attributes: dict[str, Any] = {}
         if zattrs:
-            _zattrs = json.dumps({"tiffslide.series-composition": zattrs}).encode()
-            _sync(self._base.set(".zattrs", CpuBuffer.from_bytes(_zattrs)))
+            attributes["tiffslide.series-composition"] = zattrs
+        _zgroup = json.dumps(
+            {"zarr_format": 3, "node_type": "group", "attributes": attributes}
+        ).encode()
+        _sync(self._base.set("zarr.json", CpuBuffer.from_bytes(_zgroup)))
 
         self._stores = {}
         for prefix, store in prefixed_stores.items():
@@ -245,7 +242,14 @@ def _get_series_zarr(
 
 def _is_single_array_store(store: Store) -> bool:
     """check if the store represents a single zarr array (not a group)"""
-    return _store_exists_sync(store, ".zarray")
+    buf = _store_get_sync(store, "zarr.json")
+    if buf is None:
+        return False
+    try:
+        meta = json.loads(buf.to_bytes().decode())
+    except (ValueError, UnicodeDecodeError):
+        return False
+    return bool(meta.get("node_type") == "array")
 
 
 def get_zarr_store(
@@ -387,15 +391,15 @@ def get_zarr_chunk_sizes(
     store = grp.store
     tiff_store = _unwrap_to_zarrtiffstore(store)
 
-    # determine the level prefix and read metadata via zarr v2 .zarray keys
+    # determine the level prefix and read metadata via zarr v3 zarr.json keys
     if tiff_store.is_multiscales:
         levelstr = f"{level}/"
-        zarray_key = f"{level}/.zarray"
+        zarray_key = f"{level}/zarr.json"
     else:
         if level != 0:
             raise ValueError(f"no matching level: {level}")
         levelstr = ""
-        zarray_key = ".zarray"
+        zarray_key = "zarr.json"
 
     buf = _store_get_sync(tiff_store, zarray_key)
     if buf is None:
@@ -403,7 +407,7 @@ def get_zarr_chunk_sizes(
 
     meta = json.loads(buf.to_bytes().decode())
     shape = meta["shape"]
-    chunks = meta["chunks"]
+    chunks = meta["chunk_grid"]["configuration"]["chunk_shape"]
 
     assert len(shape) == len(chunks)
     if len(shape) not in (2, 3):

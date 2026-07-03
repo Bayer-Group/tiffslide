@@ -278,7 +278,7 @@ class TiffSlide:
                 self._tifffile,
                 num_decode_threads=num_decode_threads,
             )
-            grp = zarr.open_group(store, mode="r", zarr_format=2)
+            grp = zarr.open_group(store, mode="r", zarr_format=3)
             self._zarr_local.zarr_group = grp
         return grp
 
